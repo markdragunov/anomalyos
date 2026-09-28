@@ -1,0 +1,25 @@
+name: Engineering harness
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# Eventual pipeline (do not fake the missing stages):
+#   PR → tests → lint → type checking → architecture checks → evaluation smoke
+# Lint and type checking land when a toolchain ADR adds them.
+
+jobs:
+  harness:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Tests
+        run: python -m unittest discover -s tests -t . -v
+      - name: Architecture checks
+        run: python scripts/check_architecture.py
+      - name: Evaluation smoke
+        run: python scripts/eval_smoke.py
