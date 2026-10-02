@@ -314,6 +314,12 @@ def validate_ground_truth(records: Iterable[Mapping[str, Any]], scenario_ids: It
             r.err(f"{ctx}: end before start")
         if g.get("expected_recovery") is not None and g["expected_recovery"] < g["start"]:
             r.err(f"{ctx}: recovery before start")
+        oa = g.get("oracle_detectable_at")
+        if oa is not None:
+            if not incident:
+                r.err(f"{ctx}: suppressed signal must not carry oracle_detectable_at")
+            if oa < g["start"] or (g.get("end") is not None and oa > g["end"]):
+                r.err(f"{ctx}: oracle_detectable_at outside [start, end]")
         aff = [json.dumps(c, sort_keys=True) for c in g.get("affected_cohorts", [])]
         ctl = [json.dumps(c, sort_keys=True) for c in g.get("control_cohorts", [])]
         if set(aff) & set(ctl):

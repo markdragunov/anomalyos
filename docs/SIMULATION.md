@@ -196,3 +196,22 @@ Documented so benchmarks do not over-read the answer key (sim-1.0.0):
   Do not use it to score detection or localization of small cohorts; use the counts.
 * **`control_day` has an empty `measured`** (no reference approval or volume for a normal day). To be filled
   in a later phase of `docs/tasks/SIMULATOR-FIXES.md`.
+
+## 11. Detectability and volumes (sim-1.1.1)
+
+Every incident record carries `oracle_detectable_at` and `oracle_method` (ADR-031): when the effect first becomes
+distinguishable (cumulative z >= 3 against the counterfactual, hourly). `expected_detection_window` is a designer's
+constant (`basis: "designer_constant"`), kept as a lower bound. Measure detection latency from
+`max(start, oracle_detectable_at)`; count incidents with `oracle_detectable_at = null` separately.
+
+Charge attempts per window, seed 42, scale 1.0, 28 days (median / share of windows with fewer than 30 attempts):
+
+| Cohort | 5 min | 15 min | 1 h |
+|---|---|---|---|
+| global | 43 / 23 % | 131 / 0 % | 532 / 0 % |
+| PSP (psp_beta) | 14 / 99 % | 44 / 34 % | 183 / 0 % |
+| PSP x country (DE / psp_beta) | 4 / 100 % | 12 / 99 % | 52 / 32 % |
+| ES x psp_gamma | 2 / 100 % | 6 / 100 % | 26 / 58 % |
+| JP x amex | 0 / 100 % | 1 / 100 % | 3 / 100 % |
+
+All 17 PSP x country cohorts together: see ADR-026 (63 % of 1-hour windows below 30 attempts).

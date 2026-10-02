@@ -6,6 +6,16 @@ Format: short ID, status, context, decision, consequences.
 
 ---
 
+## ADR-031 — Oracle detectability in ground truth (sim-1.1, phase 3) · *accepted* (2026-10-02)
+
+**Context.** `expected_detection_window` was a designer's constant (1 h, 4 h, 12 h, 3 days) unrelated to effect strength or cohort volume (review 4.3).
+
+**Decision.** The engine keeps per-hour copies of its paired counters (actual vs counterfactual on identical random draws). Ground truth gets `oracle_detectable_at`: the end of the first hour, counted from `start`, in which the cumulative difference reaches z >= 3 one-sided (rates: binomial z of the actual count against the counterfactual rate; counts: Poisson z of the effect's excess over the cohort's organic baseline, counted at payment time), plus `oracle_method`. `null` if the effect never becomes distinguishable inside its window; always `null` for suppressed signals. `expected_detection_window` stays, with `basis: "designer_constant"`, as a lower bound of expectations. The benchmark measures detection latency from `max(start, oracle_detectable_at)` and reports undetectable incidents separately. The validator rejects an oracle time outside `[start, end]`.
+
+**Consequences.** `GENERATOR_VERSION = sim-1.1.1` (event stream unchanged; ground truth gains fields). Findings at seed 42: the ES/psp_gamma drift becomes distinguishable after 69 h at scale 1.0 (110 h at 0.3); the BR issuer outage after 3 h (designer: 1 h) and not at all at scale 0.3; renewals after 2 h (designer: 12 h). Randomized DEV seeds 1-5 at scale 1.0: 54 of 55 incidents distinguishable; the exception is a weak iDEAL outage on seed 2. The oracle is optimistic for a real detector (it knows the cohort and compares with the counterfactual, not with a noisy baseline).
+
+---
+
 ## ADR-030 — No cause labels in event data (sim-1.1, phase 2) · *accepted* (2026-10-02)
 
 **Context.** Review finding 4.2: `issuer_not_available` was emitted only by incident effects (91 of 91 occurrences in seed 42), and effect-caused declines got a hidden `+8` risk score (24.4 vs 15.3 on average). A classifier could read the cause off a single event.
