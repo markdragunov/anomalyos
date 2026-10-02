@@ -1,6 +1,6 @@
 # AnomalyOS
 
-AI-native **Billing & Payments Incident Intelligence** — research prototype.
+AI-native Billing & Payments Incident Intelligence — Research prototype.
 
 AnomalyOS detects meaningful anomalies in billing and payment systems, decides whether an
 anomaly is a real business incident, isolates the affected cohorts and likely causes,
