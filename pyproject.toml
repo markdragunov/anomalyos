@@ -27,4 +27,5 @@ testpaths = ["tests"]
 addopts = "-ra --strict-markers"
 markers = [
     "integration: requires a running ClickHouse (opt-in via ANOMALYOS_RUN_INTEGRATION=1)",
+    "slow: minutes-long checks (opt-in via ANOMALYOS_RUN_SLOW=1)",
 ]

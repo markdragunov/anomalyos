@@ -177,3 +177,18 @@ checks, charge≠PI amount, refunds>charge, PAN-like digit runs, truth-token lea
 Fixed UTC offsets (no DST); 30-day billing months; issuer country = customer country;
 one payment method per customer; iDEAL renewals are allowed (real iDEAL recurs via SEPA);
 disputes and payouts not modelled yet.
+
+## 10. Known ground-truth inaccuracies
+
+Documented so benchmarks do not over-read the answer key (sim-1.0.0):
+
+* **Secondary organic duplicate.** The counterfactual counts a lost payment once. When that payment
+  disappears, a rare organic duplicate that would have followed it disappears too, so the real
+  difference between "world without the scenario" and "world with it" can exceed `lost_successful_payments`
+  by one payment (seed 42, scale 0.3, `checkout_regression_app_version`: 578 against 577, 6,499 usd).
+  Tolerance in the test is 1 for that scenario and 0 for the others (`test_sim_counterfactual.py`).
+* **`charge_approval_rate_counterfactual` is per attempt, retries included.** For cohorts with fewer than
+  about 50 attempts it is noisy (JP amex, seed 42: 0.4375 against about 0.8 expected; 0.62-0.93 on seeds 1-6).
+  Do not use it to score detection or localization of small cohorts; use the counts.
+* **`control_day` has an empty `measured`** (no reference approval or volume for a normal day). To be filled
+  in a later phase of `docs/tasks/SIMULATOR-FIXES.md`.
