@@ -1,5 +1,7 @@
 # Stage 8 — Incident Intelligence UI
 
+> **Status:** pending Stage 8 (`STATUS.md`). The investigation workspace and drill-down screens depend on Mode B; the overview and decision trace depend on Mode A.
+
 ## Objective
 
 Build a UI that makes the two-speed architecture visible.
@@ -139,3 +141,9 @@ The UI should make it possible to answer in under one minute:
 - why do we think that?
 - what has the system checked?
 - what remains unknown?
+
+## Amendments
+
+- **No API contract yet.** `api/` is created only with its stage; the UI needs a versioned response-schema contract first (add a spec before building screens).
+- **Second stack.** Next.js/TypeScript is a new toolchain: it needs an ADR and extended architecture tests (ADR-009 "follow-up ADR") before any code.
+- Epistemic labels (`OBSERVED`/`INFERRED`/`ESTIMATED`/`RECOMMENDED`) are rendered from the data field, never inferred from prose (`INV-013`).

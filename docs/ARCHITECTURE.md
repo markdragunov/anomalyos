@@ -180,7 +180,7 @@ Project Skills, when introduced, live at `.cursor/skills/<name>/SKILL.md`. They 
 
 # Runtime layer contracts
 
-Imported from the former simulator tree. Layers are numbered 1–11; the narrative above (Mode A / Mode B, roles) is the same system seen from the decision flow. **Known gap:** the incident states below (`candidate → open → …`) differ from the lifecycle in `docs/specs/07_INCIDENT_ENGINE.md` (`DETECTED … RESOLVED`); reconcile before Stage 6.
+Imported from the former simulator tree. Layers are numbered 1–11; the narrative above (Mode A / Mode B, roles) is the same system seen from the decision flow. **Open (OQ-8):** the incident states below (`candidate → open → …`) differ from the lifecycle in `docs/specs/07_INCIDENT_ENGINE.md` (`DETECTED … RESOLVED`); spec 07 now carries a single proposed state table with transitions awaiting the owner's decision, after which this section is aligned.
 
 ## Overview
 

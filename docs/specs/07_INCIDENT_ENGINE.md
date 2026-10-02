@@ -1,5 +1,7 @@
 # Stage 6 — Two-Mode Incident Engine and Policy Routing
 
+> **Status:** pending Stage 6 (`STATUS.md`). Lifecycle and correlation rules below are *proposals* awaiting owner decision (OQ-8).
+
 ## Objective
 
 Turn candidates and verified decisions into a coherent incident system.
@@ -119,3 +121,32 @@ Build tests proving:
 - correlated anomalies deduplicate
 - recovery is represented
 - incident creation is auditable
+
+## Amendments
+
+### Lifecycle (proposal, OQ-8)
+
+`docs/ARCHITECTURE.md` lists `candidate → open → investigating → awaiting_decision → resolved | dismissed` (+ `recovered` signalled by detection); this spec lists `DETECTED … RESOLVED`. Proposal — one set, explicit transitions, only a human actor may reach a terminal state:
+
+| From | To | Actor |
+|---|---|---|
+| `DETECTED` | `INVESTIGATING` | system (Mode B started) |
+| `DETECTED`, `INVESTIGATING` | `ACKNOWLEDGED` | human |
+| `ACKNOWLEDGED`, `INVESTIGATING` | `ESCALATED` | human, or deterministic policy rule |
+| any open state | `RECOVERING` | system (detection signals recovery) |
+| `RECOVERING` | `INVESTIGATING` | system (signal returns; no flapping close) |
+| any open state, `RECOVERING` | `RESOLVED`, `DISMISSED` | **human only** |
+
+AI never moves an incident to a terminal state. Every transition is logged with actor and reason.
+
+### Correlation rules (deterministic)
+
+Two signals merge into one incident only if **all** hold: (1) their windows overlap or are within a configured gap; (2) their cohorts are nested (one is a refinement of the other) along approved dimension chains; (3) the metric families are compatible. Otherwise they stay separate incidents, optionally linked as `related_to`. Jev never creates a relationship.
+
+### Required negative test
+
+The DE campaign and the iDEAL outage overlap in time and both lower global approval, but are unrelated: they must **not** merge into one incident. A merge here fails the build.
+
+### Impact
+
+Ground truth carries counterfactual `true_impact`; `ESTIMATED` impact (expected minus observed) is compared with it in the benchmark. Every value stays labelled `OBSERVED` or `ESTIMATED`.

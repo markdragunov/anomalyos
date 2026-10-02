@@ -1,5 +1,7 @@
 # Stage 3 — Statistical Candidate Detection
 
+> **Status:** pending Stage 2 (`STATUS.md`). Amended per the specs review and ADR-026; the pipeline below is unchanged.
+
 ## Objective
 
 Detect unusual billing/payment behavior without AI.
@@ -98,3 +100,12 @@ The burst ranker may use Jev later; this stage only defines the interface.
 - small samples are gated
 - recovery is represented
 - candidate volume can be measured before/after prefilter
+
+## Amendments (from review and ADR-026)
+
+- **Grain and floor.** Series at global 15 min, PSP 1 h, plus daily for slow drift (ADR-026). No standalone detection series for finer cohorts; the sample-size gate is ≥ 30 attempts, below which a candidate is `suppressed` with reason `insufficient_data`.
+- **Baseline must not absorb drift.** A rolling baseline that follows the series hides slow degradation (gradual scenario: ES × psp_gamma over 7 days). Use a frozen or lagged baseline (reference period that ends before the candidate window) and compare against it; report both.
+- **Seasonality.** The world has diurnal, weekly, payday and month-end shape; the baseline is conditioned on hour-of-week (and the month-end dip), not a flat mean.
+- **Harmless seasonality.** `harmless_seasonality` (BR demand ×2.2) moves global approval only through *mix shift*; the detector must label it as explained variation. It is a required negative test, together with `normal_variation`.
+- **Detectability.** Measure detection latency against `oracle_detectable_at` in ground truth once it exists (`SIMULATOR-FIXES`), not against scenario start. For ramps the start is zero intensity.
+- **Isolation.** The detector never reads ground truth (see spec 03).

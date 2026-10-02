@@ -1,5 +1,7 @@
 # Stage 7 — Investigation Agent: Bounded Mode B
 
+> **Status:** pending Stage 7 (`STATUS.md`). Aligned to ADR-019 option 3 and ADR-027. Mode B, built after Mode A; the V1/V2 split is an open question (`STATUS.md`).
+
 ## Objective
 
 Build a read-only Investigation Agent inspired by JevOps Mode B.
@@ -166,3 +168,13 @@ Demonstrate:
 - repeated tool loops are prevented
 - contradictory evidence is preserved
 - final explanation cites validated evidence
+
+## Amendments (ADR-019 option 3, ADR-027)
+
+- **Who picks the tool.** The loop is code. Each step, code builds a small state and a bounded, deterministically ranked shortlist of next steps (top-k by contribution, closed-set arguments); Jev chooses among them (or `stop`) with a confidence gate; code validates and executes read-only. Free-form tool arguments do not exist; low confidence stops and hands off to a human. "The agent chooses the tool call" in the text above means this loop.
+- **Benchmark control.** Spec 10 includes "deterministic top-k, no Jev" so the value of both stage A (hierarchical Jev narrowing) and the Jev step choice can be disproved.
+- **Explanation.** An explainer behind a port, templated first; a generative model only after a measured gap, under its own ADR (ADR-027). The citation validator (`INV-008`) is built first.
+- **Prompt injection.** Only typed fields enter any model state or prompt; free text from data (metadata, failure messages) is excluded or screened.
+- **Tools without a data source today:** `get_deployments`, `check_psp_status`, `search_similar_incidents`. Mark them "no data source" until the simulator provides deployments, PSP status and incident history (`SIMULATOR-FIXES`, phase 5); until then they are not registered.
+- **Budgets need defaults.** `max tool calls`, `max Jev calls`, `max wall-clock`, `max evidence items`, `max repeated queries` get numeric defaults and a hard-stop test; the values are an owner decision made with the first measurements.
+- **Isolation.** No ground truth for the agent.

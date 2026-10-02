@@ -1,5 +1,7 @@
 # Stage 5 — Jev Decision Layer, Verifier and Decision Policy
 
+> **Status:** pending Stage 5 (`STATUS.md`). Aligned to ADR-018, ADR-019, ADR-024.
+
 ## Objective
 
 Implement the central Jev decision layer using the pattern:
@@ -29,12 +31,11 @@ Do not assume every field is needed in production; measure which improve decisio
 
 ### Mode B — Drilldown
 
-Given bounded chunks:
-- importance `noul`
-- best chunk `choice`
-- optionally `contains_incident` `noul`
+Mode B uses deterministic narrowing first (spec 05 already ranks cohorts by contribution). Jev is asked about a chunk or a next step only through single-judgment questions over a small state, one question per judgment (ADR-018):
+- importance `noul` (per item)
+- best item among a bounded shortlist `choice`
 
-Batch chunk questions into a single request where cardinality permits.
+Question *batching* means several independent questions in one request about the same small state; it does not mean one question that bundles judgments, and it must not push the state past its size budget. Whether hierarchical chunk ranking by Jev beats the deterministic top-k control is a benchmark question (spec 10), not an assumption.
 
 ## Typed state
 
@@ -143,3 +144,13 @@ If Jev fails:
 - audit the failure
 
 For high-volume Mode A, model failure should not create an unsafe page.
+
+## Amendments (ADR-018, ADR-019, ADR-024)
+
+- **Jev is a hosted typed-question model**, reached through a `JevClient` port. The decision contract is pure; a transport adapter performs the call; tests and evaluation replay recorded raw responses. A state hash alone does not reproduce a non-deterministic model, so the audit record stores the raw response, the question-set version and the *returned* model version.
+- **One question, one judgment.** No arithmetic, counting or date comparison in Jev: code computes values and passes numbers or named buckets (`docs/DATA_MODEL.md`, semantic buckets). States are small and filtered per question set. No free text from data enters a state.
+- **What each primitive returns.** `noul` → probability only. `choice` → a probability per option plus a confidence. `score` → an ordinal value plus a confidence. Therefore `severity_confidence` in the policy example exists only for a `choice`/`score` severity question; for a `noul` the gate uses its probability. Thresholds are per question and per risk level.
+- **Vocabularies.** `category` and hypotheses use the closed cause vocabulary in `docs/DATA_MODEL.md` (v1) — the same labels as ground-truth `true_cause`. Routes: `INCIDENT` = ground-truth `incident`, `DIGEST` = `watch`, `IGNORE` = `suppress`. Severity: the `P1/P2/P3` here and the ground-truth `none/low/medium/high/critical` must be unified (OQ-6, owner decision before Stage 5).
+- **Thresholds are tuned on `DEV_SEEDS` only** and frozen before any held-out evaluation (spec 10).
+- **Failure.** On model error, timeout or an unverifiable answer the route is `DIGEST` (uncertainty becomes digest, never a page), the failure is audited, and there is no retry loop.
+- **Isolation.** No ground truth, `run_id` or `scenario_id` in any state.

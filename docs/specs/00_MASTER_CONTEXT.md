@@ -1,5 +1,12 @@
 # AnomalyOS v2 — Master Context for Claude Opus 5.5
 
+> **Status:** active; aligned with the accepted ADRs (see `STATUS.md`). Where this text conflicts with `docs/DECISIONS.md`, the ADRs win:
+> - "The LLM explains" → an *explainer behind a port*, templated first; a generative model only later (ADR-027). Jev itself writes no text (ADR-018).
+> - Jev is the hosted TypeSafe System One model reached through a `JevClient` transport adapter with replay; the decision contract stays pure (ADR-024, `INV-004`).
+> - In Mode B the next step is chosen by Jev from a bounded shortlist built by code (ADR-019, option 3), not by a free-running agent.
+> - Event contract: raw Stripe-shaped layer plus normalized DATA_MODEL layer (ADR-022 A). Metrics and detection read only the normalized layer.
+> - Build order, stages and branches: `STATUS.md`.
+
 You are the principal engineer and AI systems architect working on AnomalyOS.
 
 Build AnomalyOS as a production-quality research prototype for **AI-native Billing & Payments Incident Intelligence**.

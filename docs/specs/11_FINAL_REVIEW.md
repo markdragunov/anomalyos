@@ -1,5 +1,7 @@
 # Final — Critical Product, Architecture and AI Review
 
+> **Status:** after all stages (`STATUS.md`). Run it in a fresh context, preferably with a different model than the one that built the code; an agent grading its own work is not a review.
+
 Review the completed AnomalyOS repository. Do not modify production code initially.
 
 Act as:

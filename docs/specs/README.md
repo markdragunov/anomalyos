@@ -1,4 +1,4 @@
-> **Status:** target design, written before implementation. Where it conflicts with `docs/DECISIONS.md`, the ADRs win. Known conflicts: the "LLM explains" step vs ADR-018 (Jev generates no text; a generative model needs its own ADR), and who picks the investigation tool (spec 08: the agent; ADR-019, proposed: Jev from a closed set). See also ADR-024.
+> **Status:** build specs, aligned with the accepted ADRs (019, 022, 024, 026, 027) in Phase 3 of the consolidation closeout. Where a spec still conflicts with `docs/DECISIONS.md`, the ADRs win. Stage/branch/status table: [`STATUS.md`](STATUS.md).
 
 # AnomalyOS v2 — Claude Opus 5.5 Build Specs
 
@@ -47,7 +47,7 @@ The new design is explicitly **two-speed**:
                               explanation
 ```
 
-## 13 files
+## Files (13 including `STATUS.md`)
 
 1. `00_MASTER_CONTEXT.md`
 2. `01_FOUNDATION.md`
@@ -61,7 +61,7 @@ The new design is explicitly **two-speed**:
 10. `09_INCIDENT_UI.md`
 11. `10_EVALUATION_BENCHMARK.md`
 12. `11_FINAL_REVIEW.md`
-13. this README
+13. this README (plus `STATUS.md`)
 
 ## Recommended Cursor workflow
 
@@ -77,21 +77,7 @@ For every stage:
 8. Commit.
 9. Move to the next stage.
 
-Suggested commits:
-
-```text
-001 foundation
-002 billing simulation
-003 clickhouse analytics
-004 anomaly detection
-005 cohort intelligence
-006 jev decision layer
-007 incident routing
-008 investigation agent
-009 incident ui
-010 benchmark
-011 final review
-```
+Stage, branch and status of each file: [`STATUS.md`](STATUS.md) (the commit list that used to be here did not match repository stages).
 
 ## Stripe-shaped model
 

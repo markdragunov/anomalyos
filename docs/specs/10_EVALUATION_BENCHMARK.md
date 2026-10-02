@@ -1,5 +1,7 @@
 # Stage 9 — Evaluation and Benchmark
 
+> **Status:** pending Stage 9 (`STATUS.md`). Amended per the specs review; depends on the simulator delta.
+
 ## Objective
 
 Evaluate the entire architecture without assuming Jev or the agent helps.
@@ -137,3 +139,14 @@ Include:
 - recommendation for next experiment
 
 The report must be able to conclude that a simpler baseline is better.
+
+## Amendments (from review)
+
+- **Added systems.** H: a frontier LLM over the same bounded data (the master context mentions it); and the control "deterministic top-k by contribution → template" for Mode B (spec 08).
+- **Seeds.** Define `DEV_SEEDS` (thresholds, question set, prompts are tuned here) and `HELDOUT_SEEDS` (touched once, after freezing). One seed has about 11 incidents and 4 suppressed signals, so compute the number of seeds needed for the intervals and for Brier/ECE, and state the cost (≈1.5 min generation + ≈1.5 min validation per full seed, ≈1.4M rows to load).
+- **Calendar.** With the fixed calendar of sim-1.0.0 many seeds only repeat noise; require the randomised calendar before any benchmark run.
+- **Replay driver.** Mode A replays a stored world with an `as_of` clock and a watermark (`ingested_at <= as_of`); otherwise `decisions/sec`, detection latency and leakage checks are meaningless.
+- **Latency target.** Detection latency is measured against `oracle_detectable_at`, not scenario start.
+- **Scenario matrix** additionally needs: simultaneous incidents, missing/contradictory evidence, late/out-of-order events, and the unexercised causes (`SIMULATOR-FIXES`, phase 5).
+- **No contamination.** `run_id`, `scenario_id` and ground truth never reach any system under test; thresholds are never tuned on held-out seeds.
+- **Calibration** is evaluated per question type; Jev replays use recorded raw responses (ADR-024).

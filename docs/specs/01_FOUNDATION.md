@@ -1,5 +1,7 @@
 # Stage 0 — Foundation and Two-Speed Architecture
 
+> **Status: DONE (Stage 0).** Delivered in the repository (`src/anomalyos/config.py`, `clickhouse.py`, Docker Compose, CI, docs). Do not re-run this brief. Differences from the text below: `CLAUDE.md` is a thin pointer to `AGENTS.md` (ADR-003, ADR-023) and must not be overwritten; existing docs are *updated, never overwritten*; layer packages (`detection/`, `decision/`, …) are created only in the stage that implements them; every new dependency, including FastAPI and Next.js, needs an ADR first (`AGENTS.md`).
+
 Use `00_MASTER_CONTEXT.md` as authoritative context.
 
 ## Objective

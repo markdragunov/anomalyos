@@ -1,5 +1,7 @@
 # Stage 4 — Cohort Intelligence and Evidence Narrowing
 
+> **Status:** pending Stage 3 (`STATUS.md`). Amended per the specs review and ADR-026.
+
 ## Objective
 
 Turn aggregate anomalies into compact, high-value evidence.
@@ -84,3 +86,11 @@ Return:
 - control cohorts are explicit
 - evidence bundle has bounded size
 - all claims trace to analytical evidence
+
+## Amendments (from review and ADR-026)
+
+- **Rate vs mix.** "Contribution to aggregate change" is decomposed into a *rate effect* (the cohort's own metric moved) and a *composition effect* (the cohort's share of volume moved). A change explained only by composition is reported as such (mix shift / Simpson's paradox). The DE-campaign + iDEAL pair is the required test.
+- **Multiple testing.** Eight dimensions and their approved combinations produce many cohorts; some will look anomalous by chance. Apply a correction or a minimum-support rule, stated in configuration, and report the number of cohorts examined.
+- **Pooled windows, support gate.** Cohorts are evaluated pooled over the candidate window; fewer than 30 attempts → `insufficient_data`, never ranked (ADR-026).
+- **Approved combinations are configuration**, versioned and reviewed, not code constants. Each addition is a typed-interface change (`INV-003`).
+- **Isolation.** No ground truth in cohort code (see spec 03).
