@@ -117,7 +117,8 @@ def test_every_record_has_explicit_disjoint_metric_expectations(run):
             assert g.affected_metrics, key
     reg = truth["android_5140_checkout"]
     assert reg.affected_metrics == ["payment_intent_conversion_rate"]
-    assert reg.unchanged_metrics == ["charge_approval_rate", "refund_rate"]
+    # sim-1.2.2: refund_rate dropped from the regression's unchanged list (same-window ratio moves mechanically)
+    assert reg.unchanged_metrics == ["charge_approval_rate"]
     assert truth["control_day"].affected_metrics == []
 
 
