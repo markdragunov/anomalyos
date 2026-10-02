@@ -9,6 +9,7 @@ Usage: python scripts/eval_detection_dev.py [--seeds 1 2 3] [--realism v1 v2] [-
 from __future__ import annotations
 
 import argparse
+import dataclasses
 import json
 import os
 import shutil
@@ -86,9 +87,11 @@ def one_world(args: tuple[int, str, float]) -> dict:
             start, end = datetime.fromtimestamp(w.start, timezone.utc), datetime.fromtimestamp(w.end, timezone.utc)
             records = [g.to_dict() for g in res.ground_truth]
             out = {"seed": seed, "realism": realism, "scale": scale, "run_id": res.run_id, "systems": {}}
+            out["raw"] = {"records": records, "world": [w.start, w.end], "candidates": {}}
             for system in ("main", "static"):
                 cands = detect(client, db, res.run_id, start, end, system=system)
                 out["systems"][system] = score(cands, records, w.start, w.end)
+                out["raw"]["candidates"][system] = [dataclasses.asdict(c) for c in cands]
         finally:
             client.close()
         out["seconds"] = round(time.time() - t0, 1)

@@ -3,7 +3,8 @@
 Input: candidates (``AnomalyCandidate`` or dicts with the same fields), ground-truth records (dicts as in
 ``ground_truth.json``), world start/end. Output: per-record outcomes, per-candidate classification, summary.
 Rules
-* match = time overlap with [start, max(end, expected_recovery)] (open-ended: world end) AND compatible scope
+* match = time overlap with [start, max(end, expected_recovery)] (open-ended: world end) AND detected_at >= start
+  (Gate 1 correction, owner OK: a candidate opened before the record began is not its detection) AND compatible scope
   (each candidate dimension equals the record's affected cohort value or the cohort does not constrain it) AND the
   candidate metric maps to one of the record's ``affected_metrics``;
 * recall over ``incident`` records with ``oracle_detectable_at`` set (ADR-031); misses carry a reason;
@@ -26,6 +27,7 @@ METRIC_FAMILIES: dict[str, frozenset[str]] = {
     "authorization_rate": frozenset({"charge_approval_rate", "global_charge_approval_rate", "technical_failure_rate"}),
     "checkout_conversion_rate": frozenset({"payment_intent_conversion_rate"}),
     "renewal_success_rate": frozenset({"renewal_success_rate", "dunning_recovery_rate", "renewal_first_attempt_success_rate"}),
+    "dunning_recovery_rate": frozenset({"dunning_recovery_rate", "renewal_success_rate"}),
     "refund_rate": frozenset({"refund_rate"}),
     "duplicate_charge_rate": frozenset({"duplicate_charge_rate"}),
     "attempt_volume": frozenset({"charge_attempt_volume", "checkout_volume", "ingestion_delay"}),
@@ -56,6 +58,8 @@ def _relation(cand: Mapping[str, Any], rec: Mapping[str, Any], world_end: int) -
     s, e = _interval(rec, world_end)
     if not (cand["window_start"] < e and s < cand["window_end"]):
         return None
+    if cand["detected_at"] < rec["start"]:
+        return None  # a change cannot be detected before it begins (Gate 1 fix: open older candidates do not count)
     if not _scope_ok(cand["scope"], rec.get("affected_cohorts") or []):
         return None
     fam = METRIC_FAMILIES.get(cand["metric"], frozenset())

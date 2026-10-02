@@ -138,6 +138,19 @@ _register(
         denominator="countIf(event_type = 'subscription.renewal_attempted')",
         where="event_type IN ('subscription.canceled', 'subscription.renewal_attempted')", allowed_dims=_BILLING_DIMS),
     MetricDef(
+        "subscription_cancellation_rate", 2,
+        "voluntary cancellations at renewal / (renewal attempts + voluntary cancellations); involuntary cancellations "
+        "after failed dunning are excluded (they trail the cause by a week)",
+        numerator="countIf(event_type = 'subscription.canceled' AND status = 'canceled_voluntary')",
+        denominator="countIf(event_type = 'subscription.renewal_attempted' OR (event_type = 'subscription.canceled' AND status = 'canceled_voluntary'))",
+        where="event_type IN ('subscription.canceled', 'subscription.renewal_attempted')", allowed_dims=_BILLING_DIMS),
+    MetricDef(
+        "dunning_recovery_rate", 1,
+        "renewal retries (+3 / +7 days) that authorize / renewal retries, counted at retry time",
+        numerator="countIf(event_type = 'payment.authorized')", denominator="countIf(event_type = 'dunning.attempted')",
+        where="channel = 'renewal' AND attempt_no > 1 AND event_type IN ('payment.authorized', 'dunning.attempted')",
+        allowed_dims=_ALL_DIMS),
+    MetricDef(
         "late_arrival_share", 1,
         "events delivered more than 15 minutes after they occurred / events delivered, windowed by delivery time",
         numerator="countIf(ingested_at - event_time > 900)", denominator="count()", source=_LATE_ARRIVAL_SOURCE,

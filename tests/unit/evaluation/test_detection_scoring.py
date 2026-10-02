@@ -78,3 +78,13 @@ def test_suppressed_candidates_are_ignored_and_extra_matches_are_not_false_posit
     out = score([cand("a"), cand("b", detected=5 * 86_400 + 3 * H), cand("c", status="suppressed")], [rec("r1")], W0, W1)
     assert out["summary"]["candidates"] == 2 and out["summary"]["false_positives"] == 0
     assert out["records"][0]["n_candidates"] == 2
+
+
+def test_a_candidate_detected_before_the_record_started_does_not_count():
+    # opened at 5d + 1 h for something else, still open when r2 starts at 5d + 3 h (Gate 1 correction)
+    early = cand("old", ws=5 * 86_400, we=5 * 86_400 + 6 * H, detected=5 * 86_400 + H)
+    r2 = rec("r2", start=5 * 86_400 + 3 * H, end=5 * 86_400 + 5 * H, oracle=5 * 86_400 + 4 * H)
+    out = score([early], [r2], W0, W1)
+    assert out["summary"]["recall"] == 0.0 and out["candidates"][0]["class"] == "fp_unmatched"
+    late = cand("new", ws=5 * 86_400 + 3 * H, we=5 * 86_400 + 5 * H, detected=5 * 86_400 + 4 * H)
+    assert score([late], [r2], W0, W1)["summary"]["recall"] == 1.0

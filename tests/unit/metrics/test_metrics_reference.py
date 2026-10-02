@@ -72,8 +72,15 @@ def build_rows() -> list[dict]:
     # --- money in two currencies
     rows += [norm_row("payment.captured", T0 + 1200 + k, attempt_no=1, currency="usd", amount_minor=500 + k) for k in range(3)]
     # --- sim-1.2 / Stage 3: cancellations and late deliveries
-    rows += [norm_row("subscription.canceled", T0 + 300 + k, channel="renewal", plan_id="monthly_eur") for k in range(2)]
-    rows += [norm_row("subscription.canceled", T0 + 2 * HOUR + 300, channel="renewal", plan_id="monthly_eur")]
+    rows += [norm_row("subscription.canceled", T0 + 300 + k, channel="renewal", plan_id="monthly_eur", status="canceled_voluntary") for k in range(2)]
+    rows += [norm_row("subscription.canceled", T0 + 2 * HOUR + 300, channel="renewal", plan_id="monthly_eur", status="canceled_involuntary")]
+    # renewal retries (dunning): 3 retries in hour 0 (1 authorizes), 2 in hour 2 (both fail)
+    for k, ok in enumerate((True, False, False)):
+        rows.append(norm_row("dunning.attempted", T0 + 1500 + k, channel="renewal", attempt_no=2))
+        rows.append(norm_row("payment.authorized" if ok else "payment.declined", T0 + 1500 + k, channel="renewal", attempt_no=2))
+    for k in range(2):
+        rows.append(norm_row("dunning.attempted", T0 + 2 * HOUR + 1500 + k, channel="renewal", attempt_no=3))
+        rows.append(norm_row("payment.declined", T0 + 2 * HOUR + 1500 + k, channel="renewal", attempt_no=3))
     # pi_0's authorization reaches the store 2 h late: converted in the end, but not "as known at window close"
     for r in rows:
         if r["event_type"] == "payment.authorized" and r["payment_intent_id"] == "pi_0":
@@ -123,6 +130,12 @@ def reference(metric: str, rows: list[dict], window_rows: list[dict], start_ts=T
         return sum(1 for r in started if r["payment_intent_id"] in first and first[r["payment_intent_id"]] <= window_end), len(started)
     if metric == "subscription_cancellation_rate":
         return _count(w, "subscription.canceled"), _count(w, "subscription.renewal_attempted")
+    if metric == "subscription_cancellation_rate@2":
+        vol = sum(1 for r in w if r["event_type"] == "subscription.canceled" and r["status"] == "canceled_voluntary")
+        return vol, _count(w, "subscription.renewal_attempted") + vol
+    if metric == "dunning_recovery_rate":
+        retries = [r for r in w if r["channel"] == "renewal" and r["attempt_no"] > 1]
+        return _count(retries, "payment.authorized"), _count(retries, "dunning.attempted")
     if metric == "late_arrival_share":  # rows are already windowed by delivery time
         return sum(1 for r in w if r["ingested_at"] - r["occurred_at"] > 900), len(w)
     if metric == "authorization_rate":
@@ -281,7 +294,8 @@ def test_every_registered_metric_is_covered_by_a_reference():
     assert set(METRICS) == {
         "authorization_rate", "first_attempt_authorization_rate", "technical_failure_rate", "checkout_conversion_rate",
         "checkout_conversion_rate@2", "renewal_success_rate", "refund_rate", "duplicate_charge_rate", "fraud_flag_rate",
-        "attempt_volume", "revenue_collected_minor", "subscription_cancellation_rate", "late_arrival_share"}
+        "attempt_volume", "revenue_collected_minor", "subscription_cancellation_rate", "subscription_cancellation_rate@2",
+        "dunning_recovery_rate", "late_arrival_share"}
 
 
 # --------------------------------------------------------------------------- first-look visibility (Stage 3)

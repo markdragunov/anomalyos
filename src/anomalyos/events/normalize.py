@@ -26,7 +26,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Iterable, Iterator, Mapping
 
-NORMALIZATION_VERSION = "1.1.0"  # 1.1.0: ingested_at from the raw delivered_at (sim-1.2 late events)
+NORMALIZATION_VERSION = "1.2.0"  # 1.1.0: ingested_at from delivered_at; 1.2.0: canceled_voluntary / canceled_involuntary
 SCHEMA_VERSION = "norm-1"
 MERCHANT_ID = "mer_sim_001"  # single synthetic merchant until multi-merchant (ADR-025)
 UNKNOWN = "unknown"
@@ -172,7 +172,10 @@ class Normalizer:
         if etype == "customer.subscription.updated":
             return self._subscription_updated(seq, env, obj)
         if etype == "customer.subscription.deleted":
-            return [self._row(env, seq, "subscription.canceled", obj["id"], **self._subscription_fields(obj), status="canceled")]
+            prev = (env["data"].get("previous_attributes") or {}).get("status")
+            # active -> canceled: the customer left at renewal; past_due -> canceled: dunning exhausted (ADR-034, Gate 1)
+            status = "canceled_voluntary" if prev == "active" else "canceled_involuntary"
+            return [self._row(env, seq, "subscription.canceled", obj["id"], **self._subscription_fields(obj), status=status)]
         if etype == "refund.created":
             return self._refund(seq, env, obj)
         raise NormalizationError(f"unknown raw event type {etype!r}")

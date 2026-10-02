@@ -26,14 +26,16 @@ SERIES: tuple[SeriesSpec, ...] = (
     SeriesSpec("S1", "authorization_rate", 1, "15m", (), "down", "rate"),
     SeriesSpec("S2", "authorization_rate", 1, "1h", ("psp",), "down", "rate"),
     SeriesSpec("S3", "authorization_rate", 1, "1d", ("customer_country",), "down", "rate", cusum=True),
+    SeriesSpec("S3h", "authorization_rate", 1, "1h", ("customer_country",), "down", "rate"),  # Gate 1: short country outages
     SeriesSpec("S4a", "checkout_conversion_rate", 2, "1h", (), "down", "rate"),
     SeriesSpec("S4b", "checkout_conversion_rate", 2, "1h", ("platform",), "down", "rate"),
     SeriesSpec("S5", "renewal_success_rate", 1, "1d", ("psp",), "down", "rate", cusum=True),
+    SeriesSpec("S5b", "dunning_recovery_rate", 1, "1d", ("psp",), "down", "rate", cusum=True),  # Gate 1: dunning failures
     SeriesSpec("S6", "refund_rate", 1, "1d", ("customer_country",), "up", "rate", cusum=True),
     SeriesSpec("S7", "duplicate_charge_rate", 1, "1h", (), "up", "rate"),
     SeriesSpec("S8", "attempt_volume", 1, "1h", ("psp",), "both", "count"),
     SeriesSpec("S9", "fraud_flag_rate", 1, "1h", (), "up", "rate"),
-    SeriesSpec("S10", "subscription_cancellation_rate", 1, "1d", ("customer_country",), "up", "rate", cusum=True),
+    SeriesSpec("S10", "subscription_cancellation_rate", 2, "1d", ("customer_country",), "up", "rate", cusum=True),  # Gate 1: v2
     SeriesSpec("S11", "late_arrival_share", 1, "1h", (), "up", "rate"),
 )
 
