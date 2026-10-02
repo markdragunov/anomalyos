@@ -33,7 +33,7 @@ from typing import Any, Mapping
 from .ids import short_hash, stable_id
 from .world import iso
 
-GENERATOR_VERSION = "sim-1.1.1"  # 1.1.0: calendar modes (ADR-029), no cause labels (ADR-030); 1.1.1: oracle detectability (ADR-031)
+GENERATOR_VERSION = "sim-1.2.0"  # 1.1.0: ADR-029/030; 1.1.1: ADR-031; 1.2.0: realism v2, new scenarios, unchanged_metrics (ADR-032/033)
 
 
 class RootCause(str, Enum):
@@ -81,6 +81,8 @@ class Mechanism(str, Enum):
     DUPLICATE = "duplicate"  # adds probability of a second, non-idempotent charge
     VOLUME = "volume"  # multiplies organic checkout demand
     INJECT = "inject"  # injects an exogenous traffic stream (card testing)
+    CHURN = "churn"  # sim-1.2: probability that a subscription is canceled at renewal instead of renewing
+    DELAY = "delay"  # sim-1.2: share of a cohort's events delivered late (delivered_at), payments unaffected
 
 
 Cohort = Mapping[str, tuple[str, ...]]
@@ -107,6 +109,7 @@ class TruthSpec:
     expected_recovery: int | None
     unrelated_to: tuple[str, ...] = ()  # keys of co-occurring, causally unrelated records
     affected_metrics: tuple[str, ...] = ()  # DATA_MODEL: metrics the perturbation should move
+    unchanged_metrics: tuple[str, ...] = ()  # sim-1.2: metrics that must NOT move (negative evidence for diagnosis)
 
     def __post_init__(self) -> None:
         is_incident = self.expected_route is not Route.SUPPRESS
@@ -187,6 +190,7 @@ class GroundTruth:
     injected_effect: dict[str, Any]
     true_impact: dict[str, Any]
     oracle_detectable_at: int | None = None  # sim-1.1.1, ADR-031
+    unchanged_metrics: list[str] = field(default_factory=list)  # sim-1.2.0, ADR-033
     oracle_method: str | None = None
     cause_vocabulary_version: str = CAUSE_VOCABULARY_VERSION
     generator_version: str = GENERATOR_VERSION
@@ -220,11 +224,14 @@ _ORACLE_RATE = {
     "charge_approval_rate": ("attempts", "success"),
     "payment_intent_conversion_rate": ("pi", "pi_succeeded"),
     "renewal_success_rate": ("renewals", "renewal_first_ok"),
+    "dunning_recovery_rate": ("pi", "pi_succeeded"),
 }
 _ORACLE_COUNT = {
     "refund_rate": ("extra_refunds", "pi_succeeded_cf", "organic_refund_rate"),
     "duplicate_charge_rate": ("duplicate_charges", "pi_succeeded_cf", "organic_duplicate_rate"),
     "charge_attempt_volume": ("injected_attempts", "cohort_attempts", None),
+    "subscription_cancellation_rate": ("extra_cancellations", "renewal_subs", "organic_cancellation_rate"),
+    "ingestion_delay": ("delayed_events", None, None),
 }
 
 
@@ -260,7 +267,7 @@ def oracle_detectability(primary_metric: str, hourly: Mapping[int, Mapping[str, 
         for h in hours:
             c = hourly[h]
             x += c.get(excess_key, 0)
-            b += c.get(base_key, 0) * (organic[rate_key] if rate_key else 1.0)
+            b += (c.get(base_key, 0) * (organic[rate_key] if rate_key else 1.0)) if base_key else 0.0
             if x and x / math.sqrt(max(b, 1.0)) >= ORACLE_Z:
                 return max(start, (h + 1) * 3600), method
         return None, method
@@ -277,6 +284,7 @@ def build_ground_truth(
     unrelated_incident_ids: list[str], world_end: int,
     profile: tuple[tuple[int, float], ...] | None = None,
     organic: Mapping[str, float] | None = None,
+    world_hourly: Mapping[int, tuple[int, int]] | None = None,
 ) -> GroundTruth:
     is_incident = truth.expected_route is not Route.SUPPRESS
     incident_id = stable_id("inc", world_seed, scenario_id, truth.key, length=16) if is_incident else None
@@ -299,6 +307,12 @@ def build_ground_truth(
         "pi_conversion_actual": _rate(counts["pi_succeeded_actual"], counts["pi_actual"]),
         "pi_conversion_counterfactual": _rate(counts["pi_succeeded_cf"], counts["pi_cf"]),
     }
+    if not truth.effect_ids and world_hourly is not None:
+        # Records without an effect (the control day): reference values of a normal day, whole world.
+        h0, h1 = truth.start // 3600, (truth.end if truth.end is not None else world_end) // 3600
+        n = sum(world_hourly.get(h, (0, 0))[0] for h in range(h0, h1))
+        k = sum(world_hourly.get(h, (0, 0))[1] for h in range(h0, h1))
+        measured.update(charge_attempts=n, charge_approval_rate_actual=_rate(k, n), basis="whole world, no injected mechanism")
     if counts.get("renewals"):
         measured["renewals"] = counts["renewals"]
         measured["renewal_first_attempt_success_actual"] = _rate(counts["renewal_first_ok_actual"], counts["renewals"])
@@ -387,7 +401,9 @@ def build_ground_truth(
         onset_at=truth.start,
         end_at=truth.end,
         ramp=ramp_of(profile),
-        affected_metrics=list(truth.affected_metrics or (truth.primary_metric,)),
+        # explicit lists since sim-1.2 (an empty `affected` is meaningful: the control day moves nothing)
+        affected_metrics=list(truth.affected_metrics) if (truth.affected_metrics or truth.unchanged_metrics) else [truth.primary_metric],
+        unchanged_metrics=list(truth.unchanged_metrics),
         injected_effect={eid: dict(effect_params[eid]) for eid in truth.effect_ids},
         true_impact=true_impact,
         extra={"ongoing_at_world_end": truth.end is None, "world_end": world_end},

@@ -30,6 +30,13 @@ FIXED_STARTS = {
     "small_cohort_noisy_anomaly": 21 * DAY + 3 * HOUR,
     "correlated_unrelated_anomalies": 22 * DAY + 10 * HOUR,
     "recovery_after_degradation": 24 * DAY + 20 * HOUR,
+    # sim-1.2 (phase 5)
+    "dunning_failure": 3 * DAY,
+    "pricing_or_plan_change": 7 * DAY + 6 * HOUR,
+    "data_pipeline_issue": 3 * DAY + 14 * HOUR,
+    "simultaneous_incidents": 5 * DAY + 10 * HOUR,
+    "mix_shift_masking": 8 * DAY + 12 * HOUR,
+    "ambiguous_signal": 17 * DAY + 10 * HOUR,
 }
 
 
@@ -99,7 +106,9 @@ def test_windows_are_inside_the_world_and_respect_the_gap_rules(seed):
             pa, pb = placed[a], placed[b]
             overlap = not (pa.end + sch.GAP <= pb.start or pb.end + sch.GAP <= pa.start)
             long_a, long_b = a in sch.LONG_RUNNING, b in sch.LONG_RUNNING
-            if "normal_variation" in (a, b) or long_a == long_b:
+            must_gap = ("normal_variation" in (a, b) or (not long_a and not long_b)
+                        or (long_a and long_b and {a, b} <= sch.RENEWAL_GROUP))
+            if must_gap:
                 assert not overlap, f"{a} and {b} must keep a {sch.GAP // HOUR} h gap (seed {seed})"
 
 

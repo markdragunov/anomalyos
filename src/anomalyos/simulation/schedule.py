@@ -33,7 +33,7 @@ from functools import lru_cache
 from typing import Any, Mapping
 
 from .ids import derive_seed
-from .world import DAY, HOUR, Release, WorldConfig
+from .world import DAY, HOUR, LOCAL_METHOD_PSP, Release, WorldConfig
 
 MAX_ATTEMPTS = 300
 GAP = 6 * HOUR
@@ -71,17 +71,26 @@ HARMLESS_COUNTRIES = ("BR", "MX", "DE", "FR", "GB")
 CAMPAIGN_COUNTRIES = ("DE", "FR", "GB")
 OUTAGE_METHODS = ("ideal", "sepa_debit")
 REGRESSION_PLATFORMS = ("android", "ios")
+PRICING_COUNTRIES = ("US", "DE", "GB", "FR", "BR")
+# A drop in a lower-approval cohort masked by a demand boost in the high-approval US market.
+MASKED_COHORTS = (("BR", "psp_gamma"), ("MX", "psp_gamma"), ("JP", "psp_gamma"), ("ES", "psp_gamma"))
 
 # Placement priority (long-running first). Never derived from a dict's order.
 PRIORITY = (
     "gradual_degradation", "checkout_regression_app_version", "subscription_renewal_failure",
+    "dunning_failure", "pricing_or_plan_change",
     "normal_variation",  # needs a whole free day: placed right after the long-running scenarios
     "correlated_unrelated_anomalies", "recovery_after_degradation", "refund_spike", "duplicate_charge",
     "harmless_seasonality", "fraud_like_spike", "country_degradation", "payment_method_degradation",
     "psp_authorization_degradation", "small_cohort_noisy_anomaly",
+    # sim-1.2 (phase 5)
+    "simultaneous_incidents", "mix_shift_masking", "data_pipeline_issue",
+    "ambiguous_signal",
 )
-LONG_RUNNING = frozenset({"gradual_degradation", "checkout_regression_app_version", "subscription_renewal_failure"})
+LONG_RUNNING = frozenset({"gradual_degradation", "checkout_regression_app_version", "subscription_renewal_failure",
+                          "dunning_failure", "pricing_or_plan_change"})
 OPEN_ENDED = frozenset({"gradual_degradation"})
+RENEWAL_GROUP = frozenset({"subscription_renewal_failure", "dunning_failure", "pricing_or_plan_change"})
 
 
 class ScheduleError(RuntimeError):
@@ -148,6 +157,20 @@ def fixed_params(w: WorldConfig, kind: str) -> dict[str, Any]:
     if kind == "recovery_after_degradation":
         return dict(start=s + 24 * DAY + 20 * HOUR, recovery_start=s + 24 * DAY + 22 * HOUR, end=s + 25 * DAY + 1 * HOUR,
                     country="GB", psp="psp_alpha", magnitude=0.70)
+    if kind == "dunning_failure":
+        return dict(start=s + 3 * DAY, end=s + 7 * DAY, psp="psp_alpha", magnitude=0.25)
+    if kind == "pricing_or_plan_change":
+        return dict(start=s + 7 * DAY + 6 * HOUR, end=s + 9 * DAY, country="DE", magnitude=0.06)
+    if kind == "data_pipeline_issue":
+        return dict(start=s + 3 * DAY + 14 * HOUR, end=s + 3 * DAY + 16 * HOUR, psp="psp_gamma", share=0.35)
+    if kind == "simultaneous_incidents":
+        return dict(start=s + 5 * DAY + 10 * HOUR, end=s + 5 * DAY + 14 * HOUR, psp="psp_alpha", psp_magnitude=0.70,
+                    method="pix", method_start=s + 5 * DAY + 11 * HOUR, method_end=s + 5 * DAY + 15 * HOUR, method_magnitude=0.50)
+    if kind == "mix_shift_masking":
+        return dict(start=s + 8 * DAY + 12 * HOUR, end=s + 8 * DAY + 16 * HOUR, country="BR", psp="psp_gamma", magnitude=0.70,
+                    boost_country="US", boost=1.8)
+    if kind == "ambiguous_signal":
+        return dict(start=s + 17 * DAY + 10 * HOUR, end=s + 17 * DAY + 14 * HOUR, country="FR", psp="psp_beta", magnitude=0.85, demand=1.3)
     raise KeyError(kind)
 
 
@@ -220,6 +243,32 @@ def _draw(w: WorldConfig, kind: str, rng: random.Random) -> Placement:
         return Placement(kind, cs, ce, dict(camp_start=cs, camp_end=ce, camp_country=rng.choice(CAMPAIGN_COUNTRIES),
                                             camp_magnitude=_mag(rng, 1.6, 2.2), out_start=os_, out_end=oe,
                                             method=rng.choice(OUTAGE_METHODS), out_magnitude=_mag(rng, 0.45, 0.65)))
+    if kind == "dunning_failure":
+        s = _at(rng, w, 3, 18, 0, 24); e = s + rng.randrange(72, 121) * HOUR
+        return Placement(kind, s, e, dict(start=s, end=e, psp=rng.choice(PSPS), magnitude=_mag(rng, 0.15, 0.35)))
+    if kind == "pricing_or_plan_change":
+        s = _at(rng, w, 3, 20, 0, 24); e = s + rng.randrange(48, 97) * HOUR
+        return Placement(kind, s, e, dict(start=s, end=e, country=rng.choice(PRICING_COUNTRIES), magnitude=_mag(rng, 0.04, 0.08)))
+    if kind == "data_pipeline_issue":
+        s = _at(rng, w, 2, 25, 6, 20); e = s + _dur(rng, 1, 3)
+        return Placement(kind, s, e + 2 * HOUR, dict(start=s, end=e, psp=rng.choice(PSPS), share=_mag(rng, 0.20, 0.50)))
+    if kind == "simultaneous_incidents":
+        s = _at(rng, w, 2, 25, 6, 16); e = s + _dur(rng, 3, 6)
+        psp = rng.choice(PSPS)
+        method = rng.choice([m for m in METHODS if LOCAL_METHOD_PSP[m] != psp])  # disjoint cohorts
+        ms = s + rng.randrange(0, 121, 15) * 60
+        me = min(e + 2 * HOUR, ms + _dur(rng, 2, 4))
+        return Placement(kind, s, max(e, me), dict(start=s, end=e, psp=psp, psp_magnitude=_mag(rng, 0.60, 0.75), method=method,
+                                                    method_start=ms, method_end=me, method_magnitude=_mag(rng, 0.40, 0.60)))
+    if kind == "mix_shift_masking":
+        s = _at(rng, w, 2, 25, 8, 16); e = s + _dur(rng, 3, 5)
+        country, psp = rng.choice(MASKED_COHORTS)
+        return Placement(kind, s, e, dict(start=s, end=e, country=country, psp=psp, magnitude=_mag(rng, 0.60, 0.75),
+                                          boost_country="US", boost=_mag(rng, 1.6, 2.0)))
+    if kind == "ambiguous_signal":
+        s = _at(rng, w, 2, 25, 6, 18); e = s + _dur(rng, 3, 5)
+        country, psp = rng.choice(sorted(RECOVERY_COHORTS))
+        return Placement(kind, s, e, dict(start=s, end=e, country=country, psp=psp, magnitude=_mag(rng, 0.80, 0.90), demand=_mag(rng, 1.2, 1.4)))
     if kind == "recovery_after_degradation":
         s = _at(rng, w, 2, 25, 6, 20); rs = s + _dur(rng, 1.5, 3); rec = rs + _dur(rng, 2, 4)
         country, psp = rng.choice(sorted(RECOVERY_COHORTS))
@@ -237,6 +286,10 @@ def _compatible(new: Placement, old: Placement) -> bool:
     new_long, old_long = new.kind in LONG_RUNNING, old.kind in LONG_RUNNING
     if new_long != old_long:
         return True  # long x short overlap is allowed (marked unrelated_to in ground truth)
+    if new_long and old_long:
+        # sim-1.2: long scenarios are kept apart only within the group that acts on the same flow (renewals);
+        # long scenarios of different flows may overlap (ADR-033).
+        return _gap_ok(new, old) if {new.kind, old.kind} <= RENEWAL_GROUP else True
     return _gap_ok(new, old)
 
 

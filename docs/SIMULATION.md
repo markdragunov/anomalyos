@@ -121,6 +121,12 @@ payments and amount, extra refunds, duplicates, fraud — computed by code from 
 | small_cohort_noisy_anomaly | d21 03:00–06:00 | JP amex ×0.35 on ~8 attempts | suppress |
 | correlated_unrelated_anomalies | d22 10:00–16:00 | DE campaign ×1.8 **and** iDEAL ×0.6 | suppress + incident |
 | ★ recovery_after_degradation | d24 20:00 → d25 01:00 | GB psp_alpha ×0.7, linear recovery | incident |
+| dunning_failure (sim-1.2) | d3 → d7 | psp_alpha card dunning retries ×0.25, first attempts untouched | incident |
+| pricing_or_plan_change (sim-1.2) | d7 06:00 → d9 | DE renewals: +6 % cancel instead of renewing (`CHURN`) | incident |
+| data_pipeline_issue (sim-1.2) | d3 14:00–16:00 | 35 % of psp_gamma events delivered 1–2 h late (`DELAY`, `delivered_at`) | incident |
+| simultaneous_incidents (sim-1.2) | d5 10:00–15:00 | psp_alpha cards ×0.7 **and** pix ×0.5, unrelated | 2 × incident |
+| mix_shift_masking (sim-1.2) | d8 12:00–16:00 | BR/psp_gamma ×0.7 masked by US demand ×1.8 | incident + suppress |
+| ambiguous_signal (sim-1.2) | d17 10:00–14:00 | FR/psp_beta ×0.85 with errors + FR demand ×1.3; cause `unknown` | watch |
 
 ## 6. Ground truth
 
@@ -215,3 +221,14 @@ Charge attempts per window, seed 42, scale 1.0, 28 days (median / share of windo
 | JP x amex | 0 / 100 % | 1 / 100 % | 3 / 100 % |
 
 All 17 PSP x country cohorts together: see ADR-026 (63 % of 1-hour windows below 30 attempts).
+
+## 12. Realism v2 (ADR-032)
+
+`--realism v2` adds hourly overdispersion per (psp, country), a small weekend dip in approval and 3-6 `benign_shock`
+records (modest approval dips that are not incidents, route `suppress`). Default stays `v1`.
+
+## 13. Metric expectations and late delivery (sim-1.2, ADR-033)
+
+Every record lists `affected_metrics` (must move) and `unchanged_metrics` (must not move: negative evidence for a
+diagnosis). An event of the `data_pipeline_issue` scenario may carry `delivered_at` (raw envelope, last key); the
+normalized layer uses it as `ingested_at`. All other events have no such key.

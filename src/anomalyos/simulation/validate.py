@@ -314,6 +314,8 @@ def validate_ground_truth(records: Iterable[Mapping[str, Any]], scenario_ids: It
             r.err(f"{ctx}: end before start")
         if g.get("expected_recovery") is not None and g["expected_recovery"] < g["start"]:
             r.err(f"{ctx}: recovery before start")
+        if set(g.get("affected_metrics") or []) & set(g.get("unchanged_metrics") or []):
+            r.err(f"{ctx}: a metric cannot be both affected and unchanged")
         oa = g.get("oracle_detectable_at")
         if oa is not None:
             if not incident:

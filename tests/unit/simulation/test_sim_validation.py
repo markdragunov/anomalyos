@@ -31,7 +31,7 @@ def test_every_scenario_has_valid_machine_readable_truth(full_run):
     rep = validate_ground_truth(truth, scn, min_attempts_for_direction=50)
     assert rep.ok, rep.errors
     assert {g["scenario_id"] for g in truth} == set(scn)
-    assert len(scn) == 14  # 13 required kinds + negative control
+    assert len(scn) == 20  # 13 required kinds + negative control + 6 sim-1.2 kinds
 
 
 def test_envelope_shape_matches_contract(full_run):

@@ -26,7 +26,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Iterable, Iterator, Mapping
 
-NORMALIZATION_VERSION = "1.0.0"
+NORMALIZATION_VERSION = "1.1.0"  # 1.1.0: ingested_at from the raw delivered_at (sim-1.2 late events)
 SCHEMA_VERSION = "norm-1"
 MERCHANT_ID = "mer_sim_001"  # single synthetic merchant until multi-merchant (ADR-025)
 UNKNOWN = "unknown"
@@ -133,7 +133,7 @@ class Normalizer:
             "event_type": event_type,
             "schema_version": SCHEMA_VERSION,
             "occurred_at": occurred,
-            "ingested_at": occurred,  # raw stream has no ingestion delay (ADR-025)
+            "ingested_at": env.get("delivered_at", occurred),  # late delivery when the raw event says so (ADR-025)
             "merchant_id": MERCHANT_ID,
             "entity_id": entity_id,
             "customer_id": UNKNOWN, "payment_intent_id": UNKNOWN,

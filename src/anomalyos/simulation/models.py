@@ -335,12 +335,13 @@ class Event:
     request_id: str | None = None
     idempotency_key: str | None = None
     api_version: str = API_VERSION
+    delivered_at: int | None = None  # sim-1.2: set only for late-delivered events (data_pipeline_issue)
 
     def to_envelope(self) -> dict[str, Any]:
         data: dict[str, Any] = {"object": json.loads(self.data_json)}
         if self.previous_attributes_json is not None:
             data["previous_attributes"] = json.loads(self.previous_attributes_json)
-        return {
+        env = {
             "id": self.id,
             "object": "event",
             "api_version": self.api_version,
@@ -350,6 +351,9 @@ class Event:
             "data": data,
             "request": {"id": self.request_id, "idempotency_key": self.idempotency_key},
         }
+        if self.delivered_at is not None:
+            env["delivered_at"] = self.delivered_at
+        return env
 
     def to_json_line(self) -> str:
         """Envelope JSON built by string assembly (hot path; equals canonical_json(to_envelope()))."""
@@ -364,7 +368,9 @@ class Event:
             + ',"livemode":false,"type":' + json.dumps(self.type)
             + ',"data":' + data
             + ',"request":{"id":' + json.dumps(self.request_id)
-            + ',"idempotency_key":' + json.dumps(self.idempotency_key) + "}}"
+            + ',"idempotency_key":' + json.dumps(self.idempotency_key) + "}"
+            + ("" if self.delivered_at is None else ',"delivered_at":' + str(self.delivered_at))
+            + "}"
         )
 
 
