@@ -57,7 +57,7 @@ class RunResult:
 
 # WorldConfig fields added after sim-1.0.0. They enter the run_id hash only when they differ from their default,
 # so a run that does not use them keeps the id (and digests) it had before the field existed (ADR-029).
-_POST_1_0_FIELDS = ("schedule",)
+_POST_1_0_FIELDS = ("schedule", "realism", "hourly_noise_sd", "weekend_approval_factor")
 
 
 def _hashed_config(world: WorldConfig) -> dict:

@@ -431,9 +431,52 @@ def build_catalog(world: WorldConfig, preset: str = "full") -> tuple[ScenarioSpe
     keys = [t.key for sp in specs for t in sp.truths]
     if len(keys) != len(set(keys)):
         raise ValueError("duplicate truth key in catalog")
-    if world.schedule == "randomized":
+    if world.realism == "v2" and preset != "baseline":
+        specs = specs + (benign_shocks(world, specs),)
+    if world.schedule == "randomized" or world.realism == "v2":
         specs = link_overlapping(specs)
     return specs
+
+
+# Cohorts for benign shocks: existing (country, psp) pairs with 10-90 attempts/hour at scale 1.0.
+BENIGN_COHORTS = (("US", "psp_gamma"), ("DE", "psp_beta"), ("BR", "psp_gamma"), ("FR", "psp_beta"), ("GB", "psp_alpha"),
+                  ("NL", "psp_beta"), ("GB", "psp_beta"), ("ES", "psp_gamma"), ("JP", "psp_gamma"), ("MX", "psp_gamma"))
+
+
+def benign_shocks(w: WorldConfig, specs: tuple[ScenarioSpec, ...]) -> ScenarioSpec:
+    """realism v2 (ADR-032): 3-6 short, modest approval dips in random cohorts that are *not* incidents.
+
+    Strength (x0.90-0.95 for 1-3 h) is chosen to stay within the range of ordinary variation while being visibly
+    larger than v1 noise. Placement keeps the 6 h gap to every short scenario and to the control day; overlap with
+    long-running scenarios is allowed and recorded in unrelated_to."""
+    import random as _random
+    from .schedule import GAP, LONG_RUNNING
+    busy = [(sp.start, sp.end) for sp in specs if sp.kind not in LONG_RUNNING]
+    n = _random.Random(derive_seed(w.seed, "benign", "count")).randint(3, 6)
+    effects, truths = [], []
+    for i in range(n):
+        for attempt in range(300):
+            rng = _random.Random(derive_seed(w.seed, "benign", i, attempt))
+            s = w.start + rng.randint(1, w.days - 2) * DAY + rng.randrange(0, 24) * HOUR + rng.randrange(0, 4) * 900
+            e = s + rng.randrange(4, 13) * 900
+            if all(e + GAP <= a or b + GAP <= s for a, b in busy):
+                break
+        else:
+            raise ValueError(f"no placement for benign shock {i}")
+        busy.append((s, e))
+        co, psp = rng.choice(BENIGN_COHORTS)
+        mag = round(rng.uniform(0.90, 0.95), 2)
+        fx = Effect(f"fx_benign_{i + 1}", Mechanism.APPROVAL, c(customer_country=co, psp=psp), step(s, e), mag,
+                    (("card_declined", "generic_decline", .6), ("card_declined", "do_not_honor", .4)))
+        others = tuple(x for x in PSPS if x != psp)
+        truths.append(TruthSpec(f"benign_shock_{i + 1}", (fx.effect_id,), RootCause.NORMAL_VARIATION, Route.SUPPRESS, Severity.NONE,
+                                s, e, c(customer_country=co, psp=psp),
+                                f"Benign shock: {co} traffic on {psp} approves at ~{_pct(mag)}% of normal for {_hours(e - s)}h "
+                                "(issuer maintenance, short routing hiccup). Within ordinary variation; not an incident.",
+                                (c(customer_country=co, psp=psp),), (c(customer_country=co, psp=others),),
+                                "charge_approval_rate", "down", None, None))
+        effects.append(fx)
+    return _mk(w, "scn_benign_shocks", "benign_shock", "Benign approval shocks (not incidents)", Severity.NONE, tuple(effects), tuple(truths))
 
 
 def _truth_span(sp: ScenarioSpec, t: TruthSpec) -> tuple[int, int]:

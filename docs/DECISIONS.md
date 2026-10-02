@@ -6,6 +6,16 @@ Format: short ID, status, context, decision, consequences.
 
 ---
 
+## ADR-032 — Less clean baseline: realism v2 (sim-1.2, phase 4) · *accepted* (2026-10-02)
+
+**Context.** Review 4.4: hourly approval was almost binomial and daily noise tiny, so false-positive rates on the simulator would be optimistic.
+
+**Decision.** `WorldConfig.realism = "v1" | "v2"` (default v1, byte-identical). In v2: a (psp, country, hour) approval multiplier with sd `hourly_noise_sd = 0.035` (own random stream), a weekend factor 0.99 on local Saturday/Sunday, and 3-6 `benign_shock` records per run (x0.90-0.95 for 1-3 h on a random existing country x psp cohort; `normal_variation`, `suppress`; 6 h away from short scenarios and the control day). Calibrated on seed 42, scale 1.0, scenario-free world: hourly dispersion index per PSP 1.53-1.82 in v2 vs 1.23-1.43 in v1 (formula in `test_sim_realism.py`; the review's 1.12-1.23 used a slightly different estimator). The slow test checks v1 in [1.0, 1.6] and v2 in [1.45, 2.1] on seeds 1-3.
+
+**Consequences.** Changing the default to v2 is a separate decision. New fields enter `run_id` only when non-default.
+
+---
+
 ## ADR-031 — Oracle detectability in ground truth (sim-1.1, phase 3) · *accepted* (2026-10-02)
 
 **Context.** `expected_detection_window` was a designer's constant (1 h, 4 h, 12 h, 3 days) unrelated to effect strength or cohort volume (review 4.3).

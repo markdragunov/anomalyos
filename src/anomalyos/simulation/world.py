@@ -132,10 +132,15 @@ class WorldConfig:
     organic_duplicate_rate: float = 0.0005
     daily_noise_sd: float = 0.004
     schedule: str = "fixed"  # "fixed" = sim-1.0 calendar; "randomized" = per-seed calendar (ADR-029)
+    realism: str = "v1"  # "v1" = sim-1.1 baseline; "v2" = overdispersion, weekend effect, benign shocks (ADR-032)
+    hourly_noise_sd: float = 0.035  # v2 only: sd of the (psp, country, hour) approval multiplier
+    weekend_approval_factor: float = 0.99  # v2 only: local Saturday/Sunday
 
     def __post_init__(self) -> None:
         if self.schedule not in ("fixed", "randomized"):
             raise ValueError("schedule must be 'fixed' or 'randomized'")
+        if self.realism not in ("v1", "v2"):
+            raise ValueError("realism must be 'v1' or 'v2'")
         if self.days < 1 or self.days > 366:
             raise ValueError("days must be in [1, 366]")
         if not (0 < self.scale <= 20):

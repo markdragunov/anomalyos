@@ -233,6 +233,17 @@ class Simulation:
             self._noise[key] = v
         return v
 
+    def _v2_factor(self, psp: str, m, t: int) -> float:
+        """realism v2 (ADR-032): overdispersion from a (psp, country, hour) random effect plus a weekend dip.
+        Its own random streams, so v1 runs consume exactly the draws they always did."""
+        key = ("v2h", psp, m.country, (t - self.w.start) // HOUR)
+        v = self._noise.get(key)
+        if v is None:
+            v = 1.0 + random.Random(derive_seed(self.seed, "noise_v2_hour", psp, m.country, key[3])).gauss(0.0, self.w.hourly_noise_sd)
+            self._noise[key] = v
+        local_weekday = ((t + m.tz_offset * HOUR) // DAY + 3) % 7  # 1970-01-01 was a Thursday; 5, 6 = Sat, Sun
+        return v * (self.w.weekend_approval_factor if local_weekday >= 5 else 1.0)
+
     def _base_p(self, sh: Shopper, t: int, kind: str) -> float:
         m = MARKET_BY_COUNTRY[sh.customer.country]
         pm = sh.pm
@@ -241,6 +252,8 @@ class Simulation:
         else:
             p = METHOD_APPROVAL[pm.type]
         p *= PSP_MODIFIER[sh.psp] * self._daily_noise(sh.psp, m.country, t) * month_end_factor(m, t)
+        if self.w.realism == "v2":
+            p *= self._v2_factor(sh.psp, m, t)
         if kind == "retry":
             p *= self.w.retry_approval_factor
         elif kind == "renewal":

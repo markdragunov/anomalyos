@@ -215,3 +215,8 @@ Charge attempts per window, seed 42, scale 1.0, 28 days (median / share of windo
 | JP x amex | 0 / 100 % | 1 / 100 % | 3 / 100 % |
 
 All 17 PSP x country cohorts together: see ADR-026 (63 % of 1-hour windows below 30 attempts).
+
+## 12. Realism v2 (ADR-032)
+
+`--realism v2` adds hourly overdispersion per (psp, country), a small weekend dip in approval and 3-6 `benign_shock`
+records (modest approval dips that are not incidents, route `suppress`). Default stays `v1`.
