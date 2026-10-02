@@ -126,8 +126,11 @@ class WorldConfig:
     organic_refund_rate: float = 0.03
     organic_duplicate_rate: float = 0.0005
     daily_noise_sd: float = 0.004
+    schedule: str = "fixed"  # "fixed" = sim-1.0 calendar; "randomized" = per-seed calendar (ADR-029)
 
     def __post_init__(self) -> None:
+        if self.schedule not in ("fixed", "randomized"):
+            raise ValueError("schedule must be 'fixed' or 'randomized'")
         if self.days < 1 or self.days > 366:
             raise ValueError("days must be in [1, 366]")
         if not (0 < self.scale <= 20):
@@ -144,16 +147,11 @@ class WorldConfig:
         return self.days * 24
 
     def releases(self) -> tuple[Release, ...]:
-        """Mobile release train. Fixed relative to ``start``; bugs are injected by scenarios."""
-        s = self.start
-        return (
-            Release("ios", "5.12.0", s - 30 * DAY), Release("android", "5.12.0", s - 30 * DAY),
-            Release("ios", "5.13.0", s + 1 * DAY + 10 * HOUR), Release("android", "5.13.0", s + 1 * DAY + 10 * HOUR),
-            Release("ios", "5.14.0", s + 9 * DAY + 10 * HOUR), Release("android", "5.14.0", s + 9 * DAY + 10 * HOUR),
-            Release("android", "5.14.1", s + 11 * DAY + 16 * HOUR),
-            Release("ios", "5.15.0", s + 23 * DAY + 10 * HOUR), Release("android", "5.15.0", s + 23 * DAY + 10 * HOUR),
-        )
+        """Mobile release train: the sim-1.0 train in ``fixed`` mode; in ``randomized`` mode the bug release
+        follows the checkout-regression scenario and the others are jittered (``schedule.py``)."""
+        from .schedule import releases_for  # local import: schedule.py imports this module
 
+        return releases_for(self)
 
 def pick(weighted: tuple[tuple[str, float], ...], u: float) -> str:
     """Weighted choice from a uniform in [0, 1). Weights need not sum to 1."""

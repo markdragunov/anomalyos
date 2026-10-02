@@ -6,6 +6,17 @@ Format: short ID, status, context, decision, consequences.
 
 ---
 
+## ADR-029 — Randomized scenario calendar (sim-1.1, phase 1) · *accepted* (2026-10-02, owner OK on the Gate 1 design)
+
+**Context.** In sim-1.0 every seed replays the same incident times, cohorts and strengths, so many seeds only repeat noise and a detector can be tuned to the calendar.
+
+**Decision.** `WorldConfig.schedule = "fixed" | "randomized"` (default `fixed`, byte-identical to sim-1.0). `simulation/schedule.py` is a pure function of the world: per scenario kind it draws start, duration, cohort (closed, reviewed lists of existing cohorts) and strength from `derive_seed(seed, "schedule", kind, attempt)`, placing kinds in a fixed priority order (long-running first, then the control day). Rules: windows inside the world (24 h warm-up, 6 h end margin); 6 h gap between short scenarios and between the three long-running ones (gradual drift, checkout regression, renewal failure); **long x short overlap allowed** and recorded both ways in `unrelated_to`; the control day touches nothing; the campaign + outage pair overlaps by design. The checkout-regression release (5.14.0) and hotfix (5.14.1, 36-72 h later, only on the affected platform) follow the scenario; 5.13.0 and 5.15.0 are jittered +/- 24 h; scheduled releases stay 48 h apart. New `WorldConfig` fields enter the `run_id` hash only when non-default. `seeds.py`: `DEV_SEEDS` 1-20, `HELDOUT_SEEDS` 1001-1020, `DEMO_SEED` 42.
+**Deviations from the design table:** checkout-regression release days 5-14 (not 5-16: keeps 48 h after 5.13.0 and room for the long windows); gradual drift starts on days 16-22 at any hour.
+
+**Consequences.** Placement succeeds on 5,000/5,000 seeds. Randomized mode targets scale 1.0; at small scales small-cohort incidents may be statistically invisible (phase 3 adds `oracle_detectable_at`). `GENERATOR_VERSION` is bumped together with phase 2.
+
+---
+
 ## ADR-025 — Event normalization mapping (raw Stripe-shaped -> DATA_MODEL envelope) · *accepted* (2026-10-02, Stage 2)
 
 **Status:** accepted for implementation in Stage 2; follows ADR-022 option A. Not reviewed by the owner beyond the brief in `docs/tasks/STAGE-2.md`; deviations from that brief are listed explicitly.

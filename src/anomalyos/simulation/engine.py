@@ -646,14 +646,17 @@ class Simulation:
         if not self._done:
             raise RuntimeError("run() must be exhausted before ground truth is available")
         out: list[GroundTruth] = []
+        # Truth keys are unique across the catalog (checked in build_catalog); `unrelated_to` may point at a record
+        # of another scenario (randomized calendar: a long-running incident overlapping a short one).
+        ref_by_key: dict[str, str] = {}
+        for sp in self.specs:
+            for t in sp.truths:
+                ref_by_key[t.key] = (stable_id("inc", self.seed, sp.scenario_id, t.key, length=16)
+                                     if t.expected_route is not Route.SUPPRESS else f"{sp.scenario_id}:{t.key}")
         for sp in self.specs:
             params = {e.effect_id: e.describe() for e in sp.effects}
-            inc_ids = {}
             for t in sp.truths:
-                if t.expected_route is not Route.SUPPRESS:
-                    inc_ids[t.key] = stable_id("inc", self.seed, sp.scenario_id, t.key, length=16)
-            for t in sp.truths:
-                unrelated = [inc_ids.get(k) or f"{sp.scenario_id}:{k}" for k in t.unrelated_to]
+                unrelated = [ref_by_key.get(k) or f"{sp.scenario_id}:{k}" for k in t.unrelated_to]
                 out.append(build_ground_truth(
                     world_seed=self.seed, scenario_id=sp.scenario_id, scenario_kind=sp.kind, scenario_seed=sp.seed,
                     spec_hash=sp.spec_hash, truth=t, effect_params=params, tally=self.tally,

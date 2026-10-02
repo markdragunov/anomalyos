@@ -99,7 +99,11 @@ the stream before the first injection is byte-identical with and without scenari
 effect (leave-one-out when effects overlap). The difference yields exact impact — lost
 payments and amount, extra refunds, duplicates, fraud — computed by code from the mechanism.
 
-### Catalog (`--preset full`; `core` = the four marked ★)
+### Calendar: fixed or randomized (ADR-029)
+
+`--schedule fixed` (default) reproduces the table below on every seed. `--schedule randomized` draws, per seed, start, duration, cohort and strength of each scenario from closed lists and ranges in `src/anomalyos/simulation/schedule.py`; ground truth always carries the realized values, and records of different scenarios that overlap in time point at each other in `unrelated_to`. Use `DEV_SEEDS` for tuning and `HELDOUT_SEEDS` for reporting (`simulation/seeds.py`).
+
+### Catalog (`--preset full`; `core` = the four marked ★; fixed calendar)
 
 | Scenario | Window (from start) | Mechanism | Route |
 |---|---|---|---|
