@@ -120,6 +120,7 @@ class Normalizer:
         self._pi: dict[str, _PaymentIntentState] = {}
         self._sub_plan: dict[str, str] = {}
         self._invoice_plan: dict[str, str] = {}
+        self._invoice_psp: dict[str, str] = {}  # PSP is routed at the first attempt, after invoice.created
 
     # ------------------------------------------------------------------ helpers
     def _row(self, env: Mapping[str, Any], seq: int, event_type: str, entity_id: str, **fields: Any) -> dict[str, Any]:
@@ -191,6 +192,8 @@ class Normalizer:
         plan = self._invoice_plan.get(obj.get("invoice") or "", UNKNOWN)
         idem = env["request"]["idempotency_key"] is not None
         self._pi[obj["id"]] = _PaymentIntentState(channel=channel, idempotency_key_present=idem, plan_id=plan)
+        if obj.get("invoice"):
+            self._invoice_psp[obj["invoice"]] = _s(meta.get("psp"))
         etype = "checkout.started" if channel == "checkout" else "subscription.renewal_attempted"
         return [self._row(
             env, seq, etype, obj["id"], customer_id=obj["customer"], payment_intent_id=obj["id"],
@@ -242,13 +245,14 @@ class Normalizer:
         return [self._row(
             env, seq, env["type"], obj["id"], customer_id=obj["customer"],
             customer_country=(obj.get("customer_address") or {}).get("country"), currency=obj["currency"],
-            plan_id=plan, channel="renewal", amount_minor=obj["amount_due"], status=status)]
+            plan_id=plan, psp=self._invoice_psp.get(obj["id"]), channel="renewal", amount_minor=obj["amount_due"], status=status)]
 
     def _subscription_fields(self, obj: Mapping[str, Any]) -> dict[str, Any]:
         price = obj["items"]["data"][0]["price"]
         meta = obj.get("metadata") or {}
         return dict(customer_id=obj["customer"], customer_country=meta.get("customer_country"), currency=price["currency"],
-                    plan_id=meta.get("plan"), channel="renewal", amount_minor=price["unit_amount"])
+                    plan_id=meta.get("plan"), psp=self._invoice_psp.get(obj.get("latest_invoice") or ""), channel="renewal",
+                    amount_minor=price["unit_amount"])
 
     def _subscription_updated(self, seq: int, env: Mapping[str, Any], obj: Mapping[str, Any]) -> list[dict[str, Any]]:
         prev = env["data"].get("previous_attributes") or {}

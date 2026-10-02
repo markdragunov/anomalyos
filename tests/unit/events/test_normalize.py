@@ -122,6 +122,17 @@ def test_invoice_events_keep_names_and_carry_plan():
     assert all(r["plan_id"] == "monthly_eur" and r["channel"] == "renewal" and r["entity_id"] == "in_1" for r in rows)
 
 
+def test_psp_flows_from_renewal_payment_intent_to_invoice_and_subscription_events():
+    inv = {"id": "in_1", "object": "invoice", "customer": "cus_1", "subscription": "sub_1", "currency": "eur", "amount_due": 1199, "customer_address": {"country": "DE"}}
+    sub = dict(sub_obj(), latest_invoice="in_1")
+    rows = run(env("evt_s0", "customer.subscription.created", sub_obj()), env("evt_i1", "invoice.created", inv),
+               pi(channel="renewal", invoice="in_1"), env("evt_i2", "invoice.paid", inv),
+               env("evt_u", "customer.subscription.updated", sub, prev={"current_period_start": 1, "latest_invoice": None, "status": "active"}))
+    by_type = {r["event_type"]: r["psp"] for r in rows}
+    assert by_type["invoice.created"] == "unknown"  # PSP is chosen at the first attempt, after the invoice exists
+    assert by_type["subscription.renewal_attempted"] == by_type["invoice.paid"] == by_type["subscription.renewed"] == "psp_alpha"
+
+
 def test_plan_flows_to_renewal_payment_intent_and_charge():
     inv = {"id": "in_1", "object": "invoice", "customer": "cus_1", "subscription": "sub_1", "currency": "eur", "amount_due": 1199, "customer_address": {"country": "DE"}}
     rows = run(env("evt_s0", "customer.subscription.created", sub_obj()), env("evt_i1", "invoice.created", inv),
