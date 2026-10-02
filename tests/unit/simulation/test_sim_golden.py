@@ -14,17 +14,17 @@ from anomalyos.simulation.ground_truth import GENERATOR_VERSION
 from anomalyos.simulation.runner import generate
 from anomalyos.simulation.world import WorldConfig
 
-# sim-1.1.0 (ADR-029, ADR-030). sim-1.0.0 values, for the record: seed 5 run_3e694f661a80226d /
+# sim-1.1.1 (ADR-029..031); event digests equal sim-1.1.0. sim-1.0.0 values, for the record: seed 5 run_3e694f661a80226d /
 # c883137194271c77... / aebaf8d1...; seed 42 run_133c4a3a198eb8c1 / 1ac6d592589287ac... / 79bfe1fd...
 SEED5_SMALL = dict(
-    run_id="run_8bcb7384ca3c75fe", events=68_429,
+    run_id="run_7f4755d4ca384dea", events=68_429,
     events_sha256="47add09d6ecd3661040d6f7ae61c80a3f26c7b587b829892bbd4479a80b2eb20",
-    truth_digest="4c6e1f4c5c2b638e42cefba1b8557c37")
+    truth_digest="c643e0f0a02000acdff258a6db6acfb9")
 
 SEED42_FULL = dict(
-    run_id="run_2ddebcdbac838013", events=1_366_081,
+    run_id="run_b50c96ff698d7675", events=1_366_081,
     events_sha256="2cf8a9b7901464de0bd2b48a5e49b8e98d39a9a92ed247cf5bdfd21188f8302a",
-    truth_digest="2b818586c057feee2c08b34a8a448988")
+    truth_digest="61520d2a38f058885a428112c965c619")
 
 
 def _observed(res):
@@ -33,7 +33,7 @@ def _observed(res):
 
 def test_golden_digest_seed5_scale_005():
     res = generate(WorldConfig(seed=5, scale=0.05), "full")
-    assert GENERATOR_VERSION == "sim-1.1.0", "generator version changed: update the golden values deliberately (separate commit)"
+    assert GENERATOR_VERSION == "sim-1.1.1", "generator version changed: update the golden values deliberately (separate commit)"
     assert _observed(res) == SEED5_SMALL
 
 
