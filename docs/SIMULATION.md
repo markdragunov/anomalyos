@@ -202,7 +202,7 @@ Documented so benchmarks do not over-read the answer key (sim-1.0.0):
 Every incident record carries `oracle_detectable_at` and `oracle_method` (ADR-031): when the effect first becomes
 distinguishable (cumulative z >= 3 against the counterfactual, hourly). `expected_detection_window` is a designer's
 constant (`basis: "designer_constant"`), kept as a lower bound. Measure detection latency from
-`max(start, oracle_detectable_at)`; count incidents with `oracle_detectable_at = null` separately.
+`max(start, oracle_detectable_at)`; incidents with `oracle_detectable_at = null` are excluded from recall and reported as a separate count (owner decision, ADR-031).
 
 Charge attempts per window, seed 42, scale 1.0, 28 days (median / share of windows with fewer than 30 attempts):
 
