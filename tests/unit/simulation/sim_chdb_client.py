@@ -9,10 +9,11 @@ from __future__ import annotations
 import os
 import tempfile
 
+from anomalyos.events import normalize as nz
 from anomalyos.simulation import clickhouse_load as chl
 
 _TYPES = {}
-for cols in (chl.EVENT_COLUMNS, chl.TRUTH_COLUMNS, chl.RUN_COLUMNS):
+for cols in (chl.EVENT_COLUMNS, chl.TRUTH_COLUMNS, chl.RUN_COLUMNS, nz.NORM_COLUMNS):
     for name, typ in cols:
         _TYPES.setdefault(name, typ.split(" CODEC")[0])
 
@@ -36,7 +37,8 @@ class ChdbClient:
         with open(path, "wb") as f:
             f.write(insert_block)
         cols = list(column_names)
-        types = {"ground_truth": chl.TRUTH_COLUMNS, "runs": chl.RUN_COLUMNS, "events": chl.EVENT_COLUMNS}[table.split(".")[1]]
+        types = {"ground_truth": chl.TRUTH_COLUMNS, "runs": chl.RUN_COLUMNS, "events": chl.EVENT_COLUMNS,
+                 "events_norm": nz.NORM_COLUMNS}[table.split(".")[1]]
         tmap = {n: t.split(" CODEC")[0] for n, t in types}
         structure = ", ".join(f"`{c}` {tmap[c]}" for c in cols).replace("'", "\\'")
         col_list = ", ".join(f"`{c}`" for c in cols)

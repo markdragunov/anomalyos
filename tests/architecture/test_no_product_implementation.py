@@ -35,10 +35,8 @@ FORBIDDEN_FILENAMES = {
     "clickhouse_client.py",
 }
 
-# Packages under src/anomalyos that belong to later stages.
+# Packages under src/anomalyos that belong to later stages (`events` and `metrics` are Stage 2).
 FORBIDDEN_PACKAGES = {
-    "events",
-    "metrics",
     "detection",
     "cohorts",
     "jev",
