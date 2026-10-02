@@ -46,8 +46,10 @@ def test_fixed_mode_keeps_the_sim_1_0_calendar(seed):
 
 
 def test_fixed_run_id_ignores_the_new_field_so_sim_1_0_digests_stay_valid():
-    assert run_id_for(WorldConfig(seed=5, scale=0.05), "full") == "run_3e694f661a80226d"
-    assert run_id_for(WorldConfig(seed=5, scale=0.05, schedule="randomized"), "full") != "run_3e694f661a80226d"
+    from tests.unit.simulation.test_sim_golden import SEED5_SMALL
+    fixed = run_id_for(WorldConfig(seed=5, scale=0.05), "full")
+    assert fixed == SEED5_SMALL["run_id"]  # pinned value predates nothing but the version bump: the new field is not hashed
+    assert run_id_for(WorldConfig(seed=5, scale=0.05, schedule="randomized"), "full") != fixed
 
 
 def test_invalid_schedule_mode_is_rejected():
