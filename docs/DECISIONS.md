@@ -6,6 +6,22 @@ Format: short ID, status, context, decision, consequences.
 
 ---
 
+## ADR-028 — Owner decisions on open questions OQ-6/7/8, invariants 15–16, versions, routing · *accepted* (2026-10-02)
+
+**Status:** accepted by the owner (answers to the closeout open-questions round).
+
+**Decisions.**
+1. **Severity vocabulary (OQ-6).** One scale everywhere: the ground-truth scale `none / low / medium / high / critical` (`ground_truth.Severity`). Jev's severity `choice` ranges over `low…critical` (`none` means "not an incident", expressed by the incident `noul`). `P1/P2/P3` is a presentation label for the UI, defined by a mapping table in Stage 8; it never appears in Jev state, policy or ground truth. The simulator and its digests are unchanged.
+2. **Mutable incident state (OQ-7).** ClickHouse, append-only: every status transition is a new row (`INV-010`); the current state is a view that takes the latest row per incident. No operational store and no new dependency for the prototype. Revisit if update/latency requirements outgrow it.
+3. **Incident lifecycle (OQ-8).** The table in `docs/specs/07_INCIDENT_ENGINE.md`: `DETECTED → INVESTIGATING → ACKNOWLEDGED → ESCALATED → RECOVERING → RESOLVED | DISMISSED`; only a human reaches a terminal state; `RECOVERING → INVESTIGATING` when the signal returns. `docs/ARCHITECTURE.md` is aligned.
+4. **Invariants.** `AGENTS.md` rules 16 and 17 become `INV-015` (ground truth is isolated) and `INV-016` (seeded, reproducible). Rules 18 (data conventions) and 19 (Jev typed questions) stay non-numbered rules backed by ADR-018/ADR-024. Both new invariants are test-enforced now (`tests/architecture/test_ground_truth_isolation.py`, `test_reproducibility_static.py`).
+5. **Versions.** No V1/V2 split is introduced. "V2" keeps the meaning in `AGENTS.md`/`docs/ARCHITECTURE.md` (the whole current product generation: Mode A and Mode B, agent read-only). "Mode A is built first" is a stage order (`docs/specs/STATUS.md`), not a version.
+6. **Routing and fallback.** Routes map `INCIDENT = incident`, `DIGEST = watch`, `IGNORE = suppress`. On Jev failure, timeout or unverifiable answer the route is `DIGEST`. Incident merge rule (overlapping windows, nested cohorts along approved chains, compatible metric families) is accepted as the working rule, refined with tests in Stage 6.
+
+**Consequences.** `docs/specs` 03, 06, 07, `STATUS.md`, `ARCHITECTURE.md` updated. `INV-015`/`INV-016` added to `docs/INVARIANTS.md` and the catalog test. OQ-6/7/8 closed.
+
+---
+
 ## ADR-027 — Model for human-readable incident explanations · *accepted* (2026-10-02, owner OK on the Gate 2 report)
 
 **Status:** accepted — option (3), staged. Vendor and budget remain a separate ADR when a generative model is added.
@@ -361,9 +377,9 @@ vendor's model.
 ## Open questions
 
 - **Reserved ADR numbers.** ADR-025 is reserved for event normalization (`docs/tasks/STAGE-2.md`, Phase 2, now unblocked by ADR-022). ADR-026 (time grain) and ADR-027 (explanation model) are accepted above.
-- **OQ-6 — Severity vocabulary.** Spec 06 asks Jev for `P1/P2/P3`; ground truth uses `none/low/medium/high/critical`. One vocabulary is needed before Stage 5 (owner decision).
-- **OQ-7 — Where mutable incident state lives.** Spec 03 puts `incidents` in ClickHouse; incidents change status, which suits an operational store, while append-only audit suits ClickHouse (owner decision before Stage 6).
-- **OQ-8 — Incident lifecycle states.** See `docs/specs/07_INCIDENT_ENGINE.md` (proposal) vs the earlier list in `docs/ARCHITECTURE.md`.
+- **OQ-6 — Severity vocabulary.** Closed by ADR-028.
+- **OQ-7 — Where mutable incident state lives.** Closed by ADR-028.
+- **OQ-8 — Incident lifecycle states.** Closed by ADR-028.
 
 - **OQ-1 — Jev integration details** (resolved in principle by ADR-018). Still open: official
   Python SDK vs stdlib HTTP client (dependency trade-off), pinned model version for

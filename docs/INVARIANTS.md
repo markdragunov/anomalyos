@@ -146,15 +146,33 @@ IDs are stable. Do not renumber.
 
 **How it could be tested.** `tests/architecture/test_eval_ground_truth.py` and `scripts/eval_smoke.py` — already enforced in this harness.
 
+## INV-015 — Ground Truth Is Isolated
+
+**What it means.** Ground truth (`<db>_truth`, `ground_truth.json`, `scenario_id`, `run_id`) is produced only by simulator code and is readable only by the simulator and the evaluation layer. Metrics, normalization, detection, cohorts, Jev, policy, incident engine, agent and explanation code must never import, query or receive it.
+
+**Why it exists.** If a detector or model can see the answer key, every benchmark number is meaningless. ADR-017.
+
+**How it could be violated.** A metric query joining `<db>_truth`; a Jev state containing `scenario_id`; a detector importing `ground_truth`; a prompt including the expected cause.
+
+**How it could be tested.** `tests/architecture/test_ground_truth_isolation.py` fails if any module under `src/anomalyos` outside the allowlist (`simulation`, `evaluation`) mentions `_truth` or `ground_truth`. Stage 2 adds a runtime check that no metrics query references the truth database.
+
+## INV-016 — Seeded and Reproducible
+
+**What it means.** Generation and tests are deterministic: no wall clock, no unseeded randomness, no builtin `hash()`, no global counters. The same seed and configuration produce byte-identical output. Simulator randomness comes from `ids.derive_seed(seed, <structural key>)` and IDs from `ids.stable_id`.
+
+**Why it exists.** Replay, audit, digests and benchmarks depend on it; a flaky world cannot be an answer key. ADR-021.
+
+**How it could be violated.** `datetime.now()` in a generator; `random.random()` on the global generator; `hash(str)` (salted per process); `uuid4()`; a module-level counter for IDs.
+
+**How it could be tested.** Determinism tests in `tests/unit/simulation/test_sim_determinism.py` (digest equality) and `tests/architecture/test_reproducibility_static.py`, which parses `src/anomalyos/simulation` and fails on calls to `hash`, wall-clock functions, global `random` functions or `uuid4`.
+
 ## Operating rules that are not numbered invariants
 
-`AGENTS.md` rules 16–19 are binding repository rules but have no `INV-` id (adding invariants is an owner decision; see the open question in the closeout report). Their sources and enforcement:
+`AGENTS.md` rules 18 and 19 are binding repository rules without an `INV-` id (ADR-028 promoted rules 16 and 17 to `INV-015` and `INV-016`). Sources and enforcement:
 
 | AGENTS.md rule | Source | Enforced by |
 | --- | --- | --- |
-| 16 — Ground truth is isolated | ADR-017 | Stage 2: test that greps `src/anomalyos/events` and `metrics` for `_truth` / `ground_truth` (to be added with that stage) |
-| 17 — Seeded and reproducible | ADR-021 | simulator determinism tests (`tests/unit/simulation/test_sim_determinism.py`) |
 | 18 — Data conventions (money, UTC, `unknown`) | `docs/DATA_MODEL.md` | simulator validator (`validate.py`) |
 | 19 — Jev answers typed questions only | ADR-018, ADR-024 | Stage 5 tests (question-set and state-builder tests, `docs/TESTING.md`) |
 
-Rules 1–15 map to `INV-001`…`INV-014` (rule 15 = `INV-014`).
+Rules 1–15 map to `INV-001`…`INV-014` (rule 15 = `INV-014`); rule 16 = `INV-015`; rule 17 = `INV-016`.

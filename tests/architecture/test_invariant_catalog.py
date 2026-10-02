@@ -20,6 +20,8 @@ REQUIRED_INVARIANTS = {
     "INV-010": "Decisions Are Auditable",
     "INV-011": "Agent Budgets Are Bounded",
     "INV-012": "No Autonomous Irreversible Actions",
+    "INV-015": "Ground Truth Is Isolated",
+    "INV-016": "Seeded and Reproducible",
 }
 
 HEADING_RE = re.compile(
@@ -66,9 +68,13 @@ class TestInvariantCatalog(unittest.TestCase):
 
 
 class TestOperatingRulesMapping(unittest.TestCase):
-    def test_agents_rules_16_to_19_are_mapped(self) -> None:
+    def test_agents_rules_18_and_19_are_mapped(self) -> None:
         text = (ROOT / "docs" / "INVARIANTS.md").read_text(encoding="utf-8")
         self.assertIn("## Operating rules that are not numbered invariants", text)
-        for rule in ("16 — Ground truth is isolated", "17 — Seeded and reproducible",
-                     "18 — Data conventions", "19 — Jev answers typed questions only"):
+        for rule in ("18 — Data conventions", "19 — Jev answers typed questions only"):
             self.assertIn(rule, text)
+
+    def test_agents_rules_16_and_17_cite_their_invariants(self) -> None:
+        text = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
+        self.assertIn("Ground truth is isolated** (`INV-015`)", text)
+        self.assertIn("seeded and reproducible** (`INV-016`)", text)

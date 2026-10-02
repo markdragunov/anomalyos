@@ -34,8 +34,8 @@ Canonical detail lives in:
 13. **Agent execution must have explicit budgets.** Tool calls, tokens, wall-clock, and fan-out are capped. Exceeding a budget is a hard stop, not a retry loop.
 14. **No autonomous irreversible actions in V2.** Humans (or a later, explicitly designed control plane) approve anything irreversible. Coding agents must not add silent auto-remediation.
 15. **Evaluation scenarios must contain explicit ground truth.** A scenario without `ground_truth` is invalid and must fail the harness.
-16. **Ground truth is isolated.** Ground truth is produced only by simulator code, lives apart from events (`<db>_truth`, `ground_truth.json`), and must never be readable by detection, metrics, cohort, Jev or agent code paths.
-17. **Everything is seeded and reproducible.** No wall clock, unseeded randomness, `hash()` or global counters in generation or tests. Simulator randomness comes from `ids.derive_seed(seed, <structural key>)`, IDs from `ids.stable_id`. Every new scenario needs a `TruthSpec` with `true_cause` from the `DATA_MODEL.md` vocabulary.
+16. **Ground truth is isolated** (`INV-015`). Ground truth is produced only by simulator code, lives apart from events (`<db>_truth`, `ground_truth.json`), and must never be readable by detection, metrics, cohort, Jev or agent code paths.
+17. **Everything is seeded and reproducible** (`INV-016`). No wall clock, unseeded randomness, `hash()` or global counters in generation or tests. Simulator randomness comes from `ids.derive_seed(seed, <structural key>)`, IDs from `ids.stable_id`. Every new scenario needs a `TruthSpec` with `true_cause` from the `DATA_MODEL.md` vocabulary.
 18. **Data conventions.** Money is integer minor units plus ISO 4217 currency; timestamps are UTC; missing dimensions are the explicit value `unknown`.
 19. **Jev answers typed questions only.** Choice / Score / Noul over a small state; no arithmetic, counting or date comparison in Jev (code computes, passes values or buckets); hypotheses come only from the closed cause vocabulary; low confidence routes to a human. Jev never writes explanations or SQL (see ADR-018; networked Jev vs `INV-004`: ADR-024).
 

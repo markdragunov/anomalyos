@@ -6,7 +6,7 @@ alwaysApply: false
 
 When editing architecture or invariant docs:
 
-- Keep invariant IDs stable. Do not renumber `INV-001`–`INV-014`.
+- Keep invariant IDs stable. Do not renumber `INV-001`–`INV-016`.
 - If behavior of an invariant changes, update `tests/architecture/` in the same change.
 - Do not conflate the **coding harness** with the **AnomalyOS runtime harness**.
 - Record durable choices in `docs/DECISIONS.md`, not only in chat.

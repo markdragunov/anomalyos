@@ -1,6 +1,6 @@
 # Stage 6 — Two-Mode Incident Engine and Policy Routing
 
-> **Status:** pending Stage 6 (`STATUS.md`). Lifecycle and correlation rules below are *proposals* awaiting owner decision (OQ-8).
+> **Status:** pending Stage 6 (`STATUS.md`). Lifecycle accepted (ADR-028); the correlation rule is the accepted working rule, refined with tests in this stage.
 
 ## Objective
 
@@ -124,9 +124,9 @@ Build tests proving:
 
 ## Amendments
 
-### Lifecycle (proposal, OQ-8)
+### Lifecycle (accepted, ADR-028)
 
-`docs/ARCHITECTURE.md` lists `candidate → open → investigating → awaiting_decision → resolved | dismissed` (+ `recovered` signalled by detection); this spec lists `DETECTED … RESOLVED`. Proposal — one set, explicit transitions, only a human actor may reach a terminal state:
+`docs/ARCHITECTURE.md` lists `candidate → open → investigating → awaiting_decision → resolved | dismissed` (+ `recovered` signalled by detection); this spec lists `DETECTED … RESOLVED`. Accepted — one set, explicit transitions, only a human actor may reach a terminal state. Storage: append-only rows in ClickHouse, current state = latest row per incident (ADR-028):
 
 | From | To | Actor |
 |---|---|---|
