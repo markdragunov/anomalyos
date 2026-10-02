@@ -1,17 +1,17 @@
 ---
-description: Block product runtime and unbounded AI data access during harness work
+description: Block runtime beyond the current stage and unbounded AI data access
 alwaysApply: false
 ---
 
 Apply when adding Python packages, integrations, SQL, LLM calls, or agents.
 
-Forbidden until an explicit product stage (and ADR) lands:
+Not allowed until its stage (and, where it adds a dependency or top-level package, an ADR) lands:
 
-- ClickHouse drivers, Docker Compose stacks, warehouse sandboxes
+- Metrics, detection, cohort, Jev, policy, incident, investigation, API or UI code
 - LLM clients and prompt pipelines that ingest events
-- Jev/policy/investigation implementations
 - Tools that execute arbitrary SQL or mutate payments
 - Vector DB / RAG
 - Autonomous refund/retry/remediation
 
+Allowed today: the simulator and the ClickHouse loader (`src/anomalyos/simulation`, ADR-020).
 Approved analytical access, when it exists, must be typed interfaces (`INV-003`), never model-authored SQL (`INV-002`).

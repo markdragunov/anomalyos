@@ -6,7 +6,7 @@ alwaysApply: true
 Read `AGENTS.md` before non-trivial changes. It is the contract.
 
 - Do not silently violate an invariant in `docs/INVARIANTS.md`. Name it and stop.
-- This tree is the **coding harness**. Do not implement product runtime unless explicitly asked.
+- Build only the stage you were asked for (`docs/ARCHITECTURE.md` stage status, `docs/tasks/`).
 - Jev decides. Code routes. LLM explains. Agent investigates.
-- After code changes: tests → `python scripts/check_architecture.py` → `python scripts/eval_smoke.py`.
+- After code changes: harness tests, `python scripts/check_architecture.py`, `python scripts/eval_smoke.py`; product tests with `pytest`.
 - No new dependencies without an ADR in `docs/DECISIONS.md`.

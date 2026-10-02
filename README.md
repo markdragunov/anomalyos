@@ -1,44 +1,71 @@
 # AnomalyOS
 
-AI Incident Intelligence for Billing & Payments.
+AI-native **Billing & Payments Incident Intelligence** — research prototype.
 
-This repository currently contains the **engineering harness** — the contract, docs, architecture tests, evaluation skeleton, CI, and Cursor rules that coding agents must follow. It does **not** yet contain product runtime (ingestion, ClickHouse, detection, Jev, policy, investigation, or UI).
+AnomalyOS detects meaningful anomalies in billing and payment systems, decides whether an
+anomaly is a real business incident, isolates the affected cohorts and likely causes,
+estimates impact, and supports an evidence-backed investigation that a human closes.
 
 **Jev decides. Code routes. LLM explains. Agent investigates.**
 
-## Quick start
+> **Status: Stage 1 — synthetic world.** Deterministic Stripe-shaped billing/payments simulator
+> (≈1.37M events per run), 13 scenario kinds + a control day with machine-readable ground
+> truth, ClickHouse loader. No metrics, detection, Jev, incident engine, agent or UI yet.
+> Next: Stage 2 (normalized events + metrics), see [docs/tasks/STAGE-2.md](docs/tasks/STAGE-2.md).
+> Stage table: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#stage-status).
 
-Requirements: Python 3.12+ (standard library only). Use `python3` if `python` is not on your PATH. GitHub Actions installs `python` via `setup-python`.
+This repository is the single home of both the **coding harness** (contract, invariants,
+architecture tests, eval skeleton, CI, Cursor rules) and the **product runtime**, built stage
+by stage ([ADR-023](docs/DECISIONS.md)).
+
+## Quickstart
+
+Product: Python 3.11+ and Docker (Compose v2). Harness: Python 3.12, standard library only.
 
 ```bash
-python3 -m unittest discover -s tests -t . -v
+# harness (no install)
+python3 -m unittest discover -s tests/architecture -t . -v
 python3 scripts/check_architecture.py
 python3 scripts/eval_smoke.py
+
+# product
+cp .env.example .env                 # local-only credentials; .env is gitignored
+docker compose up -d clickhouse      # waits on /ping healthcheck
+python3 -m venv .venv && source .venv/bin/activate
+pip install -e ".[dev]"
+set -a; source .env; set +a          # export config to the Python process
+anomalyos doctor                     # -> clickhouse: OK
+pytest                               # unit tests (integration auto-skipped)
+ANOMALYOS_RUN_INTEGRATION=1 pytest   # + live ClickHouse tests
 ```
 
-There is no application server and no third-party package install for this stage.
+Generate and load a synthetic world:
+
+```bash
+anomalyos-sim generate --seed 42 --out data/run_42 --validate   # ~1.37M events, ~1.5 min
+anomalyos-sim load --in data/run_42 --replace                   # needs .env exported
+```
+
+`anomalyos doctor` exit codes: `0` healthy, `1` ClickHouse unreachable/unauthorized, `2` invalid config.
+Stop / reset: `docker compose down` (keeps data), `docker compose down -v` (wipes the volume).
 
 ## Layout
 
 | Path | Role |
 | --- | --- |
-| `AGENTS.md` | Primary contract for coding agents |
-| `docs/` | Architecture, invariants, decisions, product, tools, skills |
-| `tests/architecture/` | Enforce harness constraints |
-| `evals/` | Scenario / baseline / benchmark structure + smoke runner |
-| `scripts/` | Architecture check and eval smoke entrypoints |
-| `.cursor/rules/` | Focused Cursor project rules (not a copy of `AGENTS.md`) |
-| `.github/workflows/` | PR checks that can actually run today |
+| `AGENTS.md` | The contract for coding agents (`CLAUDE.md` points to it) |
+| `src/anomalyos/` | Runtime: `config`, `clickhouse` (health), `simulation/` (world, scenarios, ground truth, loader) |
+| `tests/architecture/` | Harness constraints (stdlib unittest) |
+| `tests/unit/`, `tests/integration/` | Product tests (pytest; integration is opt-in, needs ClickHouse) |
+| `evals/`, `scripts/` | Scenario/baseline/benchmark structure, architecture check, eval smoke |
+| `docs/` | Architecture, invariants, decisions, product, data model, simulation, testing, tools, skills |
+| `docs/specs/` | Build specs per stage (target design) |
+| `docs/tasks/` | Current task brief |
+| `docker-compose.yml` | Local ClickHouse only |
+| `.cursor/rules/`, `.github/workflows/` | Focused Cursor rules; `harness.yml` and `ci.yml` |
 
 ## Docs
 
-- [Architecture](docs/ARCHITECTURE.md)
-- [Invariants](docs/INVARIANTS.md)
-- [Decisions](docs/DECISIONS.md)
-- [Product](docs/PRODUCT.md)
-- [Tools](docs/TOOLS.md)
-- [Skills](docs/SKILLS.md)
-
-## Status
-
-Harness bootstrap only. Stage 0 Product Foundation is **not** in this tree and must not be implemented as a side effect of harness work.
+[Architecture](docs/ARCHITECTURE.md) · [Invariants](docs/INVARIANTS.md) · [Decisions](docs/DECISIONS.md) ·
+[Product](docs/PRODUCT.md) · [Data model](docs/DATA_MODEL.md) · [Simulation](docs/SIMULATION.md) ·
+[Testing](docs/TESTING.md) · [Tools](docs/TOOLS.md) · [Skills](docs/SKILLS.md) · [Specs](docs/specs/README.md)

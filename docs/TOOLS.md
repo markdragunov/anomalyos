@@ -6,8 +6,8 @@ Classification for **future** coding-agent and runtime tooling. Do not install e
 | --- | --- | --- |
 | **GitHub** | **Required** | Source of truth for code review, draft/ship PRs, and GitHub Actions. The engineering loop is PR → checks → review. |
 | **Filesystem** | **Required** | Agents implement AnomalyOS by reading and writing this tree. There is no other coding surface. |
-| **Test runner** | **Required** | `python -m unittest` plus `scripts/check_architecture.py` and `scripts/eval_smoke.py`. Architecture and eval gates are how invariants stay real. |
-| **ClickHouse** | **Useful later** | Documented analytical source of truth. Needed when Stage 0+ actually stores metrics. Not installed now (ADR-008). When added: official client behind approved typed interfaces only — never as a generic SQL MCP for agents. |
+| **Test runner** | **Required** | `python -m unittest` (architecture), `pytest` (product), plus `scripts/check_architecture.py` and `scripts/eval_smoke.py`. Architecture and eval gates are how invariants stay real. |
+| **ClickHouse** | **Required** | Analytical source of truth; local Docker Compose node and `clickhouse-connect` loader exist since Stage 1 (ADR-012, ADR-020; supersedes ADR-008). Agents reach it only through approved typed interfaces — never as a generic SQL MCP. |
 | **Playwright** | **Useful later** | Only when an operator UI exists and we must assert real browser behavior. No UI in this harness; adding Playwright now would be a dependency with nothing to drive. |
 | **Browser tools** | **Useful later** | Same trigger as Playwright: human-facing surfaces, visual verification, docs sites. Useless against JSON eval fixtures and markdown contracts. |
 | **Research tools** (web search, docs fetch) | **Useful later** | Helpful while coding (processor behavior, ClickHouse SQL, payments domain). Not part of the V2 runtime agent. Must never become a path to dump unvetted web text into incident explanations (`INV-008`). |

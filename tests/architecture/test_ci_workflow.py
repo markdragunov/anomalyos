@@ -9,7 +9,7 @@ from tests.architecture.paths import ROOT
 WORKFLOW = ROOT / ".github" / "workflows" / "harness.yml"
 
 REQUIRED_SNIPPETS = [
-    "python -m unittest discover -s tests -t . -v",
+    "python -m unittest discover -s tests/architecture -t . -v",
     "python scripts/check_architecture.py",
     "python scripts/eval_smoke.py",
     "actions/setup-python",

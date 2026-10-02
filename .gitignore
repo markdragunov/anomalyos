@@ -36,3 +36,6 @@ evals/output/
 # Logs
 *.log
 logs/
+
+# Generated simulator output
+data/

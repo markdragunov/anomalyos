@@ -1,4 +1,4 @@
-"""The repo layout is the coding harness, not a product runtime."""
+"""The repo layout: coding harness plus the stage-by-stage runtime (ADR-023)."""
 
 from __future__ import annotations
 
@@ -27,7 +27,15 @@ REQUIRED_PATHS = [
     ".cursor/rules/harness.mdc",
     ".cursor/rules/architecture.mdc",
     ".cursor/rules/testing.mdc",
-    ".cursor/rules/no-product.mdc",
+    ".cursor/rules/stage-guard.mdc",
+    "CLAUDE.md",
+    "pyproject.toml",
+    "src/anomalyos",
+    "tests/unit",
+    "tests/integration",
+    "docs/DATA_MODEL.md",
+    "docs/specs",
+    ".github/workflows/ci.yml",
 ]
 
 

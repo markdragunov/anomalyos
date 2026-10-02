@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "anomalyos"
+version = "0.0.1"
+description = "AI-native Billing Incident Intelligence — research prototype"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+# Stage 0 had zero runtime dependencies (ADR-013). Stage 1 adds the ClickHouse client (ADR-020).
+dependencies = ["clickhouse-connect>=0.8,<2"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[project.scripts]
+anomalyos = "anomalyos.__main__:main"
+anomalyos-sim = "anomalyos.simulation.__main__:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
+markers = [
+    "integration: requires a running ClickHouse (opt-in via ANOMALYOS_RUN_INTEGRATION=1)",
+]
