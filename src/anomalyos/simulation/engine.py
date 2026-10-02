@@ -141,6 +141,7 @@ class Simulation:
         self._heap: list[tuple[int, int, Event]] = []
         self._seq = 0
         self._noise: dict[tuple[str, str, int], float] = {}
+        self.world_hourly: dict[int, tuple[int, int]] = {}  # hour -> (charge attempts, successes), for reference truth
         self._done = False
 
         fx = [e for s in specs for e in s.effects]
@@ -166,8 +167,27 @@ class Simulation:
             previous_attributes_json=canonical_json(prev) if prev is not None else None,
             request_id=request_id, idempotency_key=idem,
         )
+        if self.by_mech[Mechanism.DELAY]:
+            ev = self._maybe_delay(ev, obj, t)
         self._seq += 1
         heapq.heappush(self._heap, (t, self._seq, ev))
+
+    def _maybe_delay(self, ev: Event, obj: Any, t: int) -> Event:
+        """data_pipeline_issue (sim-1.2): a share of the cohort's events reaches the store late. Payments are unaffected;
+        only `delivered_at` moves. Own random stream per event id, so nothing else changes."""
+        md = getattr(obj, "metadata", None) or {}
+        for e in self.by_mech[Mechanism.DELAY]:
+            s = e.intensity(t)
+            if s <= 0 or not e.matches(md):
+                continue
+            rng = random.Random(derive_seed(self.seed, "delay", ev.id))
+            if rng.random() < s * e.magnitude:
+                lo, hi = e.params["delay_min_s"], e.params["delay_max_s"]
+                self.tally.hour = t // HOUR
+                self.tally.add(e.effect_id, "delayed_events")
+                self.tally.hour = None
+                return replace(ev, delivered_at=t + lo + int(rng.random() * (hi - lo)))
+        return ev
 
     def _flush(self, before: int) -> Iterator[Event]:
         h = self._heap
@@ -176,6 +196,9 @@ class Simulation:
             if ev.created >= self.w.end:
                 continue
             self.stats[ev.type] += 1
+            if ev.type in ("charge.succeeded", "charge.failed"):
+                n, k = self.world_hourly.get((ev.created // HOUR), (0, 0))
+                self.world_hourly[ev.created // HOUR] = (n + 1, k + (ev.type == "charge.succeeded"))
             yield ev
 
     def _req(self, *parts: object) -> str:
@@ -263,11 +286,13 @@ class Simulation:
         return min(p, 0.995)
 
     @staticmethod
-    def _approval(active: list[Effect], t: int) -> tuple[float, Effect | None]:
+    def _approval(active: list[Effect], t: int, kind: str | None = None) -> tuple[float, Effect | None]:
         mult, worst, worst_m = 1.0, None, 1.0
         for e in active:
             if e.mechanism is not Mechanism.APPROVAL:
                 continue
+            if e.params.get("attempt_kind") not in (None, kind):
+                continue  # e.g. a dunning-only effect does not touch first renewal attempts
             s = e.intensity(t)
             if s <= 0:
                 continue
@@ -279,7 +304,7 @@ class Simulation:
 
     def _attempt(self, sh: Shopper, t: int, kind: str, u_ok: float, u_code: float, active: list[Effect]) -> Attempt:
         base = self._base_p(sh, t, kind)
-        mult, worst = self._approval(active, t)
+        mult, worst = self._approval(active, t, kind)
         p = base * mult
         if u_ok < p:
             return Attempt(t, True, None, None, None)
@@ -537,6 +562,8 @@ class Simulation:
         tf = t0 + HOUR
         times = [tf + 5, tf + 5 + 3 * DAY, tf + 5 + 7 * DAY]
         attrs = self._attrs(sh, tf, "renewal")
+        if self.by_mech[Mechanism.CHURN] and self._churn(sub_id, sub, sh, attrs, per_end, t0):
+            return
         cands = [e for e in self.by_mech[Mechanism.APPROVAL] if e.start <= times[-1] and e.end > times[0] and e.matches(attrs)]
 
         def resolve(active: list[Effect]) -> list[Attempt]:
@@ -553,8 +580,10 @@ class Simulation:
         for e in cands:
             cf = resolve([x for x in cands if x is not e])
             eid = e.effect_id
-            T.hour = times[0] // HOUR
-            if e.intensity(times[0]) > 0:
+            dunning_only = e.params.get("attempt_kind") == "dunning"
+            hit = [x for x in (times[1:] if dunning_only else times[:1]) if e.intensity(x) > 0]
+            T.hour = (hit[0] if hit else times[0]) // HOUR
+            if hit:
                 T.add(eid, "renewals")
                 T.add(eid, "renewal_first_ok_actual", int(actual[0].ok))
                 T.add(eid, "renewal_first_ok_cf", int(cf[0].ok))
@@ -630,6 +659,31 @@ class Simulation:
                     self._emit(tc + 2, "customer.subscription.deleted", sub, prev_sub)
         self.subs[sub_id] = sub
 
+    def _churn(self, sub_id: str, sub, sh, attrs, per_end: int, t0: int) -> bool:
+        """pricing_or_plan_change (sim-1.2): the customer cancels at renewal instead of renewing. Own random stream."""
+        active = [e for e in self.by_mech[Mechanism.CHURN] if e.intensity(t0) > 0 and e.matches(attrs)]
+        if not active:
+            return False
+        u = random.Random(derive_seed(self.seed, "churn", sub_id, per_end)).random()
+        probs = {e.effect_id: e.intensity(t0) * e.magnitude for e in active}
+        total = sum(probs.values())
+        churned = u < total
+        T = self.tally
+        T.hour = t0 // HOUR
+        for e in active:
+            T.add(e.effect_id, "renewal_subs")
+            if churned and not u < total - probs[e.effect_id]:
+                T.add(e.effect_id, "extra_cancellations")
+                T.add_amount(e.effect_id, "lost_renewal_amount", sub.currency, sub.unit_amount)
+        T.hour = None
+        if not churned:
+            return False
+        prev_sub = {"status": sub.status, "canceled_at": None}
+        sub = replace(sub, status="canceled", canceled_at=t0)
+        self._emit(t0, "customer.subscription.deleted", sub, prev_sub)
+        self.subs[sub_id] = sub
+        return True
+
     # ------------------------------------------------------------------ main loop
     def run(self) -> Iterator[Event]:
         if self._done:
@@ -693,7 +747,10 @@ class Simulation:
                     spec_hash=sp.spec_hash, truth=t, effect_params=params, tally=self.tally,
                     unrelated_incident_ids=unrelated, world_end=self.w.end,
                     organic={"organic_refund_rate": self.w.organic_refund_rate,
-                             "organic_duplicate_rate": self.w.organic_duplicate_rate},
+                             "organic_duplicate_rate": self.w.organic_duplicate_rate,
+                             # share of renewals that end canceled without any scenario (seed 42, sim-1.1: 1,055 / 29,953)
+                             "organic_cancellation_rate": 0.035},
+                    world_hourly=self.world_hourly,
                     profile=next((e.profile for e in sp.effects if e.effect_id in t.effect_ids), None),
                 ))
         return out

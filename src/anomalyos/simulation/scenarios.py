@@ -27,7 +27,7 @@ from .ground_truth import Cohort, Mechanism, RootCause, Route, Severity, TruthSp
 from .ids import derive_seed, short_hash
 from .schedule import (CARD_COUNTRY_CONTROL, GRADUAL_COHORTS, METHOD_IDS, PSP_SHORT, PSPS, RECOVERY_COHORTS, REFUND_CONTROLS,
                        params_for)
-from .world import DAY, HOUR, WorldConfig, version_share
+from .world import DAY, HOUR, LOCAL_METHOD_PSP, WorldConfig, version_share
 
 # Dimensions a selector may constrain. Values are compared against per-payment attributes.
 SELECTOR_DIMS = ("customer_country", "psp", "payment_method_type", "card_brand", "platform", "app_version", "channel")
@@ -133,7 +133,44 @@ PSP_OUTAGE_CODES = (("processing_error", None, .6), ("card_declined", "issuer_no
 # Catalog. Offsets are relative to world start (a Monday 00:00 UTC). Each factory returns a spec.
 # ---------------------------------------------------------------------------------------------
 
+# Which metrics each record must move and which it must leave unchanged (sim-1.2, ADR-033), by route.
+# "unchanged" is negative evidence: a diagnosis that also predicts these to move is wrong.
+_CHK = ("checkout_volume",)
+METRIC_EXPECTATIONS: dict[str, dict[str, tuple[tuple[str, ...], tuple[str, ...]]]] = {
+    "normal_variation": {"suppress": ((), ("charge_approval_rate", "checkout_volume", "payment_intent_conversion_rate", "refund_rate"))},
+    "psp_authorization_degradation": {"incident": (("charge_approval_rate", "technical_failure_rate", "payment_intent_conversion_rate"), ("checkout_volume", "refund_rate"))},
+    "country_degradation": {"incident": (("charge_approval_rate", "payment_intent_conversion_rate"), ("checkout_volume", "refund_rate"))},
+    "payment_method_degradation": {"incident": (("charge_approval_rate", "technical_failure_rate", "payment_intent_conversion_rate"), ("checkout_volume", "refund_rate"))},
+    "checkout_regression_app_version": {"incident": (("payment_intent_conversion_rate",), ("charge_approval_rate", "refund_rate"))},
+    "subscription_renewal_failure": {"incident": (("renewal_success_rate", "charge_approval_rate"), ("payment_intent_conversion_rate", "checkout_volume"))},
+    "refund_spike": {"incident": (("refund_rate",), ("charge_approval_rate", "payment_intent_conversion_rate"))},
+    "duplicate_charge": {"incident": (("duplicate_charge_rate", "refund_rate"), ("charge_approval_rate",))},
+    "fraud_like_spike": {"incident": (("charge_attempt_volume", "charge_approval_rate", "fraud_flag_rate"), ("renewal_success_rate",))},
+    "gradual_degradation": {"incident": (("charge_approval_rate",), ("checkout_volume", "refund_rate"))},
+    "harmless_seasonality": {"suppress": (("checkout_volume", "global_charge_approval_rate"), ("charge_approval_rate", "refund_rate"))},
+    "small_cohort_noisy_anomaly": {"suppress": (("charge_approval_rate",), _CHK)},
+    "correlated_unrelated_anomalies": {"suppress": (_CHK, ("charge_approval_rate",)), "incident": (("charge_approval_rate",), _CHK)},
+    "recovery_after_degradation": {"incident": (("charge_approval_rate", "technical_failure_rate"), _CHK)},
+    "dunning_failure": {"incident": (("dunning_recovery_rate", "renewal_success_rate"), ("renewal_first_attempt_success_rate", "payment_intent_conversion_rate"))},
+    "pricing_or_plan_change": {"incident": (("subscription_cancellation_rate",), ("charge_approval_rate", "renewal_first_attempt_success_rate"))},
+    "data_pipeline_issue": {"incident": (("ingestion_delay",), ("charge_approval_rate", "checkout_volume", "payment_intent_conversion_rate"))},
+    "simultaneous_incidents": {"incident": (("charge_approval_rate",), _CHK)},
+    "mix_shift_masking": {"incident": (("charge_approval_rate",), ("global_charge_approval_rate",)), "suppress": (_CHK, ("charge_approval_rate",))},
+    "ambiguous_signal": {"watch": (("charge_approval_rate", "technical_failure_rate", "checkout_volume"), ())},
+    "benign_shock": {"suppress": (("charge_approval_rate",), _CHK)},
+}
+
+
+def _with_metric_expectations(kind: str, truths):
+    out = []
+    for t in truths:
+        affected, unchanged = METRIC_EXPECTATIONS[kind][t.expected_route.value]
+        out.append(replace(t, affected_metrics=affected, unchanged_metrics=unchanged))
+    return tuple(out)
+
+
 def _mk(w: WorldConfig, sid: str, kind: str, title: str, sev: Severity, effects, truths) -> ScenarioSpec:
+    truths = _with_metric_expectations(kind, truths)
     starts = [e.start for e in effects] + [t.start for t in truths]
     ends = [e.end for e in effects] + [t.end or w.end for t in truths]
     return ScenarioSpec(sid, kind, title, derive_seed(w.seed, "scenario", sid), min(starts), max(ends), sev,
@@ -390,6 +427,114 @@ def recovery_after_degradation(w: WorldConfig) -> ScenarioSpec:
                Severity.MEDIUM, (fx,), (t,))
 
 
+def dunning_failure(w: WorldConfig) -> ScenarioSpec:
+    P = params_for(w, "dunning_failure")
+    s, e, psp = P["start"], P["end"], P["psp"]
+    short = PSP_SHORT[psp]
+    fx = Effect(f"fx_dunning_{short}", Mechanism.APPROVAL, c(channel="renewal", psp=psp, payment_method_type="card"), step(s, e),
+                P["magnitude"], (("card_declined", "do_not_honor", .5), ("card_declined", "insufficient_funds", .5)),
+                params={"attempt_kind": "dunning"})
+    others = tuple(x for x in PSPS if x != psp)
+    t = TruthSpec(f"dunning_{short}", (fx.effect_id,), RootCause.DUNNING_FAILURE, Route.INCIDENT, Severity.MEDIUM, s, e,
+                  c(psp=psp, channel="renewal"),
+                  f"{psp} retry scheduler sends dunning retries (+3 and +7 days) with a stale network token: retries decline at "
+                  f"~{_pct(P['magnitude'])}% of the normal rate while first renewal attempts are unaffected.",
+                  (c(channel="renewal", psp=psp, payment_method_type="card"),), (c(channel="renewal", psp=others),),
+                  "dunning_recovery_rate", "down", 2 * DAY, e)
+    return _mk(w, "scn_dunning_failure", "dunning_failure", f"Dunning retries fail on {psp}", Severity.MEDIUM, (fx,), (t,))
+
+
+def pricing_or_plan_change(w: WorldConfig) -> ScenarioSpec:
+    P = params_for(w, "pricing_or_plan_change")
+    s, e, co = P["start"], P["end"], P["country"]
+    fx = Effect(f"fx_{co.lower()}_price_change", Mechanism.CHURN, c(customer_country=co, channel="renewal"), step(s, e), P["magnitude"])
+    t = TruthSpec(f"{co.lower()}_price_change", (fx.effect_id,), RootCause.PRICING_OR_PLAN_CHANGE, Route.INCIDENT, Severity.MEDIUM,
+                  s, e, c(customer_country=co),
+                  f"A price increase announced to {co} subscribers: about {_pct(P['magnitude'])}% more subscriptions are canceled at "
+                  "renewal instead of renewing. Charge approval is unchanged.",
+                  (c(customer_country=co, channel="renewal"),), (c(customer_country="FR" if co != "FR" else "DE", channel="renewal"),),
+                  "subscription_cancellation_rate", "up", 1 * DAY, e)
+    return _mk(w, "scn_pricing_or_plan_change", "pricing_or_plan_change", f"{co} price change drives cancellations",
+               Severity.MEDIUM, (fx,), (t,))
+
+
+def data_pipeline_issue(w: WorldConfig) -> ScenarioSpec:
+    P = params_for(w, "data_pipeline_issue")
+    s, e, psp = P["start"], P["end"], P["psp"]
+    fx = Effect(f"fx_{PSP_SHORT[psp]}_webhook_lag", Mechanism.DELAY, c(psp=psp), step(s, e), P["share"],
+                params={"delay_min_s": 1 * HOUR, "delay_max_s": 2 * HOUR})
+    others = tuple(x for x in PSPS if x != psp)
+    t = TruthSpec(f"{PSP_SHORT[psp]}_webhook_lag", (fx.effect_id,), RootCause.DATA_PIPELINE_ISSUE, Route.INCIDENT, Severity.MEDIUM,
+                  s, e, c(psp=psp),
+                  f"{psp} webhook delivery backs up: about {_pct(P['share'])}% of its events reach the store 1-2 h late "
+                  "(delivered_at). Payments themselves are unaffected; metrics computed as of ingestion dip, then refill.",
+                  (c(psp=psp),), (c(psp=others),),
+                  "ingestion_delay", "up", 1 * HOUR, e + 2 * HOUR)
+    return _mk(w, "scn_data_pipeline_issue", "data_pipeline_issue", f"{psp} webhook delivery lag", Severity.MEDIUM, (fx,), (t,))
+
+
+def simultaneous_incidents(w: WorldConfig) -> ScenarioSpec:
+    P = params_for(w, "simultaneous_incidents")
+    psp, m = P["psp"], P["method"]
+    s1, e1, s2, e2 = P["start"], P["end"], P["method_start"], P["method_end"]
+    short = PSP_SHORT[psp]
+    a = Effect(f"fx_sim_{short}_cards", Mechanism.APPROVAL, c(psp=psp, payment_method_type="card"), step(s1, e1), P["psp_magnitude"],
+               PSP_OUTAGE_CODES)
+    b = Effect(f"fx_sim_{m}", Mechanism.APPROVAL, c(payment_method_type=m), step(s2, e2), P["method_magnitude"],
+               (("payment_method_provider_decline", "generic_decline", .6), ("processing_error", None, .4)))
+    ka, kb = f"sim_{short}_cards", f"sim_{m}"
+    t1 = TruthSpec(ka, (a.effect_id,), RootCause.PSP_DEGRADATION, Route.INCIDENT, Severity.HIGH, s1, e1, c(psp=psp),
+                   f"{psp} card authorization degrades to ~{_pct(P['psp_magnitude'])}% of normal; at the same time an unrelated "
+                   f"{m} outage happens on another PSP. Two incidents, not one.",
+                   (c(psp=psp, payment_method_type="card"),), (c(psp=tuple(x for x in PSPS if x != psp), payment_method_type="card"),),
+                   "charge_approval_rate", "down", 1 * HOUR, e1, unrelated_to=(kb,))
+    t2 = TruthSpec(kb, (b.effect_id,), RootCause.PAYMENT_METHOD_DEGRADATION, Route.INCIDENT, Severity.MEDIUM, s2, e2,
+                   c(payment_method_type=m),
+                   f"{m} scheme outage overlapping the {psp} card degradation in time; causally unrelated to it.",
+                   (c(payment_method_type=m),), (c(payment_method_type="card", psp=LOCAL_METHOD_PSP[m]),),
+                   "charge_approval_rate", "down", 1 * HOUR, e2, unrelated_to=(ka,))
+    return _mk(w, "scn_simultaneous_incidents", "simultaneous_incidents", f"{psp} cards + {m} outage (simultaneous)",
+               Severity.HIGH, (a, b), (t1, t2))
+
+
+def mix_shift_masking(w: WorldConfig) -> ScenarioSpec:
+    P = params_for(w, "mix_shift_masking")
+    s, e, co, psp, boost_co = P["start"], P["end"], P["country"], P["psp"], P["boost_country"]
+    short = PSP_SHORT[psp]
+    drop = Effect(f"fx_masked_{co.lower()}_{short}", Mechanism.APPROVAL, c(customer_country=co, psp=psp), step(s, e), P["magnitude"],
+                  PSP_OUTAGE_CODES)
+    boost = Effect(f"fx_{boost_co.lower()}_promo", Mechanism.VOLUME, c(customer_country=boost_co), step(s, e), P["boost"])
+    k1, k2 = f"masked_{co.lower()}_{short}", f"{boost_co.lower()}_promo"
+    t1 = TruthSpec(k1, (drop.effect_id,), RootCause.PSP_DEGRADATION, Route.INCIDENT, Severity.MEDIUM, s, e, c(customer_country=co, psp=psp),
+                   f"{co} traffic on {psp} authorizes at ~{_pct(P['magnitude'])}% of normal, while a simultaneous {boost_co} promotion "
+                   f"shifts the mix toward high-approval traffic: global approval barely moves; only the cohort view shows the incident.",
+                   (c(customer_country=co, psp=psp),), (c(customer_country=co, psp=tuple(x for x in PSPS if x != psp)),),
+                   "charge_approval_rate", "down", 1 * HOUR, e, unrelated_to=(k2,))
+    t2 = TruthSpec(k2, (boost.effect_id,), RootCause.NORMAL_VARIATION, Route.SUPPRESS, Severity.NONE, s, e, c(customer_country=boost_co),
+                   f"{boost_co} promotion: demand x{P['boost']:g}. Healthy traffic that masks an unrelated drop in the global view.",
+                   (c(customer_country=boost_co),), (c(customer_country="GB"),), "checkout_volume", "up", None, None,
+                   unrelated_to=(k1,))
+    return _mk(w, "scn_mix_shift_masking", "mix_shift_masking", f"{co}/{psp} drop masked by {boost_co} promotion",
+               Severity.MEDIUM, (drop, boost), (t1, t2))
+
+
+def ambiguous_signal(w: WorldConfig) -> ScenarioSpec:
+    P = params_for(w, "ambiguous_signal")
+    s, e, co, psp = P["start"], P["end"], P["country"], P["psp"]
+    short = PSP_SHORT[psp]
+    dip = Effect(f"fx_ambiguous_{co.lower()}_{short}", Mechanism.APPROVAL, c(customer_country=co, psp=psp), step(s, e), P["magnitude"],
+                 (("processing_error", None, .5), ("card_declined", "generic_decline", .5)))
+    demand = Effect(f"fx_ambiguous_{co.lower()}_demand", Mechanism.VOLUME, c(customer_country=co), step(s, e), P["demand"])
+    t = TruthSpec(f"ambiguous_{co.lower()}_{short}", (dip.effect_id, demand.effect_id), RootCause.UNKNOWN, Route.WATCH, Severity.LOW,
+                  s, e, c(customer_country=co, psp=psp),
+                  f"{co} traffic on {psp} shows more processing errors and generic declines (~{_pct(P['magnitude'])}% of normal approval) "
+                  f"while {co} demand rises x{P['demand']:g}. Several causes fit (PSP issue, load, issuer); the data does not single one "
+                  "out. Watch, do not page.",
+                  (c(customer_country=co, psp=psp),), (c(customer_country=co, psp=tuple(x for x in PSPS if x != psp)),),
+                  "charge_approval_rate", "down", 2 * HOUR, e)
+    return _mk(w, "scn_ambiguous_signal", "ambiguous_signal", f"Ambiguous {co}/{psp} signal", Severity.LOW, (dip, demand), (t,))
+
+
 FACTORIES = {
     "normal_variation": normal_variation,
     "psp_authorization_degradation": psp_authorization_degradation,
@@ -405,6 +550,13 @@ FACTORIES = {
     "small_cohort_noisy_anomaly": small_cohort_noise,
     "correlated_unrelated_anomalies": correlated_unrelated,
     "recovery_after_degradation": recovery_after_degradation,
+    # sim-1.2 (phase 5): the remaining causes of vocabulary v1 and harder cases
+    "dunning_failure": dunning_failure,
+    "pricing_or_plan_change": pricing_or_plan_change,
+    "data_pipeline_issue": data_pipeline_issue,
+    "simultaneous_incidents": simultaneous_incidents,
+    "mix_shift_masking": mix_shift_masking,
+    "ambiguous_signal": ambiguous_signal,
 }
 
 PRESETS = {

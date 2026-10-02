@@ -6,6 +6,19 @@ Format: short ID, status, context, decision, consequences.
 
 ---
 
+## ADR-033 — Full cause coverage, new mechanisms and metric expectations (sim-1.2, phases 5-6) · *accepted* (2026-10-02, owner OK on Gate 3)
+
+**Decision.**
+- Six scenarios join the `full` preset, so all 13 causes of vocabulary v1 occur: `dunning_failure` (retries fail, first attempts untouched; new oracle family `dunning_recovery_rate`), `pricing_or_plan_change` (new mechanism `CHURN`: cancellations at renewal, approval unchanged, exact counterfactual `extra_cancellations`), `data_pipeline_issue` (new mechanism `DELAY`: a share of a PSP's events gets a raw `delivered_at` 1-2 h late; payments unaffected; normalization takes `ingested_at` from it, `NORMALIZATION_VERSION 1.1.0`), `simultaneous_incidents` (two real incidents on disjoint cohorts, linked `unrelated_to`), `mix_shift_masking` (a cohort drop hidden in the global view by a US promotion), `ambiguous_signal` (`unknown`, route `watch`, the first `watch` record).
+- Deviation from the Gate 3 sketch: `pricing_or_plan_change` models cancellations only, not extra refunds (refund behaviour stays with `refund_spike`).
+- Deviation from ADR-029: with five long-running scenarios a 6 h gap between all of them no longer fits in 28 days (30 % placement failures). Long scenarios are now kept apart only within the renewal group (`subscription_renewal_failure`, `dunning_failure`, `pricing_or_plan_change`); long scenarios of different flows may overlap and are linked `unrelated_to`. Placement: 5,000/5,000 seeds.
+- Every ground-truth record carries explicit `affected_metrics` and `unchanged_metrics` (negative evidence, e.g. checkout regression: affected `payment_intent_conversion_rate`, unchanged `charge_approval_rate`, `refund_rate`); the validator rejects overlaps. The control day gets reference `measured` values (whole-world attempts and approval).
+- Side files `deployments.json` / `psp_status.json` are postponed to Stage 7 (owner decision).
+
+**Consequences.** `GENERATOR_VERSION = sim-1.2.0` (with ADR-032). At seed 42 scale 1.0 every incident of the fixed calendar is oracle-distinguishable; at scale 0.3 the price change is not (excluded from recall per ADR-031).
+
+---
+
 ## ADR-032 — Less clean baseline: realism v2 (sim-1.2, phase 4) · *accepted* (2026-10-02)
 
 **Context.** Review 4.4: hourly approval was almost binomial and daily noise tiny, so false-positive rates on the simulator would be optimistic.

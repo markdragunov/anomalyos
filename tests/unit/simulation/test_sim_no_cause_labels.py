@@ -55,7 +55,7 @@ def failed_charges():
 def test_risk_score_does_not_separate_incident_declines_from_organic(failed_charges):
     inside = [r for _, r, w in failed_charges if w]
     outside = [r for _, r, w in failed_charges if not w]
-    assert len(inside) > 100 and len(outside) > 1000
+    assert len(inside) > 100 and len(outside) > 500  # sim-1.2 windows cover more of the month
     assert abs(sum(inside) / len(inside) - sum(outside) / len(outside)) <= 1.0
 
 
