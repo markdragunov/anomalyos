@@ -14,17 +14,17 @@ from anomalyos.simulation.ground_truth import GENERATOR_VERSION
 from anomalyos.simulation.runner import generate
 from anomalyos.simulation.world import WorldConfig
 
-# sim-1.2.1 (ADR-029..033; event digests equal sim-1.2.0). sim-1.2.0: seed 5 run_311ecbd4d37db101 / bb488a2f...; seed 42 run_b84548339e942431 / de48da75.... sim-1.1.1: seed 5 run_7f4755d4ca384dea / 47add09d... / c643e0f0...; seed 42 run_b50c96ff698d7675 / 2cf8a9b7... / 61520d2a.... sim-1.0.0 values, for the record: seed 5 run_3e694f661a80226d /
+# sim-1.2.2 (event digests equal sim-1.2.0; ground truth differs in unchanged_metrics). sim-1.2.1: seed 5 run_43bec258f2017f19 / 1e0c6f92...; seed 42 run_75e402c8fdb77d3b / ea261229.... sim-1.2.0: seed 5 run_311ecbd4d37db101 / bb488a2f...; seed 42 run_b84548339e942431 / de48da75.... sim-1.1.1: seed 5 run_7f4755d4ca384dea / 47add09d... / c643e0f0...; seed 42 run_b50c96ff698d7675 / 2cf8a9b7... / 61520d2a.... sim-1.0.0 values, for the record: seed 5 run_3e694f661a80226d /
 # c883137194271c77... / aebaf8d1...; seed 42 run_133c4a3a198eb8c1 / 1ac6d592589287ac... / 79bfe1fd...
 SEED5_SMALL = dict(
-    run_id="run_43bec258f2017f19", events=68_541,
+    run_id="run_a76e806a05ee9ce0", events=68_541,
     events_sha256="65b120642d3b28f653eecc946c996e17cffae01f68aced4b1838e219102437f2",
-    truth_digest="1e0c6f92659460e3ceb5f85c6cf2f6c0")
+    truth_digest="1616e4122eebc8f98591bd4e23f6d67c")
 
 SEED42_FULL = dict(
-    run_id="run_75e402c8fdb77d3b", events=1_368_114,
+    run_id="run_af277296736ca545", events=1_368_114,
     events_sha256="6d369941d0fb5f86b88f1995a8f0b7eee05388007c0cee7f499676da42d9f17d",
-    truth_digest="ea261229d893f7ce102d6437c8de893f")
+    truth_digest="ba7601951bfa3e7d9693c55df5859d3d")
 
 
 def _observed(res):
@@ -33,7 +33,7 @@ def _observed(res):
 
 def test_golden_digest_seed5_scale_005():
     res = generate(WorldConfig(seed=5, scale=0.05), "full")
-    assert GENERATOR_VERSION == "sim-1.2.1", "generator version changed: update the golden values deliberately (separate commit)"
+    assert GENERATOR_VERSION == "sim-1.2.2", "generator version changed: update the golden values deliberately (separate commit)"
     assert _observed(res) == SEED5_SMALL
 
 
