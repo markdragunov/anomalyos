@@ -1,0 +1,12 @@
+---
+description: Thin pointer to the AnomalyOS engineering contract. Do not duplicate AGENTS.md.
+alwaysApply: true
+---
+
+Read `AGENTS.md` before non-trivial changes. It is the contract.
+
+- Do not silently violate an invariant in `docs/INVARIANTS.md`. Name it and stop.
+- Build only the stage you were asked for (`docs/ARCHITECTURE.md` stage status, `docs/tasks/`).
+- Jev decides. Code routes. LLM explains. Agent investigates.
+- After code changes: harness tests, `python scripts/check_architecture.py`, `python scripts/eval_smoke.py`; product tests with `pytest`.
+- No new dependencies without an ADR in `docs/DECISIONS.md`.

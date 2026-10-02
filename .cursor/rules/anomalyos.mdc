@@ -1,0 +1,18 @@
+---
+description: Product-code rules for src/anomalyos (simulator, ClickHouse, future layers)
+globs: ["src/anomalyos/**", "tests/unit/**", "tests/integration/**"]
+alwaysApply: false
+---
+
+Contract: `AGENTS.md`. Current task, if any, is in `docs/tasks/`. Relevant docs: `ARCHITECTURE.md`,
+`DATA_MODEL.md`, `DECISIONS.md`, `SIMULATION.md`, `TESTING.md`.
+
+- ClickHouse is the analytical source of truth; aggregate in SQL, never pull raw rows into Python.
+- Ground truth (`<db>_truth`, `ground_truth.json`) is for evaluation only. Code under
+  `src/anomalyos/events`, `metrics`, `detection`, `cohorts`, `jev`, `agent` must never read it.
+- Seeded and reproducible: no wall clock, no unseeded randomness, no `hash()`, no global counters.
+  In the simulator use `ids.derive_seed` / `ids.stable_id`.
+- Causes come only from the closed vocabulary in `docs/DATA_MODEL.md`.
+- Money = integer minor units + currency; timestamps UTC; missing dimensions are `unknown`.
+- Workflow: Audit, Problem, Plan, Implement (smallest slice), Test, Verify, Document, Report.
+- Report failed or skipped tests explicitly; never silence or delete them to go green.

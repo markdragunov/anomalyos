@@ -1,0 +1,28 @@
+{
+  "id": "HARNESS-001",
+  "title": "Harness smoke: IGNORE with explicit ground truth",
+  "purpose": "Prove the evaluation harness rejects scenarios without ground truth and can emit a decision trace with cost and latency. Not an anomaly-detection eval.",
+  "mode": "A",
+  "inputs": {
+    "signals": {
+      "severity": "low",
+      "confidence": 0.0,
+      "affected_cohort_size": 0
+    }
+  },
+  "ground_truth": {
+    "disposition": "IGNORE",
+    "rationale": "Fixture only: empty cohort must not become an incident.",
+    "evidence_ids": []
+  },
+  "budgets": {
+    "max_tool_calls": 0,
+    "max_tokens": 0,
+    "max_latency_ms": 2000
+  },
+  "replay": {
+    "deterministic": true,
+    "seed": 1
+  },
+  "notes": "Replace or supplement with real Mode A fixtures when detectors and policy exist."
+}
