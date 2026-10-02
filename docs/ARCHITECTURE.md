@@ -180,7 +180,7 @@ Project Skills, when introduced, live at `.cursor/skills/<name>/SKILL.md`. They 
 
 # Runtime layer contracts
 
-Imported from the former simulator tree. Layers are numbered 1–11; the narrative above (Mode A / Mode B, roles) is the same system seen from the decision flow. **Open (OQ-8):** the incident states below (`candidate → open → …`) differ from the lifecycle in `docs/specs/07_INCIDENT_ENGINE.md` (`DETECTED … RESOLVED`); spec 07 now carries a single proposed state table with transitions awaiting the owner's decision, after which this section is aligned.
+Imported from the former simulator tree. Layers are numbered 1–11; the narrative above (Mode A / Mode B, roles) is the same system seen from the decision flow. Incident lifecycle and storage are fixed by ADR-028 (spec 07 holds the transition table).
 
 ## Overview
 
@@ -342,9 +342,9 @@ branches on — and it constrains the design (see ADR-018).
 - **Responsibility:** own the incident lifecycle and policy.
 - **Input:** incident candidates, Jev assessments, human decisions.
 - **Output:** incidents with state, severity, impact, linked evidence, and an append-only audit log.
-- **States (initial):** `candidate → open → investigating → awaiting_decision →
-  resolved | dismissed`, plus `recovered` signalled by detection.
-- **Invariants:** transitions are explicit rules in code; `resolved` and `dismissed` require
+- **States (ADR-028):** `DETECTED → INVESTIGATING → ACKNOWLEDGED → ESCALATED → RECOVERING →
+  RESOLVED | DISMISSED` (transition table in `docs/specs/07_INCIDENT_ENGINE.md`); stored append-only in ClickHouse.
+- **Invariants:** transitions are explicit rules in code; `RESOLVED` and `DISMISSED` require
   a human actor; deduplication merges candidates of the same underlying incident; every
   transition is logged with actor (system / Jev-advised / human) and reason.
 - **Failure modes:** duplicate incidents, flapping open/close, orphaned candidates.

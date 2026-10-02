@@ -18,7 +18,7 @@ Make ClickHouse the source of truth for analytical facts used by Mode A and Mode
 
 Objects are **not** split into per-object tables (`customers`, `charges`, …): relationships are preserved through the id columns on `events` (customer, payment method, payment intent, charge, refund, invoice, subscription) and the immutable object snapshot in `data`.
 
-`incidents` mutate (status changes). Whether they live in ClickHouse or in an operational store is an open decision (OQ-7); append-only audit can stay in ClickHouse.
+`incidents` change status, so they are stored **append-only** in ClickHouse: every transition is a new row, and the current state is a view returning the latest row per incident (ADR-028, `INV-010`). No separate operational store.
 
 ## Metrics
 

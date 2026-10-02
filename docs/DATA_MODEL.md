@@ -87,6 +87,14 @@ so hypothesis accuracy is measured on identical labels. Initial set (v1):
 Changes to the vocabulary bump its version and are recorded in `DECISIONS.md`. Jev's
 `Choice` has a hard limit of 255 options; the vocabulary must stay far below that.
 
+## Severity vocabulary (closed, ADR-028)
+
+`none` · `low` · `medium` · `high` · `critical` (the same labels as ground-truth `severity`). Jev ranks `low…critical`; `none` means "not an incident". UI labels such as `P1/P2/P3` are a presentation mapping only (Stage 8).
+
+## Routes
+
+`INCIDENT` ↔ ground-truth `incident`, `DIGEST` ↔ `watch`, `IGNORE` ↔ `suppress` (ADR-028).
+
 ## Semantic encoding for Jev
 
 Jev is weak at numeric precision, counting, and date comparison. Code therefore converts
