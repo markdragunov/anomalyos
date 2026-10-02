@@ -23,6 +23,13 @@ def test_flatten_is_pure_and_typed(full_run):
     assert cust["psp"] == cust["card_brand"] == cust["issuer_country"] == chl.UNKNOWN  # explicit, never ''
 
 
+def test_view_does_not_expose_low_cardinality_booleans():
+    # Regression: `status = 'succeeded' AS ok` over a LowCardinality column is LowCardinality(UInt8),
+    # which a real ClickHouse 25.8 refuses to CREATE (code 455). Found by the first live CI run.
+    view = next(s for s in chl.ddl("anomalyos", "anomalyos_truth") if "v_charge_attempts" in s)
+    assert "CAST(status = 'succeeded' AS UInt8) AS ok" in view
+
+
 def test_identifiers_are_validated():
     with pytest.raises(ValueError):
         chl.ddl("anomalyos; DROP TABLE x", "t")
@@ -39,6 +46,7 @@ def test_load_and_sql_checks_on_embedded_clickhouse(full_run, tmp_path):
         out = chl.load_run(c, full_run["dir"], "anomalyos")
         assert out["events"] == full_run["res"].events
         assert out["checks"] and all(v == 0 for v in out["checks"].values()), out["checks"]
+        assert str(c.command("SELECT toTypeName(ok) FROM anomalyos.v_charge_attempts LIMIT 1")).strip('"') == "UInt8"
         with pytest.raises(RuntimeError):
             chl.load_run(c, full_run["dir"], "anomalyos")
         assert chl.load_run(c, full_run["dir"], "anomalyos", replace=True)["events"] == out["events"]

@@ -127,10 +127,12 @@ def ddl(db: str, truth_db: str) -> list[str]:
 ) ENGINE = MergeTree
 PARTITION BY run_id
 ORDER BY (run_id, type, created, id)""",
+        # `ok` is CAST: comparing a LowCardinality column yields LowCardinality(UInt8), which ClickHouse >= 25.x
+        # rejects at CREATE time (code 455, SUSPICIOUS_TYPE_FOR_LOW_CARDINALITY).
         f"""CREATE VIEW IF NOT EXISTS {db}.v_charge_attempts AS
 SELECT run_id, created, toStartOfHour(created) AS hour, charge_id, payment_intent_id, customer_id, channel, psp,
        customer_country, issuer_country, payment_method_type, card_brand, platform, app_version, currency, amount,
-       status = 'succeeded' AS ok, failure_code, decline_code, risk_level, risk_score
+       CAST(status = 'succeeded' AS UInt8) AS ok, failure_code, decline_code, risk_level, risk_score
 FROM {db}.events
 WHERE type IN ('charge.succeeded', 'charge.failed')""",
         f"""CREATE TABLE IF NOT EXISTS {truth_db}.ground_truth (
