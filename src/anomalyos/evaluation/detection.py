@@ -29,6 +29,7 @@ METRIC_FAMILIES: dict[str, frozenset[str]] = {
     "renewal_success_rate": frozenset({"renewal_success_rate", "dunning_recovery_rate", "renewal_first_attempt_success_rate"}),
     "dunning_recovery_rate": frozenset({"dunning_recovery_rate", "renewal_success_rate"}),
     "refund_rate": frozenset({"refund_rate"}),
+    "refund_count": frozenset({"refund_rate"}),
     "duplicate_charge_rate": frozenset({"duplicate_charge_rate"}),
     "attempt_volume": frozenset({"charge_attempt_volume", "checkout_volume", "ingestion_delay"}),
     "fraud_flag_rate": frozenset({"fraud_flag_rate"}),
@@ -64,6 +65,10 @@ def _relation(cand: Mapping[str, Any], rec: Mapping[str, Any], world_end: int) -
         return None
     fam = METRIC_FAMILIES.get(cand["metric"], frozenset())
     if fam & set(rec.get("affected_metrics") or []):
+        return "affected"
+    if "ingestion_delay" in (rec.get("affected_metrics") or []):
+        # detection reads first-look series: while the cohort's events arrive late, every metric of that cohort moves
+        # at first look, so any such candidate is a symptom of the delay (Gate 1, owner OK)
         return "affected"
     if fam & set(rec.get("unchanged_metrics") or []):
         return "unchanged"

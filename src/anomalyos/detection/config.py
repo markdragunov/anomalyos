@@ -31,7 +31,7 @@ SERIES: tuple[SeriesSpec, ...] = (
     SeriesSpec("S4b", "checkout_conversion_rate", 2, "1h", ("platform",), "down", "rate"),
     SeriesSpec("S5", "renewal_success_rate", 1, "1d", ("psp",), "down", "rate", cusum=True),
     SeriesSpec("S5b", "dunning_recovery_rate", 1, "1d", ("psp",), "down", "rate", cusum=True),  # Gate 1: dunning failures
-    SeriesSpec("S6", "refund_rate", 1, "1d", ("customer_country",), "up", "rate", cusum=True),
+    SeriesSpec("S6", "refund_count", 1, "1d", ("customer_country",), "up", "count", cusum=True),  # Gate 1: count, not ratio
     SeriesSpec("S7", "duplicate_charge_rate", 1, "1h", (), "up", "rate"),
     SeriesSpec("S8", "attempt_volume", 1, "1h", ("psp",), "both", "count"),
     SeriesSpec("S9", "fraud_flag_rate", 1, "1h", (), "up", "rate"),

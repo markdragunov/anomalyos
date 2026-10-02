@@ -88,3 +88,12 @@ def test_a_candidate_detected_before_the_record_started_does_not_count():
     assert out["summary"]["recall"] == 0.0 and out["candidates"][0]["class"] == "fp_unmatched"
     late = cand("new", ws=5 * 86_400 + 3 * H, we=5 * 86_400 + 5 * H, detected=5 * 86_400 + 4 * H)
     assert score([late], [r2], W0, W1)["summary"]["recall"] == 1.0
+
+
+def test_any_first_look_metric_of_the_delayed_cohort_counts_for_a_pipeline_issue():
+    r = rec("lag", affected=("ingestion_delay",), unchanged=("payment_intent_conversion_rate",), kind="data_pipeline_issue",
+            cohorts=({"psp": ["psp_gamma"]},))
+    c = cand("conv", metric="checkout_conversion_rate", scope=(("psp", "psp_gamma"),))
+    assert score([c], [r], W0, W1)["summary"]["recall"] == 1.0
+    other = cand("x", metric="checkout_conversion_rate", scope=(("psp", "psp_alpha"),))
+    assert score([other], [r], W0, W1)["summary"]["recall"] == 0.0  # scope still has to fit

@@ -151,6 +151,12 @@ _register(
         where="channel = 'renewal' AND attempt_no > 1 AND event_type IN ('payment.authorized', 'dunning.attempted')",
         allowed_dims=_ALL_DIMS),
     MetricDef(
+        "refund_count", 1,
+        "number of refund.succeeded; denominator is the constant 1. Unlike refund_rate it does not move when this "
+        "window's captures drop (refunds belong to older captures)",
+        numerator="count()", denominator="1", where="event_type = 'refund.succeeded'",
+        allowed_dims=("psp", "customer_country", "currency", "platform", "channel", "merchant_id"), empty_denominator=1),
+    MetricDef(
         "late_arrival_share", 1,
         "events delivered more than 15 minutes after they occurred / events delivered, windowed by delivery time",
         numerator="countIf(ingested_at - event_time > 900)", denominator="count()", source=_LATE_ARRIVAL_SOURCE,

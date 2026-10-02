@@ -143,7 +143,7 @@ METRIC_EXPECTATIONS: dict[str, dict[str, tuple[tuple[str, ...], tuple[str, ...]]
     "psp_authorization_degradation": {"incident": (("charge_approval_rate", "technical_failure_rate", "payment_intent_conversion_rate"), ("checkout_volume",))},
     "country_degradation": {"incident": (("charge_approval_rate", "payment_intent_conversion_rate"), ("checkout_volume",))},
     "payment_method_degradation": {"incident": (("charge_approval_rate", "technical_failure_rate", "payment_intent_conversion_rate"), ("checkout_volume",))},
-    "checkout_regression_app_version": {"incident": (("payment_intent_conversion_rate",), ("charge_approval_rate", "refund_rate"))},
+    "checkout_regression_app_version": {"incident": (("payment_intent_conversion_rate",), ("charge_approval_rate",))},  # sim-1.2.2
     "subscription_renewal_failure": {"incident": (("renewal_success_rate", "charge_approval_rate"), ("payment_intent_conversion_rate", "checkout_volume"))},
     "refund_spike": {"incident": (("refund_rate",), ("charge_approval_rate", "payment_intent_conversion_rate"))},
     "duplicate_charge": {"incident": (("duplicate_charge_rate", "refund_rate"), ("charge_approval_rate",))},

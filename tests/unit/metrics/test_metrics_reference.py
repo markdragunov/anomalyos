@@ -133,6 +133,8 @@ def reference(metric: str, rows: list[dict], window_rows: list[dict], start_ts=T
     if metric == "subscription_cancellation_rate@2":
         vol = sum(1 for r in w if r["event_type"] == "subscription.canceled" and r["status"] == "canceled_voluntary")
         return vol, _count(w, "subscription.renewal_attempted") + vol
+    if metric == "refund_count":
+        return _count(w, "refund.succeeded"), 1
     if metric == "dunning_recovery_rate":
         retries = [r for r in w if r["channel"] == "renewal" and r["attempt_no"] > 1]
         return _count(retries, "payment.authorized"), _count(retries, "dunning.attempted")
@@ -295,7 +297,7 @@ def test_every_registered_metric_is_covered_by_a_reference():
         "authorization_rate", "first_attempt_authorization_rate", "technical_failure_rate", "checkout_conversion_rate",
         "checkout_conversion_rate@2", "renewal_success_rate", "refund_rate", "duplicate_charge_rate", "fraud_flag_rate",
         "attempt_volume", "revenue_collected_minor", "subscription_cancellation_rate", "subscription_cancellation_rate@2",
-        "dunning_recovery_rate", "late_arrival_share"}
+        "dunning_recovery_rate", "late_arrival_share", "refund_count"}
 
 
 # --------------------------------------------------------------------------- first-look visibility (Stage 3)

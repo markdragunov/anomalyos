@@ -33,7 +33,7 @@ from typing import Any, Mapping
 from .ids import short_hash, stable_id
 from .world import iso
 
-GENERATOR_VERSION = "sim-1.2.1"  # 1.1.0: ADR-029/030; 1.1.1: ADR-031; 1.2.0: realism v2, new scenarios, unchanged_metrics (ADR-032/033); 1.2.1: refund_rate not 'unchanged' for approval incidents
+GENERATOR_VERSION = "sim-1.2.2"  # 1.1.0: ADR-029/030; 1.1.1: ADR-031; 1.2.0: realism v2, new scenarios, unchanged_metrics (ADR-032/033); 1.2.1/1.2.2: refund_rate not 'unchanged' for approval incidents / the checkout regression
 
 
 class RootCause(str, Enum):
