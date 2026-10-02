@@ -6,6 +6,37 @@ Format: short ID, status, context, decision, consequences.
 
 ---
 
+## ADR-031 — Oracle detectability in ground truth (sim-1.1, phase 3) · *accepted* (2026-10-02)
+
+**Context.** `expected_detection_window` was a designer's constant (1 h, 4 h, 12 h, 3 days) unrelated to effect strength or cohort volume (review 4.3).
+
+**Decision.** The engine keeps per-hour copies of its paired counters (actual vs counterfactual on identical random draws). Ground truth gets `oracle_detectable_at`: the end of the first hour, counted from `start`, in which the cumulative difference reaches z >= 3 one-sided (rates: binomial z of the actual count against the counterfactual rate; counts: Poisson z of the effect's excess over the cohort's organic baseline, counted at payment time), plus `oracle_method`. `null` if the effect never becomes distinguishable inside its window; always `null` for suppressed signals. `expected_detection_window` stays, with `basis: "designer_constant"`, as a lower bound of expectations. The benchmark measures detection latency from `max(start, oracle_detectable_at)`. **Owner decision (Gate 2):** incidents with `oracle_detectable_at = null` are excluded from recall (reported as a separate count, never scored as misses); weak randomized variants are kept as they are. The validator rejects an oracle time outside `[start, end]`.
+
+**Consequences.** `GENERATOR_VERSION = sim-1.1.1` (event stream unchanged; ground truth gains fields). Findings at seed 42: the ES/psp_gamma drift becomes distinguishable after 69 h at scale 1.0 (110 h at 0.3); the BR issuer outage after 3 h (designer: 1 h) and not at all at scale 0.3; renewals after 2 h (designer: 12 h). Randomized DEV seeds 1-5 at scale 1.0: 54 of 55 incidents distinguishable; the exception is a weak iDEAL outage on seed 2. The oracle is optimistic for a real detector (it knows the cohort and compares with the counterfactual, not with a noisy baseline).
+
+---
+
+## ADR-030 — No cause labels in event data (sim-1.1, phase 2) · *accepted* (2026-10-02)
+
+**Context.** Review finding 4.2: `issuer_not_available` was emitted only by incident effects (91 of 91 occurrences in seed 42), and effect-caused declines got a hidden `+8` risk score (24.4 vs 15.3 on average). A classifier could read the cause off a single event.
+
+**Decision.** `issuer_not_available` joins the organic card-decline mix (weight 0.015 of 1.015). The `+8` boost is removed; elevated risk remains only for the injected card-testing stream (`risk_boost=30`). `EFFECT_ONLY_DECLINE_CODES = {stolen_card, highest_risk_level}`: codes that belong to an attack by definition. Tests: every other effect code occurs organically; mean risk score of declines inside vs outside incident windows differs by at most 1.0 (seed 42, scale 0.1, card testing excluded); `issuer_not_available` occurs outside incident windows.
+
+**Consequences.** Generator output changes: `GENERATOR_VERSION = sim-1.1.0` (with ADR-029); golden digests updated in a separate commit.
+
+---
+
+## ADR-029 — Randomized scenario calendar (sim-1.1, phase 1) · *accepted* (2026-10-02, owner OK on the Gate 1 design)
+
+**Context.** In sim-1.0 every seed replays the same incident times, cohorts and strengths, so many seeds only repeat noise and a detector can be tuned to the calendar.
+
+**Decision.** `WorldConfig.schedule = "fixed" | "randomized"` (default `fixed`, byte-identical to sim-1.0). `simulation/schedule.py` is a pure function of the world: per scenario kind it draws start, duration, cohort (closed, reviewed lists of existing cohorts) and strength from `derive_seed(seed, "schedule", kind, attempt)`, placing kinds in a fixed priority order (long-running first, then the control day). Rules: windows inside the world (24 h warm-up, 6 h end margin); 6 h gap between short scenarios and between the three long-running ones (gradual drift, checkout regression, renewal failure); **long x short overlap allowed** and recorded both ways in `unrelated_to`; the control day touches nothing; the campaign + outage pair overlaps by design. The checkout-regression release (5.14.0) and hotfix (5.14.1, 36-72 h later, only on the affected platform) follow the scenario; 5.13.0 and 5.15.0 are jittered +/- 24 h; scheduled releases stay 48 h apart. New `WorldConfig` fields enter the `run_id` hash only when non-default. `seeds.py`: `DEV_SEEDS` 1-20, `HELDOUT_SEEDS` 1001-1020, `DEMO_SEED` 42.
+**Deviations from the design table:** checkout-regression release days 5-14 (not 5-16: keeps 48 h after 5.13.0 and room for the long windows); gradual drift starts on days 16-22 at any hour.
+
+**Consequences.** Placement succeeds on 5,000/5,000 seeds. Randomized mode targets scale 1.0; at small scales small-cohort incidents may be statistically invisible (phase 3 adds `oracle_detectable_at`). `GENERATOR_VERSION` is bumped together with phase 2.
+
+---
+
 ## ADR-025 — Event normalization mapping (raw Stripe-shaped -> DATA_MODEL envelope) · *accepted* (2026-10-02, Stage 2)
 
 **Status:** accepted for implementation in Stage 2; follows ADR-022 option A. Not reviewed by the owner beyond the brief in `docs/tasks/STAGE-2.md`; deviations from that brief are listed explicitly.

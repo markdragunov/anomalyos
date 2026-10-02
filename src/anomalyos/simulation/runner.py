@@ -55,10 +55,24 @@ class RunResult:
                 f"({inc} incidents) · events sha256 {self.events_digest[:16]}… · truth {self.truth_digest[:16]}…")
 
 
+# WorldConfig fields added after sim-1.0.0. They enter the run_id hash only when they differ from their default,
+# so a run that does not use them keeps the id (and digests) it had before the field existed (ADR-029).
+_POST_1_0_FIELDS = ("schedule",)
+
+
+def _hashed_config(world: WorldConfig) -> dict:
+    cfg = dataclasses.asdict(world)
+    defaults = {f.name: f.default for f in dataclasses.fields(WorldConfig)}
+    for name in _POST_1_0_FIELDS:
+        if cfg.get(name) == defaults[name]:
+            del cfg[name]
+    return cfg
+
+
 def run_id_for(world: WorldConfig, preset: str, specs=None) -> str:
     """Pure function of generator version, preset, world config and every scenario spec hash."""
     specs = build_catalog(world, preset) if specs is None else specs
-    cfg = json.dumps(dataclasses.asdict(world), sort_keys=True)
+    cfg = json.dumps(_hashed_config(world), sort_keys=True)
     return "run_" + short_hash(GENERATOR_VERSION, preset, cfg, *(s.spec_hash for s in specs))[:16]
 
 

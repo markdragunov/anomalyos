@@ -44,6 +44,8 @@ def main(argv: list[str] | None = None) -> int:
     g.add_argument("--preset", choices=sorted(PRESETS), default="full")
     g.add_argument("--scale", type=float, default=1.0, help="1.0 ≈ 1.37M events over 28 days")
     g.add_argument("--days", type=int, default=28)
+    g.add_argument("--schedule", choices=("fixed", "randomized"), default="fixed",
+                   help="fixed = sim-1.0 calendar; randomized = per-seed start/duration/cohort/strength (ADR-029)")
     g.add_argument("--out", type=Path, required=True)
     g.add_argument("--overwrite", action="store_true")
     g.add_argument("--validate", action="store_true", help="validate the written run afterwards")
@@ -56,7 +58,7 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         if a.cmd == "generate":
-            res = generate(WorldConfig(seed=a.seed, scale=a.scale, days=a.days), a.preset, a.out, overwrite=a.overwrite)
+            res = generate(WorldConfig(seed=a.seed, scale=a.scale, days=a.days, schedule=a.schedule), a.preset, a.out, overwrite=a.overwrite)
             print(res.summary())
             print(f"written to {a.out}/ (events.jsonl.gz, ground_truth.json, manifest.json)")
             return _validate_dir(a.out) if a.validate else 0

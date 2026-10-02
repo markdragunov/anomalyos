@@ -17,6 +17,7 @@
 | Architecture (harness) | `tests/architecture/` | nothing (stdlib `unittest`, Python 3.12) | always; `harness.yml` |
 | Unit | `tests/unit/` | nothing (`pytest`); SQL tests use a live ClickHouse when `ANOMALYOS_RUN_INTEGRATION=1`, else embedded `chdb`, else skip | always |
 | Integration | `tests/integration/` | ClickHouse | opt-in locally, always in CI |
+| Slow | marker `slow` | minutes of CPU (full-scale seed 42 golden digest) | opt-in: `ANOMALYOS_RUN_SLOW=1` |
 | Scenario (future) | `tests/scenarios/` | ClickHouse | per scenario: ground truth vs system output |
 | Evaluation | `evals/` (scenario JSON with `ground_truth`, `scripts/eval_smoke.py`) | recorded model responses | deterministic replay by default; live runs are explicit |
 
@@ -69,3 +70,7 @@ pytest -m integration                   # integration only
 | `test_sim_scenarios.py` | catalog covers all required kinds; intensity profiles; spec invariants; cause vocabulary == DATA_MODEL v1; DATA_MODEL truth fields; incidents visible against control cohorts in the events |
 | `test_sim_clickhouse.py` | pure flattening with explicit `unknown`; identifier validation; config via `load_settings`; DDL + load + SQL checks on embedded ClickHouse (skipped if `chdb` absent) |
 | `integration/test_sim_clickhouse_live.py` | generate → load into real ClickHouse → all SQL checks 0 → aggregation in SQL |
+
+## Golden digests and counterfactual (sim-1.x)
+
+`tests/unit/simulation/test_sim_golden.py` pins run id, event count, event SHA-256 and truth digest for seed 5 / scale 0.05 (fast, always) and seed 42 / scale 1.0 (`slow`). A failing golden test means generator output changed: bump `GENERATOR_VERSION`, update the values in a separate commit, and say in the message what changed. `test_sim_counterfactual.py` checks `expected_impact` against the real difference between a world without and a world with one scenario (tolerance 0, and 1 for `checkout_regression`).

@@ -110,6 +110,7 @@ def price(median: int, currency: str, u: float) -> int:
 
 
 def _risk(u: float, boost: float = 0.0) -> dict[str, Any]:
+    # sim-1.1: effect-caused declines get no hidden boost; only the attack stream passes risk_boost (review 4.2).
     score = min(99, int(u ** 3 * 60 + boost))
     level = "normal" if score < 65 else ("elevated" if score < 75 else "highest")
     return {"risk_score": score, "risk_level": level}
@@ -348,11 +349,24 @@ class Simulation:
 
         cands = [e for e in self.per_pi_fx if e.start <= t + 2 * HOUR and e.end > t and e.matches(attrs)]
         actual = self._resolve_checkout(sh, t, three_ds, u, cands)
+        for e in self.by_mech[Mechanism.INJECT]:  # organic baseline of the attacked cohort, for the oracle
+            if e.intensity(t) > 0 and e.matches(attrs):
+                self.tally.hour = t // HOUR
+                self.tally.add(e.effect_id, "cohort_attempts", len(actual.attempts))
+                self.tally.hour = None
         if cands or self.by_mech[Mechanism.VOLUME]:
             self._tally_checkout(sh, t, amount, m.currency, three_ds, u, cands, actual, attrs, extra_of)
         self._emit_checkout(key, sh, t, amount, m.currency, attrs, three_ds, u, actual)
 
     def _tally_checkout(self, sh, t, amount, cur, three_ds, u, cands, actual, attrs, extra_of) -> None:
+        T = self.tally
+        T.hour = t // HOUR
+        try:
+            self._tally_checkout_at(sh, t, amount, cur, three_ds, u, cands, actual, attrs, extra_of)
+        finally:
+            T.hour = None
+
+    def _tally_checkout_at(self, sh, t, amount, cur, three_ds, u, cands, actual, attrs, extra_of) -> None:
         T = self.tally
         n_ok = sum(a.ok for a in actual.attempts)
         for e in self.by_mech[Mechanism.VOLUME]:
@@ -421,7 +435,7 @@ class Simulation:
         for n, a in enumerate(o.attempts):
             ch = Charge(stable_id("ch", self.seed, pi.id, n), a.t, amount, cur, sh.customer.id, pi.id, sh.pm.id,
                         sh.pm.type, "succeeded" if a.ok else "failed",
-                        _outcome(a.ok, a.failure_code, a.decline_code, _risk(risk_u, risk_boost + (8 if a.caused_by else 0))),
+                        _outcome(a.ok, a.failure_code, a.decline_code, _risk(risk_u, risk_boost)),
                         meta, sh.pm.card_brand, sh.pm.country, sh.pm.card_funding, a.failure_code)
             self._emit(a.t, "charge.succeeded" if a.ok else "charge.failed", ch,
                        request_id=self._req(pi.id, "confirm", n) if n == 0 and not duplicate_of else None)
@@ -486,6 +500,7 @@ class Simulation:
         self._emit_checkout(("inj", e.effect_id, h, i), sh, t + 2, amount, m.currency, attrs, False, u16, o,
                             risk_boost=30.0)  # bot traffic scores elevated/highest
         T = self.tally
+        T.hour = t // HOUR
         T.add(e.effect_id, "injected_attempts")
         T.add(e.effect_id, "attempts_actual")
         T.add(e.effect_id, "pi_actual")
@@ -494,6 +509,7 @@ class Simulation:
             T.add(e.effect_id, "success_actual")
             T.add(e.effect_id, "pi_succeeded_actual")
             T.add_amount(e.effect_id, "injected_amount", m.currency, amount)
+        T.hour = None
 
     def _renewal(self, sub_id: str) -> None:
         sub = self.subs[sub_id]
@@ -524,6 +540,7 @@ class Simulation:
         for e in cands:
             cf = resolve([x for x in cands if x is not e])
             eid = e.effect_id
+            T.hour = times[0] // HOUR
             if e.intensity(times[0]) > 0:
                 T.add(eid, "renewals")
                 T.add(eid, "renewal_first_ok_actual", int(actual[0].ok))
@@ -541,6 +558,7 @@ class Simulation:
                 T.add(eid, "lost_payments")
                 T.add_amount(eid, "lost_renewal_amount", sub.currency, sub.unit_amount)
                 T.add_amount(eid, "lost_amount", sub.currency, sub.unit_amount)
+            T.hour = None
 
         meta = self._meta(attrs)
         inv = Invoice(stable_id("in", self.seed, sub_id, per_end), t0, sub.customer, sub_id, sh.customer.country,
@@ -646,18 +664,23 @@ class Simulation:
         if not self._done:
             raise RuntimeError("run() must be exhausted before ground truth is available")
         out: list[GroundTruth] = []
+        # Truth keys are unique across the catalog (checked in build_catalog); `unrelated_to` may point at a record
+        # of another scenario (randomized calendar: a long-running incident overlapping a short one).
+        ref_by_key: dict[str, str] = {}
+        for sp in self.specs:
+            for t in sp.truths:
+                ref_by_key[t.key] = (stable_id("inc", self.seed, sp.scenario_id, t.key, length=16)
+                                     if t.expected_route is not Route.SUPPRESS else f"{sp.scenario_id}:{t.key}")
         for sp in self.specs:
             params = {e.effect_id: e.describe() for e in sp.effects}
-            inc_ids = {}
             for t in sp.truths:
-                if t.expected_route is not Route.SUPPRESS:
-                    inc_ids[t.key] = stable_id("inc", self.seed, sp.scenario_id, t.key, length=16)
-            for t in sp.truths:
-                unrelated = [inc_ids.get(k) or f"{sp.scenario_id}:{k}" for k in t.unrelated_to]
+                unrelated = [ref_by_key.get(k) or f"{sp.scenario_id}:{k}" for k in t.unrelated_to]
                 out.append(build_ground_truth(
                     world_seed=self.seed, scenario_id=sp.scenario_id, scenario_kind=sp.kind, scenario_seed=sp.seed,
                     spec_hash=sp.spec_hash, truth=t, effect_params=params, tally=self.tally,
                     unrelated_incident_ids=unrelated, world_end=self.w.end,
+                    organic={"organic_refund_rate": self.w.organic_refund_rate,
+                             "organic_duplicate_rate": self.w.organic_duplicate_rate},
                     profile=next((e.profile for e in sp.effects if e.effect_id in t.effect_ids), None),
                 ))
         return out

@@ -33,7 +33,7 @@ from typing import Any, Mapping
 from .ids import short_hash, stable_id
 from .world import iso
 
-GENERATOR_VERSION = "sim-1.0.0"
+GENERATOR_VERSION = "sim-1.1.1"  # 1.1.0: calendar modes (ADR-029), no cause labels (ADR-030); 1.1.1: oracle detectability (ADR-031)
 
 
 class RootCause(str, Enum):
@@ -136,9 +136,15 @@ class EffectTally:
     def __init__(self) -> None:
         self.counts: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
         self.amounts: dict[str, dict[str, dict[str, int]]] = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
+        # Per-hour copy of the same counters (sim-1.1.1), used for `oracle_detectable_at`. The engine sets
+        # `hour` to the payment's hour before tallying it and clears it afterwards.
+        self.hourly: dict[str, dict[int, dict[str, int]]] = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
+        self.hour: int | None = None
 
     def add(self, effect_id: str, metric: str, n: int = 1) -> None:
         self.counts[effect_id][metric] += n
+        if self.hour is not None:
+            self.hourly[effect_id][self.hour][metric] += n
 
     def add_amount(self, effect_id: str, metric: str, currency: str, amount: int) -> None:
         self.amounts[effect_id][metric][currency] += amount
@@ -165,7 +171,7 @@ class GroundTruth:
     control_cohorts: list[dict[str, list[str]]]
     expected_metric_effect: dict[str, Any]
     expected_impact: dict[str, Any]
-    expected_detection_window: dict[str, int] | None
+    expected_detection_window: dict[str, Any] | None
     expected_recovery: int | None
     unrelated_to: list[str]
     scenario_seed: int
@@ -180,6 +186,8 @@ class GroundTruth:
     affected_metrics: list[str]
     injected_effect: dict[str, Any]
     true_impact: dict[str, Any]
+    oracle_detectable_at: int | None = None  # sim-1.1.1, ADR-031
+    oracle_method: str | None = None
     cause_vocabulary_version: str = CAUSE_VOCABULARY_VERSION
     generator_version: str = GENERATOR_VERSION
     extra: dict[str, Any] = field(default_factory=dict)
@@ -205,6 +213,60 @@ def ramp_of(profile: tuple[tuple[int, float], ...] | None) -> str:
     return "step"
 
 
+ORACLE_Z = 3.0
+# Which counters the oracle compares, per primary metric. Rates: (denominator, numerator) actual vs counterfactual,
+# one-sided in the declared direction. Counts: the effect's excess against the cohort's organic baseline.
+_ORACLE_RATE = {
+    "charge_approval_rate": ("attempts", "success"),
+    "payment_intent_conversion_rate": ("pi", "pi_succeeded"),
+    "renewal_success_rate": ("renewals", "renewal_first_ok"),
+}
+_ORACLE_COUNT = {
+    "refund_rate": ("extra_refunds", "pi_succeeded_cf", "organic_refund_rate"),
+    "duplicate_charge_rate": ("duplicate_charges", "pi_succeeded_cf", "organic_duplicate_rate"),
+    "charge_attempt_volume": ("injected_attempts", "cohort_attempts", None),
+}
+
+
+def oracle_detectability(primary_metric: str, hourly: Mapping[int, Mapping[str, int]], start: int,
+                         organic: Mapping[str, float]) -> tuple[int | None, str | None]:
+    """First time the cumulative difference between the actual and the counterfactual world reaches z >= 3.
+
+    Computed from the engine's paired counters (identical random draws with and without the effect), in hourly
+    steps from the record's start; returns (end of the first hour that crosses, method) or (None, method)."""
+    import math
+
+    hours = sorted(h for h in hourly if (h + 1) * 3600 > start)
+    if primary_metric in _ORACLE_RATE:
+        den, num = _ORACLE_RATE[primary_metric]
+        method = f"cumulative one-sided binomial z of {num}/{den} actual vs counterfactual rate, z={ORACLE_Z:g}, hourly"
+        n_a = k_a = n_c = k_c = 0
+        for h in hours:
+            c = hourly[h]
+            n_a += c.get(f"{den}_actual", c.get(den, 0)); k_a += c.get(f"{num}_actual", 0)
+            n_c += c.get(f"{den}_cf", c.get(den, 0)); k_c += c.get(f"{num}_cf", 0)
+            if n_a and n_c:
+                p = k_c / n_c
+                if 0 < p < 1:
+                    z = (p * n_a - k_a) / math.sqrt(n_a * p * (1 - p))
+                    if z >= ORACLE_Z:
+                        return max(start, (h + 1) * 3600), method
+        return None, method
+    if primary_metric in _ORACLE_COUNT:
+        excess_key, base_key, rate_key = _ORACLE_COUNT[primary_metric]
+        method = (f"cumulative Poisson z of {excess_key} over the cohort's organic baseline, z={ORACLE_Z:g}, hourly; "
+                  "counted at payment time")
+        x = b = 0.0
+        for h in hours:
+            c = hourly[h]
+            x += c.get(excess_key, 0)
+            b += c.get(base_key, 0) * (organic[rate_key] if rate_key else 1.0)
+            if x and x / math.sqrt(max(b, 1.0)) >= ORACLE_Z:
+                return max(start, (h + 1) * 3600), method
+        return None, method
+    return None, None
+
+
 def _rate(num: int, den: int) -> float | None:
     return round(num / den, 6) if den else None
 
@@ -214,6 +276,7 @@ def build_ground_truth(
     truth: TruthSpec, effect_params: Mapping[str, Mapping[str, Any]], tally: EffectTally,
     unrelated_incident_ids: list[str], world_end: int,
     profile: tuple[tuple[int, float], ...] | None = None,
+    organic: Mapping[str, float] | None = None,
 ) -> GroundTruth:
     is_incident = truth.expected_route is not Route.SUPPRESS
     incident_id = stable_id("inc", world_seed, scenario_id, truth.key, length=16) if is_incident else None
@@ -274,7 +337,19 @@ def build_ground_truth(
 
     detection = None
     if truth.detection_delay_s is not None:
-        detection = {"start": truth.start, "end": truth.start + truth.detection_delay_s}
+        # A designer's constant, kept as a lower bound of expectations; latency is measured from
+        # max(start, oracle_detectable_at) (ADR-031).
+        detection = {"start": truth.start, "end": truth.start + truth.detection_delay_s, "basis": "designer_constant"}
+    oracle_at, oracle_method = None, None
+    if is_incident:
+        hourly: dict[int, dict[str, int]] = defaultdict(lambda: defaultdict(int))
+        for eid in truth.effect_ids:
+            for h, per in tally.hourly.get(eid, {}).items():
+                for k, v in per.items():
+                    hourly[h][k] += v
+        oracle_at, oracle_method = oracle_detectability(truth.primary_metric, hourly, truth.start, organic or {})
+        if oracle_at is not None and truth.end is not None and oracle_at > truth.end:
+            oracle_at = None  # not distinguishable within the incident window
 
     return GroundTruth(
         scenario_id=scenario_id,
@@ -316,6 +391,8 @@ def build_ground_truth(
         injected_effect={eid: dict(effect_params[eid]) for eid in truth.effect_ids},
         true_impact=true_impact,
         extra={"ongoing_at_world_end": truth.end is None, "world_end": world_end},
+        oracle_detectable_at=oracle_at,
+        oracle_method=oracle_method,
     )
 
 

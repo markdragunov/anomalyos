@@ -99,7 +99,11 @@ the stream before the first injection is byte-identical with and without scenari
 effect (leave-one-out when effects overlap). The difference yields exact impact — lost
 payments and amount, extra refunds, duplicates, fraud — computed by code from the mechanism.
 
-### Catalog (`--preset full`; `core` = the four marked ★)
+### Calendar: fixed or randomized (ADR-029)
+
+`--schedule fixed` (default) reproduces the table below on every seed. `--schedule randomized` draws, per seed, start, duration, cohort and strength of each scenario from closed lists and ranges in `src/anomalyos/simulation/schedule.py`; ground truth always carries the realized values, and records of different scenarios that overlap in time point at each other in `unrelated_to`. Use `DEV_SEEDS` for tuning and `HELDOUT_SEEDS` for reporting (`simulation/seeds.py`).
+
+### Catalog (`--preset full`; `core` = the four marked ★; fixed calendar)
 
 | Scenario | Window (from start) | Mechanism | Route |
 |---|---|---|---|
@@ -177,3 +181,37 @@ checks, charge≠PI amount, refunds>charge, PAN-like digit runs, truth-token lea
 Fixed UTC offsets (no DST); 30-day billing months; issuer country = customer country;
 one payment method per customer; iDEAL renewals are allowed (real iDEAL recurs via SEPA);
 disputes and payouts not modelled yet.
+
+## 10. Known ground-truth inaccuracies
+
+Documented so benchmarks do not over-read the answer key (sim-1.0.0):
+
+* **Secondary organic duplicate.** The counterfactual counts a lost payment once. When that payment
+  disappears, a rare organic duplicate that would have followed it disappears too, so the real
+  difference between "world without the scenario" and "world with it" can exceed `lost_successful_payments`
+  by one payment (seed 42, scale 0.3, `checkout_regression_app_version`: 578 against 577, 6,499 usd).
+  Tolerance in the test is 1 for that scenario and 0 for the others (`test_sim_counterfactual.py`).
+* **`charge_approval_rate_counterfactual` is per attempt, retries included.** For cohorts with fewer than
+  about 50 attempts it is noisy (JP amex, seed 42: 0.4375 against about 0.8 expected; 0.62-0.93 on seeds 1-6).
+  Do not use it to score detection or localization of small cohorts; use the counts.
+* **`control_day` has an empty `measured`** (no reference approval or volume for a normal day). To be filled
+  in a later phase of `docs/tasks/SIMULATOR-FIXES.md`.
+
+## 11. Detectability and volumes (sim-1.1.1)
+
+Every incident record carries `oracle_detectable_at` and `oracle_method` (ADR-031): when the effect first becomes
+distinguishable (cumulative z >= 3 against the counterfactual, hourly). `expected_detection_window` is a designer's
+constant (`basis: "designer_constant"`), kept as a lower bound. Measure detection latency from
+`max(start, oracle_detectable_at)`; incidents with `oracle_detectable_at = null` are excluded from recall and reported as a separate count (owner decision, ADR-031).
+
+Charge attempts per window, seed 42, scale 1.0, 28 days (median / share of windows with fewer than 30 attempts):
+
+| Cohort | 5 min | 15 min | 1 h |
+|---|---|---|---|
+| global | 43 / 23 % | 131 / 0 % | 532 / 0 % |
+| PSP (psp_beta) | 14 / 99 % | 44 / 34 % | 183 / 0 % |
+| PSP x country (DE / psp_beta) | 4 / 100 % | 12 / 99 % | 52 / 32 % |
+| ES x psp_gamma | 2 / 100 % | 6 / 100 % | 26 / 58 % |
+| JP x amex | 0 / 100 % | 1 / 100 % | 3 / 100 % |
+
+All 17 PSP x country cohorts together: see ADR-026 (63 % of 1-hour windows below 30 attempts).
