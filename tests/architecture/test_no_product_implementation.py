@@ -30,14 +30,11 @@ FORBIDDEN_FILENAMES = {
     "jev.py",
     "policy_engine.py",
     "investigation_agent.py",
-    "anomaly_detector.py",
-    "detector.py",
     "clickhouse_client.py",
 }
 
-# Packages under src/anomalyos that belong to later stages (`events` and `metrics` are Stage 2).
+# Packages under src/anomalyos that belong to later stages (`events`, `metrics`: Stage 2; `detection`: Stage 3).
 FORBIDDEN_PACKAGES = {
-    "detection",
     "cohorts",
     "jev",
     "policy",

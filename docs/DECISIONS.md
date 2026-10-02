@@ -6,6 +6,29 @@ Format: short ID, status, context, decision, consequences.
 
 ---
 
+## ADR-034 — Stage 3 detection design · *accepted* (2026-10-02, owner OK on Gate 0)
+
+**Decision.** As in `docs/tasks/STAGE-3-DESIGN.md` (D-1 … D-8), with the owner's answers: candidates that match
+`suppress` records count as false positives; late data uses **first-look** visibility (`metrics.compute(...,
+visibility="window_close")`: a window sees only events with `ingested_at <= window end`); the missing metrics are
+added now (`subscription_cancellation_rate` v1, `late_arrival_share` v1 windowed by delivery time,
+`checkout_conversion_rate` **v2** = converted as known when the checkout's window closed — v1 is unchanged, its
+numerator sees authorizations up to the end of the whole range, which would leak future information into detection).
+
+**Implementation choices recorded during Phase 1.**
+- z is computed on variance-stabilized scales (arcsine for proportions, Anscombe for counts) instead of the plain
+  normal approximation. Measured on stationary synthetic series: P(z < -2.5) = 0.0126 with the plain z vs 0.0065
+  stabilized (nominal 0.0062); P(z < -4) 0.00039 vs 0.00006. Cause: binomial skew at approval ~0.9.
+- Overdispersion: phi from the robust spread (median |z| / 0.6745)^2 of the last 168 unit-variance z, floored at 1,
+  default 2 with fewer than 6 values. On 20 overdispersed series: 1 false alarm with phi, 84 without.
+- Ratio metrics that can exceed 1 are clamped to [0, 1] for the transform only.
+- Properties surfaced by the tests, to be quantified at Gate 1: (a) nothing is decidable in the first 3 days
+  (fewer than two reference days), so incidents placed on days 0-2 cannot be detected; (b) the 30-attempt floor makes
+  low-volume hours undecidable, which delays detection relative to the oracle (seed 42, scale 0.3: psp_alpha incident
+  at 10:00 UTC detected at 13:00).
+
+---
+
 ## ADR-033 — Full cause coverage, new mechanisms and metric expectations (sim-1.2, phases 5-6) · *accepted* (2026-10-02, owner OK on Gate 3)
 
 **Decision.**

@@ -8,6 +8,8 @@ group_by) -> list[SeriesPoint]``.
 * ``start`` is grain-aligned (UTC); ``end`` is the as-of bound: only events with
   ``occurred_at < end`` are read (no future leakage); the last window is ``is_complete=False``
   when it extends past ``end``.
+* ``visibility="window_close"`` keeps only rows with ``ingested_at <= window end`` (what was known when the window
+  closed; late events are invisible until delivered, ADR-034);
 * every point carries numerator and denominator; ``value`` is ``None`` when the denominator is 0
   (never 0, never NaN).
 * the result is dense: every window of every group seen in the data is present (windows with no
@@ -81,11 +83,19 @@ def _dim_param(dim: str, value: Any) -> Any:
     return value
 
 
-def _build(m: MetricDef, database: str, grain: str, filters: Mapping[str, Any], group_by: Sequence[str]) -> tuple[str, dict[str, Any]]:
+VISIBILITY = ("all", "window_close")
+
+
+def _build(m: MetricDef, database: str, grain: str, filters: Mapping[str, Any], group_by: Sequence[str],
+           visibility: str = "all") -> tuple[str, dict[str, Any]]:
     length, unit, _ = GRAINS[grain]
+    window_end = f"(toStartOfInterval(occurred_at, INTERVAL {length} {unit}) + INTERVAL {length} {unit})"
     params: dict[str, Any] = {}
     preds = [m.where, "run_id = {run_id:String}",
              "occurred_at >= toDateTime({start:UInt32}, 'UTC')", "occurred_at < toDateTime({end:UInt32}, 'UTC')"]
+    if visibility == "window_close":
+        # "first look" (ADR-034): only what had reached the store when the window closed
+        preds.append(f"ingested_at <= {window_end}")
     for i, (dim, raw) in enumerate(sorted(filters.items())):
         values = [raw] if isinstance(raw, (str, int)) and not isinstance(raw, bool) else list(raw)
         if not values or len(values) > MAX_FILTER_VALUES:
@@ -101,13 +111,14 @@ def _build(m: MetricDef, database: str, grain: str, filters: Mapping[str, Any], 
         f"toInt64({m.numerator}) AS numerator, toInt64({m.denominator}) AS denominator "
         f"FROM {source} WHERE {' AND '.join(preds)} "
         f"GROUP BY window_start{dims_sql} ORDER BY window_start{dims_sql}"
-    ).replace("{table}", table)
+    ).replace("{table}", table).replace("{window_end}", window_end)
     return sql, params
 
 
 def compute(
     runner: QueryRunner, database: str, run_id: str, metric: str, version: int, start: datetime, end: datetime,
     grain: str, filters: Mapping[str, Any] | None = None, group_by: Sequence[str] = (), *, dense: bool = True,
+    visibility: str = "all",
 ) -> list[SeriesPoint]:
     if not _IDENT.match(database):
         raise MetricError(f"invalid database name {database!r}")
@@ -117,6 +128,8 @@ def compute(
         m = get_metric(metric, version)
     except KeyError as exc:
         raise MetricError(str(exc)) from None
+    if visibility not in VISIBILITY:
+        raise MetricError(f"unknown visibility {visibility!r}; allowed: {VISIBILITY}")
     if grain not in GRAINS:
         raise MetricError(f"unknown grain {grain!r}; allowed: {sorted(GRAINS)}")
     seconds = GRAINS[grain][2]
@@ -137,7 +150,7 @@ def compute(
             if d not in m.allowed_dims:
                 raise MetricError(f"{kind} dimension {d!r} is not available for {m.name} v{m.version}; allowed: {sorted(m.allowed_dims)}")
 
-    sql, params = _build(m, database, grain, filters, group_by)
+    sql, params = _build(m, database, grain, filters, group_by, visibility)
     params.update(run_id=run_id, start=start_ts, end=end_ts)
     result = runner.rows(sql, params)
 
