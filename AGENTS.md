@@ -23,7 +23,7 @@ Canonical detail lives in:
 2. **AI must never receive unbounded raw event streams.** Agents and LLMs see aggregates, cohorts, bounded evidence, and typed query results — never a firehose of payment events.
 3. **AI must never generate arbitrary SQL.** No free-form query strings from a model to ClickHouse or any database.
 4. **AI accesses analytical data through approved typed interfaces.** Named, reviewed, parameterized functions or views. New access paths require an architecture review and an invariant check.
-5. **Jev is side-effect free.** Jev is a pure decision function. It does not write, notify, mutate state, or call I/O.
+5. **Jev is side-effect free.** Jev is a pure decision function. It does not write, notify, mutate state, or call I/O. (The decision contract is pure; the hosted-model call lives in a transport adapter with replay — ADR-024.)
 6. **Jev cannot execute tools.** Jev may inspect structured inputs and return a decision. It must not invoke tools, agents, or APIs.
 7. **Policy is deterministic.** Same policy inputs + same rules ⇒ same `IGNORE` / `DIGEST` / `INCIDENT` disposition. No hidden LLM call inside policy.
 8. **Investigation Agent is read-only in V2.** It may fetch evidence through approved interfaces. It must not retry charges, issue refunds, change config, page systems, or otherwise mutate billing state.
@@ -37,7 +37,7 @@ Canonical detail lives in:
 16. **Ground truth is isolated.** Ground truth is produced only by simulator code, lives apart from events (`<db>_truth`, `ground_truth.json`), and must never be readable by detection, metrics, cohort, Jev or agent code paths.
 17. **Everything is seeded and reproducible.** No wall clock, unseeded randomness, `hash()` or global counters in generation or tests. Simulator randomness comes from `ids.derive_seed(seed, <structural key>)`, IDs from `ids.stable_id`. Every new scenario needs a `TruthSpec` with `true_cause` from the `DATA_MODEL.md` vocabulary.
 18. **Data conventions.** Money is integer minor units plus ISO 4217 currency; timestamps are UTC; missing dimensions are the explicit value `unknown`.
-19. **Jev answers typed questions only.** Choice / Score / Noul over a small state; no arithmetic, counting or date comparison in Jev (code computes, passes values or buckets); hypotheses come only from the closed cause vocabulary; low confidence routes to a human. Jev never writes explanations or SQL (see ADR-018; the networked-Jev vs `INV-004` question is open in ADR-024).
+19. **Jev answers typed questions only.** Choice / Score / Noul over a small state; no arithmetic, counting or date comparison in Jev (code computes, passes values or buckets); hypotheses come only from the closed cause vocabulary; low confidence routes to a human. Jev never writes explanations or SQL (see ADR-018; networked Jev vs `INV-004`: ADR-024).
 
 An AI coding agent **must not silently violate an invariant**. If a change would weaken or bypass an invariant, stop, name the invariant, and propose a documented decision instead of quietly proceeding.
 

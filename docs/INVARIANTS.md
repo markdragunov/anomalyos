@@ -38,6 +38,8 @@ IDs are stable. Do not renumber.
 
 **What it means.** Jev is a pure function of its structured inputs. No writes, no HTTP, no tool calls, no hidden reads.
 
+**Clarification (ADR-024, accepted).** The *decision contract* is pure: a typed state and question-set version in, typed answers out, with no writes, tools or hidden reads. The hosted model call (TypeSafe System One) is made only by a separate transport adapter behind a `JevClient` port; tests, replay and evaluation use recorded raw responses, so the same recorded answers always reproduce the same decision. Nothing else may perform I/O on Jev's behalf.
+
 **Why it exists.** Replay, audit, and tests require that the same inputs yield the same decision record. Side effects inside Jev make policy undebuggable.
 
 **How it could be violated.** Jev logging to Slack; Jev reading ClickHouse; Jev incrementing a counter in Redis; catching the wall clock instead of using a `now` input.
@@ -143,3 +145,16 @@ IDs are stable. Do not renumber.
 **How it could be violated.** A scenario with only inputs; ground truth in a Slack thread; optional JSON field skipped “until we have detectors”.
 
 **How it could be tested.** `tests/architecture/test_eval_ground_truth.py` and `scripts/eval_smoke.py` — already enforced in this harness.
+
+## Operating rules that are not numbered invariants
+
+`AGENTS.md` rules 16–19 are binding repository rules but have no `INV-` id (adding invariants is an owner decision; see the open question in the closeout report). Their sources and enforcement:
+
+| AGENTS.md rule | Source | Enforced by |
+| --- | --- | --- |
+| 16 — Ground truth is isolated | ADR-017 | Stage 2: test that greps `src/anomalyos/events` and `metrics` for `_truth` / `ground_truth` (to be added with that stage) |
+| 17 — Seeded and reproducible | ADR-021 | simulator determinism tests (`tests/unit/simulation/test_sim_determinism.py`) |
+| 18 — Data conventions (money, UTC, `unknown`) | `docs/DATA_MODEL.md` | simulator validator (`validate.py`) |
+| 19 — Jev answers typed questions only | ADR-018, ADR-024 | Stage 5 tests (question-set and state-builder tests, `docs/TESTING.md`) |
+
+Rules 1–15 map to `INV-001`…`INV-014` (rule 15 = `INV-014`).

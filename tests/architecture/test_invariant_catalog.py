@@ -63,3 +63,12 @@ class TestInvariantCatalog(unittest.TestCase):
                     body,
                     f"{inv_id} missing section {section}",
                 )
+
+
+class TestOperatingRulesMapping(unittest.TestCase):
+    def test_agents_rules_16_to_19_are_mapped(self) -> None:
+        text = (ROOT / "docs" / "INVARIANTS.md").read_text(encoding="utf-8")
+        self.assertIn("## Operating rules that are not numbered invariants", text)
+        for rule in ("16 — Ground truth is isolated", "17 — Seeded and reproducible",
+                     "18 — Data conventions", "19 — Jev answers typed questions only"):
+            self.assertIn(rule, text)

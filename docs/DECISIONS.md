@@ -6,9 +6,9 @@ Format: short ID, status, context, decision, consequences.
 
 ---
 
-## ADR-027 — Model for human-readable incident explanations · *proposed*
+## ADR-027 — Model for human-readable incident explanations · *accepted* (2026-10-02, owner OK on the Gate 2 report)
 
-**Status:** proposed — owner decision needed before Stage 7 (Mode B explanation). Not accepted by the agent.
+**Status:** accepted — option (3), staged. Vendor and budget remain a separate ADR when a generative model is added.
 
 **Context.** `docs/specs/00`, `08` and `INV-008` assume an "LLM explains" step. ADR-018 says Jev generates no text and that narrative explanation needs a separate generative model and its own ADR; the default there is a template rendered by code from typed answers. A generative model adds a dependency, a vendor, cost per incident, a new prompt-injection surface, and non-determinism.
 
@@ -23,9 +23,9 @@ Format: short ID, status, context, decision, consequences.
 
 ---
 
-## ADR-026 — Metric time grain per scope (resolves OQ-2) · *proposed*
+## ADR-026 — Metric time grain per scope (resolves OQ-2) · *accepted* (2026-10-02, owner OK on the Gate 2 report)
 
-**Status:** proposed — owner decision (Gate 2) before Stage 3 detection. Numbers will be re-measured after `docs/tasks/SIMULATOR-FIXES.md` Phase 3 (randomised calendar, noisier baseline).
+**Status:** accepted — option (b). Numbers will be re-measured after `docs/tasks/SIMULATOR-FIXES.md` Phase 3 (randomised calendar, noisier baseline).
 
 **Context.** Detection needs a grain per scope, and a minimum-sample floor. Measured on the synthetic world, `--seed 42 --scale 1.0` (run `run_133c4a3a198eb8c1`, 28 days, digests identical to the independent review): attempts = `charge.succeeded` + `charge.failed` events (retries included), all hours of all days, floor = 30 attempts per window. "Share" = fraction of cohort-windows (every cohort that has any attempt × every window, zero-attempt windows included) below the floor.
 
@@ -71,9 +71,9 @@ This ADR supersedes:
 
 ---
 
-## ADR-024 — Jev "purity" vs a networked Jev (TypeSafe System One) · *proposed*
+## ADR-024 — Jev "purity" vs a networked Jev (TypeSafe System One) · *accepted* (2026-10-02, owner OK on the Gate 2 report)
 
-**Status:** proposed — needs an owner decision before any Jev integration (Stage 5).
+**Status:** accepted — option (a): `INV-004` unchanged for the decision contract, network call in a transport adapter with replay. Still no code may call a Jev endpoint before Stage 5; the `JevClient` port is designed then.
 
 **Context.** `INV-004` (Jev is side-effect free: no I/O, no HTTP, pure function of structured input) was written for an abstract decision function. ADR-018 (formerly simulator ADR-009) defines Jev as TypeSafe's hosted System One model, which can only be reached over the network. As written, a client calling that API violates `INV-004`.
 
@@ -279,7 +279,7 @@ AI) become natural rather than enforced after the fact. Assessment quality depen
 quality of the question set, which becomes a first-class, versioned, tested artifact.
 Narrative explanation, if ever needed, requires a separate generative model and its own ADR.
 
-## ADR-019 — Investigation agent as a code-driven loop over Jev choices · *proposed*
+## ADR-019 — Investigation agent as a code-driven loop over Jev choices · *accepted, option 3* (2026-10-02, owner OK on the Gate 2 report)
 
 **Context.** Jev selects; it does not plan or generate. The agent must be read-only and use
 explicit tools.
@@ -288,7 +288,9 @@ and its closed-set arguments (or `stop`), code validates and executes, evidence 
 **Consequences.** Every step is auditable and bounded; no free-form tool arguments exist.
 Revisit if investigation quality plateaus on scenarios that need open-ended exploration.
 
-**Conflict with `docs/specs/08` (Gate 2 analysis; status stays *proposed*).** Spec 08: "the agent chooses the actual tool call" and Jev only rates hypotheses/sufficiency. This ADR: code builds state, Jev chooses the tool and closed-set arguments (or `stop`), code validates and executes.
+**Decision (accepted):** Option 3 below — the loop is code; code proposes a bounded, deterministically ranked shortlist of next steps; Jev chooses among them with a confidence gate. `docs/specs/08` is aligned to this.
+
+**Conflict with `docs/specs/08` (Gate 2 analysis; option 3 accepted).** Spec 08: "the agent chooses the actual tool call" and Jev only rates hypotheses/sufficiency. This ADR: code builds state, Jev chooses the tool and closed-set arguments (or `stop`), code validates and executes.
 
 - **Option 1 (this ADR).** Deterministic loop, Jev picks from a closed set. Auditable, bounded, replayable, no generative model in the loop, free-form tool arguments impossible. Cost: no open-ended exploration; selection quality is bounded by the question design.
 - **Option 2 (spec 08).** A generative agent chooses tools. More flexible; needs a generative model in the loop (ADR-027 becomes a hard dependency), a larger injection surface and non-determinism, and harder `INV-011` budget enforcement.
@@ -326,7 +328,7 @@ emitted events (ADR-017) and lives in a separate database `<db>_truth`.
 **Trade-offs.** Eager per-payment lifecycles cannot model feedback loops (customers churning
 after failures changing future demand). Fixed UTC offsets, 30-day billing months.
 
-## ADR-022 — Raw event format: Stripe-shaped source, DATA_MODEL envelope as normalized layer · *proposed*
+## ADR-022 — Raw event format: Stripe-shaped source, DATA_MODEL envelope as normalized layer · *accepted, option A* (2026-10-02, owner OK on the Gate 2 report)
 
 **Context.** Stage 1's spec asked for Stripe-shaped objects and an `evt_…` envelope
 (`api_version`, `data.object` snapshot, `request.idempotency_key`). `DATA_MODEL.md` defines a
@@ -348,9 +350,9 @@ not implemented yet.
 simpler, but loses realistic source semantics and forces a rewrite of Stage 1. (b) Adopt the
 Stripe shape as the logical contract — rewrites DATA_MODEL and ties every layer to one
 vendor's model.
-**Status.** Needs an owner decision before Stage 2 (metrics).
+**Status.** Accepted (option A). Next: ADR-025 (normalization mapping), written in Stage 2 Phase 2.
 
-**Gate 2 summary (status stays *proposed*).**
+**Gate 2 summary (option A accepted).**
 - **A (recommended).** Two layers: raw Stripe-shaped events stay as generated; a pure, versioned mapping produces the DATA_MODEL envelope; metrics, detection, cohorts and evaluation read only the normalized layer. Consequences: one more table (`events_norm`) and one mapping to test and version (the next ADR, reserved as ADR-025); keeps Stage 1 unchanged; the idempotency signal needed for duplicate-charge detection is carried as `idempotency_key_present` (a DATA_MODEL change); `ingested_at` and late/out-of-order events become representable only at the normalized layer.
 - **B.** Generate the DATA_MODEL envelope directly. Simplest downstream, but rewrites Stage 1, changes every digest, and drops realistic source semantics.
 - **C.** Make the Stripe shape the logical contract. Rewrites DATA_MODEL and ties every layer to one vendor's model.
@@ -358,7 +360,10 @@ vendor's model.
 
 ## Open questions
 
-- **Reserved ADR numbers.** ADR-025 is reserved for event normalization (`docs/tasks/STAGE-2.md`, Phase 2; written after ADR-022 is decided). ADR-026 (time grain) and ADR-027 (explanation model) are proposed above.
+- **Reserved ADR numbers.** ADR-025 is reserved for event normalization (`docs/tasks/STAGE-2.md`, Phase 2, now unblocked by ADR-022). ADR-026 (time grain) and ADR-027 (explanation model) are accepted above.
+- **OQ-6 — Severity vocabulary.** Spec 06 asks Jev for `P1/P2/P3`; ground truth uses `none/low/medium/high/critical`. One vocabulary is needed before Stage 5 (owner decision).
+- **OQ-7 — Where mutable incident state lives.** Spec 03 puts `incidents` in ClickHouse; incidents change status, which suits an operational store, while append-only audit suits ClickHouse (owner decision before Stage 6).
+- **OQ-8 — Incident lifecycle states.** See `docs/specs/07_INCIDENT_ENGINE.md` (proposal) vs the earlier list in `docs/ARCHITECTURE.md`.
 
 - **OQ-1 — Jev integration details** (resolved in principle by ADR-018). Still open: official
   Python SDK vs stdlib HTTP client (dependency trade-off), pinned model version for
