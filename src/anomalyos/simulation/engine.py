@@ -110,6 +110,7 @@ def price(median: int, currency: str, u: float) -> int:
 
 
 def _risk(u: float, boost: float = 0.0) -> dict[str, Any]:
+    # sim-1.1: effect-caused declines get no hidden boost; only the attack stream passes risk_boost (review 4.2).
     score = min(99, int(u ** 3 * 60 + boost))
     level = "normal" if score < 65 else ("elevated" if score < 75 else "highest")
     return {"risk_score": score, "risk_level": level}
@@ -421,7 +422,7 @@ class Simulation:
         for n, a in enumerate(o.attempts):
             ch = Charge(stable_id("ch", self.seed, pi.id, n), a.t, amount, cur, sh.customer.id, pi.id, sh.pm.id,
                         sh.pm.type, "succeeded" if a.ok else "failed",
-                        _outcome(a.ok, a.failure_code, a.decline_code, _risk(risk_u, risk_boost + (8 if a.caused_by else 0))),
+                        _outcome(a.ok, a.failure_code, a.decline_code, _risk(risk_u, risk_boost)),
                         meta, sh.pm.card_brand, sh.pm.country, sh.pm.card_funding, a.failure_code)
             self._emit(a.t, "charge.succeeded" if a.ok else "charge.failed", ch,
                        request_id=self._req(pi.id, "confirm", n) if n == 0 and not duplicate_of else None)

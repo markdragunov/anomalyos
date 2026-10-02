@@ -6,6 +6,16 @@ Format: short ID, status, context, decision, consequences.
 
 ---
 
+## ADR-030 — No cause labels in event data (sim-1.1, phase 2) · *accepted* (2026-10-02)
+
+**Context.** Review finding 4.2: `issuer_not_available` was emitted only by incident effects (91 of 91 occurrences in seed 42), and effect-caused declines got a hidden `+8` risk score (24.4 vs 15.3 on average). A classifier could read the cause off a single event.
+
+**Decision.** `issuer_not_available` joins the organic card-decline mix (weight 0.015 of 1.015). The `+8` boost is removed; elevated risk remains only for the injected card-testing stream (`risk_boost=30`). `EFFECT_ONLY_DECLINE_CODES = {stolen_card, highest_risk_level}`: codes that belong to an attack by definition. Tests: every other effect code occurs organically; mean risk score of declines inside vs outside incident windows differs by at most 1.0 (seed 42, scale 0.1, card testing excluded); `issuer_not_available` occurs outside incident windows.
+
+**Consequences.** Generator output changes: `GENERATOR_VERSION = sim-1.1.0` (with ADR-029); golden digests updated in a separate commit.
+
+---
+
 ## ADR-029 — Randomized scenario calendar (sim-1.1, phase 1) · *accepted* (2026-10-02, owner OK on the Gate 1 design)
 
 **Context.** In sim-1.0 every seed replays the same incident times, cohorts and strengths, so many seeds only repeat noise and a detector can be tuned to the calendar.

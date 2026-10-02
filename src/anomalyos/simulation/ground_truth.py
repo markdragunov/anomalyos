@@ -33,7 +33,7 @@ from typing import Any, Mapping
 from .ids import short_hash, stable_id
 from .world import iso
 
-GENERATOR_VERSION = "sim-1.0.0"
+GENERATOR_VERSION = "sim-1.1.0"  # calendar modes (ADR-029) + no cause labels in data (ADR-030)
 
 
 class RootCause(str, Enum):

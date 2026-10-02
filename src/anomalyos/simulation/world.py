@@ -93,7 +93,12 @@ ORGANIC_CARD_DECLINES = (
     ("card_declined", "do_not_honor", .20), ("expired_card", "expired_card", .07),
     ("incorrect_cvc", "incorrect_cvc", .05), ("card_declined", "fraudulent", .03),
     ("processing_error", None, .05),
+    # sim-1.1: present in organic traffic too, so the code alone does not reveal an incident (review 4.2).
+    ("card_declined", "issuer_not_available", .015),
 )
+# Decline codes only an attack emits by definition (card testing); every other effect code must also
+# occur organically (test-enforced).
+EFFECT_ONLY_DECLINE_CODES = frozenset({("card_declined", "stolen_card"), ("card_declined", "highest_risk_level")})
 ORGANIC_LOCAL_DECLINES = (
     ("payment_method_provider_decline", "generic_decline", .70), ("processing_error", None, .30),
 )
