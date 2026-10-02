@@ -6,6 +6,53 @@ Format: short ID, status, context, decision, consequences.
 
 ---
 
+## ADR-027 — Model for human-readable incident explanations · *proposed*
+
+**Status:** proposed — owner decision needed before Stage 7 (Mode B explanation). Not accepted by the agent.
+
+**Context.** `docs/specs/00`, `08` and `INV-008` assume an "LLM explains" step. ADR-018 says Jev generates no text and that narrative explanation needs a separate generative model and its own ADR; the default there is a template rendered by code from typed answers. A generative model adds a dependency, a vendor, cost per incident, a new prompt-injection surface, and non-determinism.
+
+**Options.**
+- **(1) Templates only.** Code renders text from typed data and evidence IDs. No new dependency, deterministic, trivially satisfies `INV-008`. Cost: stilted prose, no synthesis across evidence.
+- **(2) Generative model behind a port.** A narrow `Explainer` interface (input: validated evidence bundle with stable IDs, hypothesis records, timeline; output: structured claims each carrying evidence IDs and an epistemic label). A validator rejects uncited claims and unknown IDs (`INV-008`, `INV-013`). Vendor-neutral; a recorded-response fake for tests and evaluation. Cost: one new dependency (SDK or stdlib HTTP), API key handling, per-incident token budget, only typed fields in the prompt (no free text from data), replay fixtures.
+- **(3) Both, staged.** Ship (1) with the (2) port defined at Stage 7; add a real model only after Mode A is benchmarked and there is a measured gap that templates cannot close (benchmark system "deterministic top-k + template" as the control).
+
+**Recommendation.** (3). It keeps Stage 7 unblocked and dependency-free, defines the validator and the port (the hard, invariant-bearing part) first, and lets the benchmark show whether a generative model earns its cost. Choosing a vendor and a budget (tokens per incident, USD per run) is a separate ADR when (2) is built.
+
+**Consequences if accepted.** No dependency change now. `docs/specs/08` and `00` change "LLM explains" to "an explainer behind a port; templated first".
+
+---
+
+## ADR-026 — Metric time grain per scope (resolves OQ-2) · *proposed*
+
+**Status:** proposed — owner decision (Gate 2) before Stage 3 detection. Numbers will be re-measured after `docs/tasks/SIMULATOR-FIXES.md` Phase 3 (randomised calendar, noisier baseline).
+
+**Context.** Detection needs a grain per scope, and a minimum-sample floor. Measured on the synthetic world, `--seed 42 --scale 1.0` (run `run_133c4a3a198eb8c1`, 28 days, digests identical to the independent review): attempts = `charge.succeeded` + `charge.failed` events (retries included), all hours of all days, floor = 30 attempts per window. "Share" = fraction of cohort-windows (every cohort that has any attempt × every window, zero-attempt windows included) below the floor.
+
+| Grain | Scope | Cohorts | Median attempts / window | Share < 30 |
+|---|---|---|---|---|
+| 5 min | global | 1 | 43 | 22.9 % |
+| 5 min | PSP | 3 | 14 | 99.0 % |
+| 5 min | PSP × country | 17 | 2 | 100 % |
+| 15 min | global | 1 | 131 | 0 % |
+| 15 min | PSP | 3 | 46 | 28.6 % |
+| 15 min | PSP × country | 17 | 5 | 97.7 % |
+| 15 min | PSP × country × platform | 68 | 1 | 100 % |
+| 1 h | global | 1 | 532 | 0 % |
+| 1 h | PSP | 3 | 189 | 0 % |
+| 1 h | PSP × country | 17 | 21 | 63.3 % |
+| 1 h | PSP × country × platform | 68 | 4 | 96.2 % |
+
+(The independent review's 532 global / 183 PSP medians agree; its 32 % for "PSP × DE" is one large cohort, not the all-cohort share above.) Caveat: attempts are not independent trials (35 % of failures retry); rate uncertainty should use distinct payment intents or an overdispersion-aware interval, decided with the detector.
+
+**Options.** (a) One grain for all scopes (15 min or 1 h). (b) Per-scope grain, series only where the floor holds. (c) Adaptive windows sized to reach the floor.
+
+**Recommendation.** (b): global **15 min**; PSP **1 h**; every finer cohort (PSP × country and deeper) gets **no standalone detection series**: the cohort engine evaluates it pooled over the candidate incident window with a minimum-support gate (≥ 30 attempts, else `insufficient_data` and the cohort is not ranked). Add a daily series for slow drift (gradual degradation). Rationale: at 1 h, PSP × country is below the floor in 63 % of windows, so per-window alerts there would be mostly noise; pooling over an already-detected window is how the spec's cohort drill-down (spec 05) can work at all.
+
+**Consequences if accepted.** Stage 3 builds series for global (15 min), PSP (1 h) and daily; Stage 4 consumes pooled counts. `docs/specs/03`, `04`, `05` get these numbers. Adaptive windows (c) stay a later option.
+
+---
+
 ## ADR-023 — Single repository: harness and product runtime live together
 
 **Status:** accepted (2026-10-02)
@@ -32,6 +79,8 @@ This ADR supersedes:
 
 **Options.** (a) Keep `INV-004` for the *decision contract* (typed question set + state in, typed answers out; no tools, no writes, no hidden reads), and place the network call in a separate transport adapter behind it, with recorded-answer replay as the default in tests and evaluation. (b) Amend `INV-004` explicitly to allow exactly one outbound call (the model request) and nothing else. (c) Implement Jev locally as deterministic code and treat the hosted model as a baseline.
 
+**Consequences per option.** (a) needs a `JevClient` port (typed request in, typed answers out), a transport adapter, and a replay format that stores the *raw* response, the question-set version and the returned model version (a state hash alone cannot reproduce a non-deterministic model); tests and CI use the replay/fake. `INV-004` text stays, with a clarification that purity applies to the decision contract. (b) edits `INV-004` and `AGENTS.md` rules 5 and 19 and the architecture tests in the same change; weaker guarantee, simpler code. (c) removes the external dependency and the cost, but is not "Jev"; the hosted model would be only a baseline.
+
 **Recommendation.** (a) with replay. It preserves `INV-004`/`INV-005` for everything that matters (no side effects on billing state, no tools) and makes decisions reproducible. Until decided, no code may call a Jev endpoint, and `INV-004` is unchanged.
 
 Related open points: ADR-018 says Jev does not generate text, so the "LLM explains" step needs a separate generative model and its own ADR; ADR-019 (formerly ADR-010, `proposed`) has Jev choose the tool from a closed set, while `docs/specs/08_INVESTIGATION_AGENT.md` has the agent choose the tool call.
@@ -40,7 +89,7 @@ Related open points: ADR-018 says Jev does not generate text, so the "LLM explai
 
 ## ADR-001 — Harness-only bootstrap; no product runtime
 
-**Status:** accepted (2026-09-28)
+**Status:** superseded by ADR-023 (runtime now allowed stage by stage); was accepted (2026-09-28)
 
 **Context.** `main` was an empty initialize commit. Agents need a contract before detectors, Jev, or ClickHouse exist.
 
@@ -52,7 +101,7 @@ Related open points: ADR-018 says Jev does not generate text, so the "LLM explai
 
 ## ADR-002 — Standard library only for the harness
 
-**Status:** accepted (2026-09-28)
+**Status:** accepted; partly superseded by ADR-023 (harness stays stdlib-only; product adds `clickhouse-connect` and `pytest`) (2026-09-28)
 
 **Context.** Dependency policy: necessary? stdlib? coupling? reliability? deterministic tests?
 
@@ -124,7 +173,7 @@ Related open points: ADR-018 says Jev does not generate text, so the "LLM explai
 
 ## ADR-008 — ClickHouse is documented SoT, not installed
 
-**Status:** accepted (2026-09-28)
+**Status:** superseded by ADR-023 (ClickHouse provisioned, ADR-012/ADR-020); was accepted (2026-09-28)
 
 **Context.** Analytical source of truth will be ClickHouse. Installing it now would add ops surface with no product.
 
@@ -136,7 +185,7 @@ Related open points: ADR-018 says Jev does not generate text, so the "LLM explai
 
 ## ADR-009 — Python as the harness language
 
-**Status:** accepted (2026-09-28)
+**Status:** accepted; partly superseded by ADR-023 (harness on Python 3.12; product on Python ≥ 3.11) (2026-09-28)
 
 **Context.** Need a test runner with zero dependencies. Runtime language is not frozen yet.
 
@@ -239,6 +288,14 @@ and its closed-set arguments (or `stop`), code validates and executes, evidence 
 **Consequences.** Every step is auditable and bounded; no free-form tool arguments exist.
 Revisit if investigation quality plateaus on scenarios that need open-ended exploration.
 
+**Conflict with `docs/specs/08` (Gate 2 analysis; status stays *proposed*).** Spec 08: "the agent chooses the actual tool call" and Jev only rates hypotheses/sufficiency. This ADR: code builds state, Jev chooses the tool and closed-set arguments (or `stop`), code validates and executes.
+
+- **Option 1 (this ADR).** Deterministic loop, Jev picks from a closed set. Auditable, bounded, replayable, no generative model in the loop, free-form tool arguments impossible. Cost: no open-ended exploration; selection quality is bounded by the question design.
+- **Option 2 (spec 08).** A generative agent chooses tools. More flexible; needs a generative model in the loop (ADR-027 becomes a hard dependency), a larger injection surface and non-determinism, and harder `INV-011` budget enforcement.
+- **Option 3 (hybrid).** Code proposes a ranked shortlist of next steps (deterministic top-k by contribution); Jev chooses among at most N options with a confidence gate; the loop is still code. Same guarantees as Option 1 with a stronger deterministic baseline.
+
+**Recommendation.** Option 3 (a refinement of Option 1) for V2, with the benchmark control "deterministic top-k, no Jev" that the specs review asks for. Revisit Option 2 only if investigation recall plateaus on measured scenarios. If accepted, spec 08 is edited to match.
+
 ## ADR-020 — `clickhouse-connect` as the first runtime dependency · *accepted*
 
 **Context.** Stage 1 loads ≈1.37M events per run. Hand-rolled `urllib` HTTP (ADR-013) would
@@ -293,7 +350,15 @@ Stripe shape as the logical contract — rewrites DATA_MODEL and ties every laye
 vendor's model.
 **Status.** Needs an owner decision before Stage 2 (metrics).
 
+**Gate 2 summary (status stays *proposed*).**
+- **A (recommended).** Two layers: raw Stripe-shaped events stay as generated; a pure, versioned mapping produces the DATA_MODEL envelope; metrics, detection, cohorts and evaluation read only the normalized layer. Consequences: one more table (`events_norm`) and one mapping to test and version (the next ADR, reserved as ADR-025); keeps Stage 1 unchanged; the idempotency signal needed for duplicate-charge detection is carried as `idempotency_key_present` (a DATA_MODEL change); `ingested_at` and late/out-of-order events become representable only at the normalized layer.
+- **B.** Generate the DATA_MODEL envelope directly. Simplest downstream, but rewrites Stage 1, changes every digest, and drops realistic source semantics.
+- **C.** Make the Stripe shape the logical contract. Rewrites DATA_MODEL and ties every layer to one vendor's model.
+- **Why A.** It is the only option that does not rewrite finished, validated work and that keeps the raw source realistic while giving the analytics layers a stable contract.
+
 ## Open questions
+
+- **Reserved ADR numbers.** ADR-025 is reserved for event normalization (`docs/tasks/STAGE-2.md`, Phase 2; written after ADR-022 is decided). ADR-026 (time grain) and ADR-027 (explanation model) are proposed above.
 
 - **OQ-1 — Jev integration details** (resolved in principle by ADR-018). Still open: official
   Python SDK vs stdlib HTTP client (dependency trade-off), pinned model version for
