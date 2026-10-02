@@ -41,11 +41,15 @@ Every event, of any type, shares one envelope:
 | `occurred_at` | When it happened (UTC) |
 | `ingested_at` | When the system recorded it (UTC) |
 | `merchant_id` | Tenant scope |
-| `entity_id` | ID of the primary entity (payment, invoice, subscription, …) |
-| dimensions | `country`, `currency`, `psp`, `payment_method_type`, `card_brand`, `platform`, `app_version`, `plan_id` (explicit `unknown` when not applicable) |
+| `entity_id` | ID of the primary entity (payment attempt, invoice, subscription, refund, …) |
+| links | `customer_id`, `payment_intent_id` (explicit `unknown` when not applicable) |
+| dimensions | `customer_country`, `issuer_country` (country is always named), `currency`, `psp`, `payment_method_type`, `card_brand`, `platform`, `app_version`, `plan_id`, `channel` (explicit `unknown` when not applicable), `attempt_no` (integer; `0` = not an attempt event) |
 | measures | `amount_minor`, `currency` where relevant |
-| outcome | `status`, `decline_code?`, `error_code?`, `latency_ms?` |
-| `scenario_id` | Synthetic run identifier (**never** exposed to detection or AI) |
+| outcome | `status`, `decline_code?`, `error_code?`, `idempotency_key_present`, `latency_ms?` (not produced yet) |
+| `run_id` | Synthetic run identifier; partitions the table (**never** exposed to detection or AI; INV-015). Named `scenario_id` before ADR-025; `scenario_id` now means a ground-truth record only. |
+| `raw_event_id`, `raw_seq` | Trace back to the raw layer (`events`) |
+
+The physical table is `<db>.events_norm`, built by a pure, versioned mapping from the raw layer (ADR-022 A, ADR-025; `NORMALIZATION_VERSION`).
 
 ## Event types (initial vocabulary)
 
@@ -55,7 +59,7 @@ Every event, of any type, shares one envelope:
 `subscription.past_due` · `dunning.attempted` · `subscription.canceled` ·
 `refund.requested` · `refund.succeeded` · `chargeback.opened` · `fraud.flagged`
 
-Changes to this vocabulary are versioned and recorded in `DECISIONS.md`.
+`payment.attempted` and `chargeback.opened` are in the vocabulary but are not produced yet (ADR-025). Changes to this vocabulary are versioned and recorded in `DECISIONS.md`.
 
 ## Cohort dimensions
 

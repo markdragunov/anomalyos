@@ -15,7 +15,7 @@
 | Level | Location | Needs | Runs |
 |---|---|---|---|
 | Architecture (harness) | `tests/architecture/` | nothing (stdlib `unittest`, Python 3.12) | always; `harness.yml` |
-| Unit | `tests/unit/` | nothing (`pytest`) | always |
+| Unit | `tests/unit/` | nothing (`pytest`); SQL tests use a live ClickHouse when `ANOMALYOS_RUN_INTEGRATION=1`, else embedded `chdb`, else skip | always |
 | Integration | `tests/integration/` | ClickHouse | opt-in locally, always in CI |
 | Scenario (future) | `tests/scenarios/` | ClickHouse | per scenario: ground truth vs system output |
 | Evaluation | `evals/` (scenario JSON with `ground_truth`, `scripts/eval_smoke.py`) | recorded model responses | deterministic replay by default; live runs are explicit |

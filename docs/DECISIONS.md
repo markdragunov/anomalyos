@@ -6,6 +6,31 @@ Format: short ID, status, context, decision, consequences.
 
 ---
 
+## ADR-025 — Event normalization mapping (raw Stripe-shaped -> DATA_MODEL envelope) · *accepted* (2026-10-02, Stage 2)
+
+**Status:** accepted for implementation in Stage 2; follows ADR-022 option A. Not reviewed by the owner beyond the brief in `docs/tasks/STAGE-2.md`; deviations from that brief are listed explicitly.
+
+**Context.** Metrics, detection, cohorts and evaluation read one normalized layer (`<db>.events_norm`), produced by a pure, versioned mapping (`src/anomalyos/events/normalize.py`, `NORMALIZATION_VERSION = 1.0.0`, `schema_version = norm-1`).
+
+**Decisions.**
+1. **`ingested_at` = `occurred_at`** for sim-1.0.0: the raw stream has no ingestion delay. Never the wall clock. The column exists so late and out-of-order events are representable once the simulator emits them (`docs/tasks/SIMULATOR-FIXES.md`, phase 5); `as_of` filters use `ingested_at`.
+2. **`merchant_id` = `mer_sim_001`**, constant, until multi-merchant.
+3. **`run_id`, not `scenario_id`.** DATA_MODEL's envelope field `scenario_id` is renamed `run_id` (Stage 1 name). A *run* contains many scenarios; `scenario_id` already names a ground-truth record, so reusing it for the run would be ambiguous. `run_id` only partitions the table and is never a metric output or a detection/AI input (INV-015).
+4. **`idempotency_key_present`** (outcome attribute, DATA_MODEL change): taken from the `payment_intent.created` request and inherited by that intent's charge events. Checkout intents carry a key (except duplicates); renewal intents never do (server-initiated), so duplicate-charge detection is defined on `channel = checkout`.
+5. **Extra link columns** `customer_id` and `payment_intent_id` (needed for conversion and duplicate detection); **`attempt_no`** = ordinal of the charge on its PaymentIntent (retries and dunning reuse the intent), `0` for events that are not attempts.
+6. **Mapping = the brief's table, with these deviations:**
+   - `charge.refunded` is intentionally unmapped (a state change that duplicates `refund.created`); the brief did not list it.
+   - `fraud.flagged` only for `outcome.reason = highest_risk_level`; `fraudulent` and `stolen_card` stay issuer declines (`payment.declined`).
+   - `invoice.*` and `subscription.*` events carry `psp`, resolved through the renewal PaymentIntent's `invoice` (`invoice.created` has none: the PSP is chosen at the first attempt). Needed to split renewal success by PSP (found by the sanity test on the renewal-failure scenario).
+   - `plan_id` is resolved from the subscription (invoice -> subscription, renewal PaymentIntent -> invoice).
+   - `payment.attempted` and `chargeback.opened` stay in the vocabulary but are not produced (attempts are counted from authorized/declined/failed; no chargebacks are simulated).
+7. **Strictness.** An unknown raw type, unknown `failure_code`, unexpected `subscription.updated` shape or a charge before its intent raises `NormalizationError`. Intentionally unmapped raw types are listed in code (`INTENTIONALLY_UNMAPPED`).
+8. **Loading** is idempotent per `run_id` (drop partition + insert) and self-verifying (8 SQL checks, all 0): `anomalyos normalize --in <run_dir> [--replace]`, after `anomalyos-sim load`.
+
+**Consequences.** `docs/DATA_MODEL.md` updated (envelope fields, `run_id`, new attributes). Any change to the mapping bumps `NORMALIZATION_VERSION`. Late events need a mapping change (a raw ingestion timestamp) when the simulator produces them.
+
+---
+
 ## ADR-028 — Owner decisions on open questions OQ-6/7/8, invariants 15–16, versions, routing · *accepted* (2026-10-02)
 
 **Status:** accepted by the owner (answers to the closeout open-questions round).
@@ -376,7 +401,7 @@ vendor's model.
 
 ## Open questions
 
-- **Reserved ADR numbers.** ADR-025 is reserved for event normalization (`docs/tasks/STAGE-2.md`, Phase 2, now unblocked by ADR-022). ADR-026 (time grain) and ADR-027 (explanation model) are accepted above.
+- **Reserved ADR numbers.** ADR-025 (event normalization) is written and accepted for Stage 2. ADR-026 (time grain) and ADR-027 (explanation model) are accepted above.
 - **OQ-6 — Severity vocabulary.** Closed by ADR-028.
 - **OQ-7 — Where mutable incident state lives.** Closed by ADR-028.
 - **OQ-8 — Incident lifecycle states.** Closed by ADR-028.

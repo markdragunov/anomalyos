@@ -401,9 +401,9 @@ branches on — and it constrains the design (see ADR-018).
 | Layer | Status |
 |---|---|
 | Config, ClickHouse dev service, health check | **Stage 0 — done** |
-| 1 Events | **Stage 1** — deterministic Stripe-shaped generator, 14 scenarios with ground truth (`docs/SIMULATION.md`); normalized DATA_MODEL envelope pending ADR-022 |
+| 1 Events | **Stage 1** — deterministic Stripe-shaped generator, 14 scenarios with ground truth (`docs/SIMULATION.md`); normalized DATA_MODEL envelope (`events_norm`, Stage 2, ADR-022 A / ADR-025) |
 | 2 ClickHouse schema | **Stage 1** — `events` (raw + flattened dimensions), `<db>_truth.*`; idempotent reload by `run_id` partition |
-| 3 Metrics | Not started — next (`docs/tasks/STAGE-2.md`; blocked on ADR-022) |
+| 3 Metrics | **Stage 2** — ten versioned metrics computed in ClickHouse (`docs/METRICS.md`, ADR-026 for grain) |
 | 4–5 Detection, cohorts | Not started |
 | 6 Jev | Contract defined (ADR-018); integration deliberately excluded from Stage 0 |
 | 7 Incident engine | Not started |

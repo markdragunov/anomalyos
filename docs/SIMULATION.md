@@ -147,10 +147,8 @@ typed dimension columns + `data` (exact event JSON, ZSTD). View `<db>.v_charge_a
 Dimension columns use DATA_MODEL names; a dimension that does not apply is `unknown`, never
 empty. Country is always named: `customer_country` and `issuer_country`.
 
-> **Open (ADR-022).** This table is the *raw* layer. The normalized DATA_MODEL envelope
-> (`event_type` vocabulary, `occurred_at`/`ingested_at`, `merchant_id`) is proposed as a pure
-> mapping on top and is not built yet. Metrics should be written against whichever layer
-> ADR-022 settles.
+> **Raw layer (ADR-022 A).** This table is the *raw* layer. The normalized DATA_MODEL envelope
+> lives in `<db>.events_norm` (`anomalyos normalize`, ADR-025); metrics read only that layer.
 `<db>_truth.ground_truth`, `<db>_truth.runs`. Reload = drop partition + insert.
 
 ```sql
