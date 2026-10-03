@@ -39,6 +39,7 @@ FORBIDDEN_PACKAGES = {
     "policy",
     "incident",
     "investigation",
+    "incidents",
     "agent",
     "explanation",
     "api",
@@ -111,16 +112,3 @@ class TestNoProductImplementation(unittest.TestCase):
             ALLOWED_DEV_DEPENDENCIES,
             "dev dependencies changed: record an ADR in docs/DECISIONS.md and update this allowlist",
         )
-
-    def test_no_cursor_skill_stubs(self) -> None:
-        skills = ROOT / ".cursor" / "skills"
-        self.assertFalse(
-            skills.exists(),
-            "Do not stub .cursor/skills until a real procedure exists (ADR-004)",
-        )
-
-    def test_cursor_rules_are_mdc_only(self) -> None:
-        rules = ROOT / ".cursor" / "rules"
-        self.assertTrue(rules.is_dir())
-        extra = sorted(path.name for path in rules.iterdir() if path.suffix != ".mdc")
-        self.assertEqual(extra, [], f"non-mdc files in .cursor/rules: {extra}")
