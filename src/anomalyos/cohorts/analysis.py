@@ -15,11 +15,12 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+from itertools import combinations
 from dataclasses import dataclass, field
 from statistics import median
 from typing import Any, Sequence
 
-from anomalyos.cohorts.config import CohortConfig
+from anomalyos.cohorts.config import COMBINATIONS, CohortConfig
 
 Dims = tuple[tuple[str, str], ...]
 
@@ -165,6 +166,7 @@ class TestedCohort:
     discovery: bool = False
     contribution: float = 0.0  # rate part (rates) / delta count (counts), in parent units
     coverage: float = 0.0
+    reference: tuple[float, float] | None = None  # new cohort: rest of the scope in the same window (successes, attempts)
 
 
 @dataclass
@@ -199,6 +201,44 @@ def _sign(direction: str) -> int:
     return -1 if direction == "down" else 1
 
 
+def _combo_rank(combo: tuple[str, ...]) -> int:
+    return COMBINATIONS.index(combo) if combo in COMBINATIONS else len(COMBINATIONS)
+
+
+def _same_population(a: CohortRow, b: CohortRow) -> bool:
+    return all(math.isclose(x, y, rel_tol=1e-9, abs_tol=1e-9) for x, y in ((a.k_b, b.k_b), (a.n_b, b.n_b), (a.k_d, b.k_d), (a.n_d, b.n_d)))
+
+
+def _scope_row(tables: dict[tuple[str, ...], list[CohortRow]]) -> CohortRow | None:
+    rows = next(iter(tables.values()), None)
+    if rows is None:
+        return None
+    return CohortRow((), sum(r.k_b for r in rows), sum(r.n_b for r in rows), sum(r.k_d for r in rows), sum(r.n_d for r in rows))
+
+
+def canonical_locus(locus: Dims, scope: Dims, tables: dict[tuple[str, ...], list[CohortRow]]) -> Dims:
+    """Drop cohort dimensions that do not change the population (identical before / during counts), e.g.
+    card_brand=unknown inside sepa_debit or psp=unknown for cancellations (ADR-038). Scope dimensions stay."""
+    rows = {frozenset(r.dims): r for rs in tables.values() for r in rs}
+    scope_row = _scope_row(tables)
+    cur = tuple(locus)
+    changed = True
+    while changed:
+        changed = False
+        own = [d for d in cur if d not in scope]
+        here = rows.get(frozenset(own)) if own else scope_row
+        if here is None:
+            break
+        for d in own:
+            rest = [x for x in own if x != d]
+            parent = rows.get(frozenset(rest)) if rest else scope_row
+            if parent is not None and _same_population(here, parent):
+                cur = tuple(x for x in cur if x != d)
+                changed = True
+                break
+    return cur
+
+
 def analyze(candidate: dict, tables: dict[tuple[str, ...], list[CohortRow]], cfg: CohortConfig,
             config_version: int) -> CohortAnalysis:
     """Rank cohorts, decompose the change, choose locus and controls. ``tables`` maps combination -> rows."""
@@ -231,10 +271,30 @@ def analyze(candidate: dict, tables: dict[tuple[str, ...], list[CohortRow]], cfg
             tested.append(TestedCohort(combo, scope + r.dims, r, z, norm_sf(sgn * z), contribution=dec.per_cohort[r.dims][0]))
     if not tested:
         flags.append("insufficient_data")
+    # Cohorts with traffic now but no supported baseline (a new app version) cannot be compared with the past; they
+    # are compared with the rest of the scope in the same window, as their own BH family (ADR-038).
+    new: list[TestedCohort] = []
+    if kind == "rate":
+        for combo, rows in tables.items():
+            rows = rows[: cfg.max_cohorts_per_combination]
+            K, N = sum(r.k_d for r in rows), sum(r.n_d for r in rows)
+            phi = phis["*".join(combo)]
+            for r in rows:
+                if r.n_b >= cfg.min_support or r.n_d < cfg.min_support or N - r.n_d < cfg.min_support:
+                    continue
+                k_rest, n_rest = K - r.k_d, N - r.n_d
+                z = z_rate(k_rest, n_rest, r.k_d, r.n_d, phi)
+                if z is None:
+                    continue
+                contrib = (r.k_d / r.n_d - k_rest / n_rest) * r.n_d / N  # its shortfall, in parent rate units
+                new.append(TestedCohort(combo, scope + r.dims, r, z, norm_sf(sgn * z), contribution=contrib,
+                                        reference=(k_rest, n_rest)))
+        for t, keep, qv in zip(new, benjamini_hochberg([t.p for t in new], cfg.bh_q), bh_qvalues([t.p for t in new])):
+            t.discovery, t.q = keep, qv
     for t, keep, qv in zip(tested, benjamini_hochberg([t.p for t in tested], cfg.bh_q), bh_qvalues([t.p for t in tested])):
         t.discovery, t.q = keep, qv
     total = parent_total or 0.0
-    for t in tested:
+    for t in tested + new:
         t.coverage = t.contribution / total if total else 0.0  # same sign as the parent change -> positive
 
     # Label: the combination that explains the change best is the one with the smallest rate share (a composition
@@ -253,9 +313,39 @@ def analyze(candidate: dict, tables: dict[tuple[str, ...], list[CohortRow]], cfg
 
     # Locus: among discoveries that explain >= coverage of the change in its direction, the most specific (fewest
     # during attempts, then fewer dimensions). The candidate's own scope is the coarsest such cohort.
-    eligible = [t for t in tested if t.discovery and t.coverage >= cfg.locus_coverage]
+    # A sub-cohort replaces a parent (a tested cohort on a subset of its dimensions, or the scope) only if the change
+    # is concentrated in it: share of the parent's change / share of the parent's traffic >= locus_lift (ADR-038).
+    # Otherwise a 90 % slice of a degraded PSP (psp_gamma x card) would beat the PSP itself.
     parent_n = max((sum(r.n_d for r in rows) for rows in tables.values()), default=0)
-    if kind == "rate" and label == "mix_shift" and label_combo is not None:
+    parent_k_b = max((sum(r.k_b for r in rows) for rows in tables.values()), default=0)
+    by_dims = {frozenset(t.dims): t for t in tested}
+
+    def pop(t_row: CohortRow) -> float:
+        return t_row.n_d if kind == "rate" else t_row.k_b
+
+    def concentrated(t: TestedCohort) -> bool:
+        own = [d for d in t.dims if d not in scope]
+        parents = [(total, parent_n if kind == "rate" else parent_k_b)]
+        for i in range(1, len(own)):
+            for sub in _subsets(own, i):
+                p = by_dims.get(frozenset(scope + sub))
+                if p is not None:
+                    parents.append((p.contribution, pop(p.row)))
+        for p_contrib, p_pop in parents:
+            if sgn * p_contrib <= 0 or p_pop <= 0:
+                continue  # the parent did not move in this direction: nothing to concentrate against
+            share_pop = pop(t.row) / p_pop
+            if share_pop > 0 and (t.contribution / p_contrib) / share_pop < cfg.locus_lift:
+                return False
+        return True
+
+    eligible = [t for t in tested if t.discovery and t.coverage >= cfg.locus_coverage and concentrated(t)]
+    new_hits = [t for t in new if t.discovery and t.coverage >= cfg.locus_coverage]
+    if new_hits:
+        best_new = max(new_hits, key=lambda t: (t.coverage, t.dims))
+        label, label_combo = "new_cohort", best_new.combination
+        locus, locus_is_scope = best_new.dims, False
+    elif kind == "rate" and label == "mix_shift" and label_combo is not None:
         comp = decomps[label_combo].per_cohort
         nb_all = sum(r.n_b for r in tables[label_combo]) or 1.0
         nd_all = sum(r.n_d for r in tables[label_combo]) or 1.0
@@ -263,7 +353,8 @@ def analyze(candidate: dict, tables: dict[tuple[str, ...], list[CohortRow]], cfg
         best = max(tables[label_combo], key=lambda r: (round(sgn * comp[r.dims][1], 12), r.n_d / nd_all - r.n_b / nb_all, r.dims))
         locus, locus_is_scope = scope + best.dims, False
     elif eligible:
-        best_t = min(eligible, key=lambda t: (t.row.n_d if kind == "rate" else t.row.k_d, len(t.dims), t.dims))
+        best_t = min(eligible, key=lambda t: (t.row.n_d if kind == "rate" else t.row.k_d, len(t.dims),
+                                              _combo_rank(t.combination), t.dims))
         if kind == "rate" and best_t.row.n_d >= 0.98 * parent_n:
             locus, locus_is_scope = scope, True  # the "sub-cohort" is the whole scope (e.g. psp_alpha = cards)
         else:
@@ -271,9 +362,13 @@ def analyze(candidate: dict, tables: dict[tuple[str, ...], list[CohortRow]], cfg
     else:
         locus, locus_is_scope = (scope, True) if tested else (None, False)
 
+    if locus and not locus_is_scope:
+        locus = canonical_locus(locus, scope, tables)
+        locus_is_scope = locus == scope
+
     # rank by contribution *in the parent's direction* (a cohort that moved the other way does not explain the change)
     ranked = sorted((t for t in tested if t.discovery), key=lambda t: (-sgn * t.contribution, -abs(t.z), t.dims))
-    top = ranked[: cfg.top_k]
+    top = ([best_new] if new_hits else []) + ranked[: cfg.top_k - (1 if new_hits else 0)]
 
     controls: list[TestedCohort] = []
     if locus and not locus_is_scope:
@@ -300,9 +395,16 @@ def analyze(candidate: dict, tables: dict[tuple[str, ...], list[CohortRow]], cfg
         discoveries=sum(t.discovery for t in tested), phi=phis, impact=None, flags=flags)
 
 
+def _subsets(items: list, k: int) -> list[Dims]:
+    return [tuple(c) for c in combinations(items, k)]
+
+
 def locus_row(analysis: CohortAnalysis, tables: dict[tuple[str, ...], list[CohortRow]]) -> CohortRow | None:
     if analysis.locus is None:
         return None
+    if analysis.label == "new_cohort" and analysis.top and analysis.top[0].reference is not None:
+        t = analysis.top[0]  # baseline = the rest of the scope in the same window
+        return CohortRow(t.row.dims, t.reference[0], t.reference[1], t.row.k_d, t.row.n_d)
     want = dict(analysis.locus)
     scope = dict(analysis.scope)
     for combo, rows in tables.items():
@@ -341,7 +443,10 @@ def _cohort_item(t: TestedCohort, a: CohortAnalysis) -> dict[str, Any]:
     item = {"cohort": [list(x) for x in t.dims], "z": round(t.z, 3), "q_value": round(t.q, 6),
             "contribution": round(t.contribution, 6), "epistemic": "observed",
             "evidence_id": evidence_id(a.metric, a.metric_version, t.dims, a.window)}
-    if a.kind == "rate":
+    if t.reference is not None:
+        item.update(comparison="rest_of_scope_same_window", attempts_during=round(r.n_d, 1),
+                    rate_during=round(r.k_d / r.n_d, 6), rate_rest_of_scope=round(t.reference[0] / t.reference[1], 6))
+    elif a.kind == "rate":
         item.update(attempts_before=round(r.n_b, 1), attempts_during=round(r.n_d, 1),
                     rate_before=round(r.k_b / r.n_b, 6) if r.n_b else None, rate_during=round(r.k_d / r.n_d, 6) if r.n_d else None)
     else:

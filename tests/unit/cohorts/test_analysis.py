@@ -115,3 +115,52 @@ def test_count_candidates_decompose_into_deltas():
     a = analyze(cand, {("customer_country",): rows}, CFG, 1)
     assert a.kind == "count" and a.locus == (("customer_country", "BR"),)
     assert a.decomposition["total"] == 122.0
+
+
+# ------------------------------------------------------------------------------ Gate 1 rules (ADR-038)
+def test_large_slice_of_a_degraded_cohort_does_not_replace_it():
+    # psp_gamma degrades on cards and pix alike; its card slice (90 % of traffic) explains 90 % of the drop.
+    psp = [row([("psp", "alpha")], 0.90, 7000, 0.90, 1000), row([("psp", "gamma")], 0.90, 7000, 0.70, 1000)]
+    pair = [row([("psp", "alpha"), ("payment_method_type", "card")], 0.90, 7000, 0.90, 1000),
+            row([("psp", "gamma"), ("payment_method_type", "card")], 0.90, 6300, 0.70, 900),
+            row([("psp", "gamma"), ("payment_method_type", "pix")], 0.90, 700, 0.70, 100)]
+    a = analyze(CAND, {("psp",): psp, ("psp", "payment_method_type"): pair}, CFG, 2)
+    assert a.locus == (("psp", "gamma"),)
+
+
+def test_concentrated_sub_cohort_still_wins():
+    # only sepa_debit inside psp_beta degrades: the sub-cohort is a third of the PSP and carries all of the drop
+    psp = [row([("psp", "alpha")], 0.90, 7000, 0.90, 1500), row([("psp", "beta")], 0.90, 7000, 0.80, 1500)]
+    pair = [row([("psp", "alpha"), ("payment_method_type", "card")], 0.90, 7000, 0.90, 1500),
+            row([("psp", "beta"), ("payment_method_type", "card")], 0.90, 4667, 0.90, 1000),
+            row([("psp", "beta"), ("payment_method_type", "sepa_debit")], 0.90, 2333, 0.60, 500)]
+    a = analyze(CAND, {("psp",): psp, ("psp", "payment_method_type"): pair}, CFG, 2)
+    assert a.locus == (("psp", "beta"), ("payment_method_type", "sepa_debit"))
+
+
+def test_equivalent_dimensions_resolve_by_combination_order_and_drop_constant_dimensions():
+    # app_version=web is the same population as platform=web: platform comes first in COMBINATIONS
+    plat = [row([("platform", "web")], 0.90, 7000, 0.70, 1000), row([("platform", "ios")], 0.90, 7000, 0.90, 1000)]
+    ver = [row([("app_version", "web")], 0.90, 7000, 0.70, 1000), row([("app_version", "5.13.0")], 0.90, 7000, 0.90, 1000)]
+    a = analyze(CAND, {("platform",): plat, ("app_version",): ver}, CFG, 2)
+    assert a.locus == (("platform", "web"),)
+    # card_brand=unknown inside sepa_debit adds nothing: the canonical locus drops it
+    pm = [row([("payment_method_type", "sepa_debit")], 0.90, 2000, 0.60, 300), row([("payment_method_type", "card")], 0.90, 12000, 0.90, 1700)]
+    pair = [row([("payment_method_type", "sepa_debit"), ("card_brand", "unknown")], 0.90, 2000, 0.60, 300)]
+    from anomalyos.cohorts.analysis import canonical_locus
+    tables = {("payment_method_type",): pm, ("payment_method_type", "card_brand"): pair}
+    assert canonical_locus(pair[0].dims, (), tables) == (("payment_method_type", "sepa_debit"),)
+
+
+def test_new_cohort_without_baseline_is_compared_with_the_rest_of_the_scope():
+    # android checkout: 5.14.0 did not exist before and converts far worse than 5.13.0 in the same window
+    cand = dict(CAND, metric="checkout_conversion_rate", scope=(("platform", "android"),))
+    ver = [row([("app_version", "5.13.0")], 0.80, 7000, 0.80, 700), CohortRow((("app_version", "5.14.0"),), 0, 0, 150, 300)]
+    country = [row([("customer_country", "US")], 0.80, 4000, 0.71, 600), row([("customer_country", "GB")], 0.80, 3000, 0.71, 400)]
+    a = analyze(cand, {("app_version",): ver, ("customer_country",): country}, CFG, 2)
+    assert a.label == "new_cohort" and a.locus == (("platform", "android"), ("app_version", "5.14.0"))
+    assert a.top[0].reference is not None
+    imp = estimate_impact(a, locus_row(a, {("app_version",): ver}), 1.0)
+    assert imp["measure"] == "lost_successes" and abs(imp["value"] - (0.80 - 0.50) * 300) < 1.0
+    b = bundle(a, dict(cand, observed=0.7, expected=0.8), CFG)
+    assert b["label"]["value"] == "new_cohort" and b["top_cohorts"][0]["comparison"] == "rest_of_scope_same_window"

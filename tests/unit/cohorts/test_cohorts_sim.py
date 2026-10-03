@@ -1,4 +1,4 @@
-"""End to end on a simulated world: Stage 3 candidates + sweep -> cohort analysis -> bundles.
+"""End to end on a simulated world: Stage 3 candidates + sweep (report-only, ADR-038) -> cohort analysis -> bundles.
 Scenario windows come from the catalog docs (day N = start + N days), never from ground truth (INV-015)."""
 
 from __future__ import annotations
@@ -8,7 +8,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from anomalyos.cohorts import analyze_candidates, sweep
+from anomalyos.cohorts import CohortConfig, analyze_candidates, sweep
 from anomalyos.detection import detect
 from anomalyos.events import store
 from anomalyos.simulation import clickhouse_load as chl
@@ -34,7 +34,7 @@ def world(ch, tmp_path_factory):
     chl.load_run(ch.client, d, DB, DB + "_truth", replace=True)
     out = store.load_norm(ch.client, d, DB, replace=True)
     cands = detect(ch.runner, DB, out["run_id"], START, END)
-    swept = sweep(ch.runner, DB, out["run_id"], START, END)
+    swept = sweep(ch.runner, DB, out["run_id"], START, END, CohortConfig(sweep_enabled=True))
     results = analyze_candidates(ch.runner, DB, out["run_id"], cands + swept, WORLD.start)
     yield {"ch": ch, "run": out["run_id"], "cands": cands, "sweep": swept, "results": results}
     ch.client.command(f"DROP DATABASE IF EXISTS {DB}")
@@ -63,6 +63,10 @@ def test_healthy_demand_is_labelled_volume_only(world):
     hits = [a for a, _ in world["results"] if a.metric == "attempt_volume" and a.window[0] < day(21) and day(20, 12) < a.window[1]
             and a.locus and dict(a.locus).get("customer_country") == "BR"]
     assert hits and all(a.label == "volume_only" for a in hits)
+
+
+def test_sweep_is_off_by_default(world):
+    assert sweep(world["ch"].runner, DB, world["run"], START, END) == []
 
 
 def test_sweep_finds_cohort_drops_after_warm_up_only_in_sweep_combinations(world):

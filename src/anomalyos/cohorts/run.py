@@ -1,6 +1,6 @@
 """Analyze promoted detection candidates: tables -> analysis -> related metrics -> impact -> bundle (ADR-037).
 
-Input: runner, database, run id, candidates (Stage 3 and sweep), world start, config. Output: list of
+Input: runner, database, run id, promoted Stage 3 candidates (sweep candidates only in reports), world start, config. Output: list of
 ``(CohortAnalysis, EvidenceBundle dict)``. Never reads ground truth (INV-015); ClickHouse only via ``metrics.compute``.
 """
 
@@ -69,7 +69,7 @@ def analyze_one(runner, database: str, run_id: str, cand: dict, world_start: int
     if kind == "rate":
         a.naive_locus = naive_locus(tables, a.scope, a.direction, cfg)
     a.related_metrics = _related(runner, database, run_id, a, cand, world_start, cfg) if a.locus is not None else []
-    if kind == "count" and a.locus is not None:
+    if metric == "attempt_volume" and a.locus is not None:  # refund spikes do not move approval (ADR-038)
         approval = next((m for m in a.related_metrics if m["metric"] == "authorization_rate"), None)
         if approval is not None and approval["z"] is not None and abs(approval["z"]) < cfg.volume_only_z:
             a.label = "volume_only"  # demand moved, approval did not (design C-4)

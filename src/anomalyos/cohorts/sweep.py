@@ -4,6 +4,8 @@ For every complete day after warm-up, ``authorization_rate`` on the sweep combin
 d-8 ... d-2 (pooled, the most extreme day dropped), one-sided down, Benjamini-Hochberg at ``sweep_q`` across all of
 the day's supported cohorts. Discoveries become ``S12`` candidates (consecutive days of the same cohort merged).
 One query per combination for the whole world. Never reads ground truth.
+Off by default since Gate 1 (ADR-038: 0.29 false positives per day on realism v2 for +2..6 detections of ~330); it
+runs only with ``CohortConfig(sweep_enabled=True)``, for reports.
 """
 
 from __future__ import annotations
@@ -21,6 +23,8 @@ METRIC, VERSION = "authorization_rate", 1
 
 def sweep(runner, database: str, run_id: str, start: datetime, end: datetime, cfg: CohortConfig = CohortConfig(),
           warmup_days: int = 3) -> list[AnomalyCandidate]:
+    if not cfg.sweep_enabled:
+        return []
     w0, w1 = int(start.timestamp()), int(end.timestamp())
     series = {combo: compute(runner, database, run_id, METRIC, VERSION, start, end, "1d", None, combo,
                              dense=False, visibility="window_close") for combo in SWEEP_COMBINATIONS}
