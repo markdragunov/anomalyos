@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -m unittest discover -s tests/architecture -t . -v)",
+      "Bash(python3 scripts/check_architecture.py)",
+      "Bash(python3 scripts/eval_smoke.py)",
+      "Bash(git status)",
+      "Bash(git diff)",
+      "Bash(git branch --show-current)"
+    ],
+    "deny": [
+      "Bash(git push --force*)",
+      "Bash(git push -f*)",
+      "Bash(git push * --force*)",
+      "Bash(git push * -f*)",
+      "Bash(git push * +*)",
+      "Read(./.env)",
+      "Read(./**/.env)"
+    ]
+  }
+}

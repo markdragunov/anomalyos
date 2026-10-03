@@ -6,11 +6,11 @@ This document describes system boundaries for AnomalyOS. The **coding harness is
 
 ### Coding harness (implemented)
 
-Purpose: let Claude/Cursor (and humans) change AnomalyOS **safely and repeatedly**.
+Purpose: let coding agents (Claude Code is the primary one, ADR-036) and humans change AnomalyOS **safely and repeatedly**.
 
 It enforces architecture, invariants, tests, evaluation structure, cost/latency trace shape, documentation, and git discipline.
 
-Contents: `AGENTS.md`, `docs/`, `tests/architecture/`, `evals/`, `scripts/`, `.cursor/rules/`, `.github/workflows/`.
+Contents: `AGENTS.md`, `CLAUDE.md`, `.claude/` (rules, skills, settings), `docs/`, `tests/architecture/`, `evals/`, `scripts/`, `.github/workflows/`.
 
 It is **not** the product. It does not ingest events, talk to ClickHouse, call an LLM, or open incidents; the runtime under `src/` does (to the extent its stage is done), and the harness constrains it.
 
@@ -174,7 +174,7 @@ Do not mix the two. A coding agent must not treat incident history as a source o
 
 ## Skills (where they will live)
 
-Project Skills, when introduced, live at `.cursor/skills/<name>/SKILL.md`. They are **not** installed now. See `docs/SKILLS.md`.
+Project Skills, when introduced, live at `.claude/skills/<name>/SKILL.md`. None exist yet. See `docs/SKILLS.md` and `.claude/skills/README.md`.
 
 ---
 

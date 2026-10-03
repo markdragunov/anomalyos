@@ -15,7 +15,7 @@ estimates impact, and supports an evidence-backed investigation that a human clo
 > Stage table: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#stage-status).
 
 This repository is the single home of both the **coding harness** (contract, invariants,
-architecture tests, eval skeleton, CI, Cursor rules) and the **product runtime**, built stage
+architecture tests, eval skeleton, CI, Claude Code configuration in `.claude/`) and the **product runtime**, built stage
 by stage ([ADR-023](docs/DECISIONS.md)).
 
 ## Quickstart
@@ -63,7 +63,8 @@ Stop / reset: `docker compose down` (keeps data), `docker compose down -v` (wipe
 | `docs/specs/` | Build specs per stage (target design) |
 | `docs/tasks/` | Current task brief |
 | `docker-compose.yml` | Local ClickHouse only |
-| `.cursor/rules/`, `.github/workflows/` | Focused Cursor rules; `harness.yml` and `ci.yml` |
+| `CLAUDE.md`, `.claude/` | Claude Code entry point (imports `AGENTS.md`), path-scoped rules, Skills conventions, minimal permissions |
+| `.github/workflows/` | `harness.yml` and `ci.yml` |
 
 ## Docs
 

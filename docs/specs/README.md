@@ -63,19 +63,11 @@ The new design is explicitly **two-speed**:
 12. `11_FINAL_REVIEW.md`
 13. this README (plus `STATUS.md`)
 
-## Recommended Cursor workflow
+## Recommended workflow (Claude Code)
 
-For every stage:
-
-1. Open the stage file.
-2. Send it to Claude Opus 5.5.
-3. Ask Claude to audit the repository before coding.
-4. Review the implementation plan.
-5. Implement only the requested stage.
-6. Run tests, lint and type checks.
-7. Inspect the diff.
-8. Commit.
-9. Move to the next stage.
+For every stage: write or pick the task brief in `docs/tasks/`, then follow the task protocol in `CLAUDE.md` (locate the
+stage, read, plan, implement the smallest slice, test, review, commit) and stop at every gate (⛔) of the brief. The
+engineering contract is `AGENTS.md` (ADR-036).
 
 Stage, branch and status of each file: [`STATUS.md`](STATUS.md) (the commit list that used to be here did not match repository stages).
 

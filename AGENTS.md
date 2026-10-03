@@ -2,7 +2,7 @@
 
 AnomalyOS is an AI Incident Intelligence platform for Billing & Payments.
 
-This file is the **primary engineering contract** for Claude, Cursor, and any other coding agent working in this repository. Read it before changing code or architecture. If an instruction here conflicts with convenience, this file wins.
+This file is the **primary engineering contract** for any coding agent working in this repository (Claude Code is the primary one, ADR-036; `CLAUDE.md` imports this file). Read it before changing code or architecture. If an instruction here conflicts with convenience, this file wins.
 
 The repo holds the **coding harness** and the **product runtime, built stage by stage** (`docs/ARCHITECTURE.md` → *Stage status*; current task brief in `docs/tasks/`). Work only on the stage you were asked to do. Do not implement a later layer (metrics, detection, cohorts, Jev, policy, incident engine, investigation, API, UI) early; each needs its own request, and an ADR if it adds a dependency or a top-level package. Architecture tests enforce this.
 
@@ -51,7 +51,7 @@ Do not invert this. LLMs do not disposition incidents. Agents do not decide poli
 
 | Harness | Purpose | What lives here now |
 | --- | --- | --- |
-| **Coding harness** | How agents change *this repository* safely | `AGENTS.md`, docs, architecture tests, eval structure, CI, Cursor rules |
+| **Coding harness** | How agents change *this repository* safely | `AGENTS.md`, `CLAUDE.md`, `.claude/` (rules, skills, settings), docs, architecture tests, eval structure, CI |
 | **AnomalyOS runtime harness** | How the *product* detects, decides, investigates, and explains | Built stage by stage under `src/anomalyos/`: config, ClickHouse health, synthetic world + loader today. |
 
 Runtime (target flow; see *Stage status* for what exists):
@@ -78,7 +78,7 @@ Every non-trivial change follows:
 - Prefer the Python standard library. Record any new dependency in `docs/DECISIONS.md` before adding it; the allowlist is pinned in `tests/architecture/test_no_product_implementation.py` (currently `clickhouse-connect`, ADR-020).
 - Product code lives in `src/anomalyos/`, one package per layer, created in the stage that implements it. Module docstrings state why / input / output / invariants / failure modes.
 - Configuration only via `anomalyos.config.load_settings` (a pure function over an env mapping).
-- Keep Cursor project rules focused. Do not copy this file into `.cursor/rules`.
+- Keep `.claude/rules/` focused and path-scoped; link this file instead of copying it into rules or `CLAUDE.md`.
 - Do not install marketplace / external Skills. Future Skills are listed in `docs/SKILLS.md` and must be introduced only when the procedure they encode exists.
 
 ## Testing and evaluation

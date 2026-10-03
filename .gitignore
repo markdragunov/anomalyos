@@ -42,3 +42,6 @@ data/
 
 # Generated evaluation reports (Stage 3+)
 reports/
+
+# Personal Claude Code settings (shared ones live in .claude/settings.json)
+.claude/settings.local.json
