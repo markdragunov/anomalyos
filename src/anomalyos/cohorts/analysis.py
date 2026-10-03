@@ -315,17 +315,19 @@ def analyze(candidate: dict, tables: dict[tuple[str, ...], list[CohortRow]], cfg
     # during attempts, then fewer dimensions). The candidate's own scope is the coarsest such cohort.
     # A sub-cohort replaces a parent (a tested cohort on a subset of its dimensions, or the scope) only if the change
     # is concentrated in it: share of the parent's change / share of the parent's traffic >= locus_lift (ADR-038).
-    # Otherwise a 90 % slice of a degraded PSP (psp_gamma x card) would beat the PSP itself.
+    # Otherwise a 90 % slice of a degraded PSP (psp_gamma x card) would beat the PSP itself. Traffic shares come from
+    # the baseline, so attempts injected during the incident (card testing) do not dilute their own cohort.
     parent_n = max((sum(r.n_d for r in rows) for rows in tables.values()), default=0)
+    parent_n_b = max((sum(r.n_b for r in rows) for rows in tables.values()), default=0)
     parent_k_b = max((sum(r.k_b for r in rows) for rows in tables.values()), default=0)
     by_dims = {frozenset(t.dims): t for t in tested}
 
     def pop(t_row: CohortRow) -> float:
-        return t_row.n_d if kind == "rate" else t_row.k_b
+        return t_row.n_b if kind == "rate" else t_row.k_b
 
     def concentrated(t: TestedCohort) -> bool:
         own = [d for d in t.dims if d not in scope]
-        parents = [(total, parent_n if kind == "rate" else parent_k_b)]
+        parents = [(total, parent_n_b if kind == "rate" else parent_k_b)]
         for i in range(1, len(own)):
             for sub in _subsets(own, i):
                 p = by_dims.get(frozenset(scope + sub))

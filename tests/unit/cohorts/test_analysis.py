@@ -164,3 +164,19 @@ def test_new_cohort_without_baseline_is_compared_with_the_rest_of_the_scope():
     assert imp["measure"] == "lost_successes" and abs(imp["value"] - (0.80 - 0.50) * 300) < 1.0
     b = bundle(a, dict(cand, observed=0.7, expected=0.8), CFG)
     assert b["label"]["value"] == "new_cohort" and b["top_cohorts"][0]["comparison"] == "rest_of_scope_same_window"
+
+
+def test_injected_traffic_does_not_dilute_its_own_cohort():
+    # card testing: psp_alpha is a third of baseline traffic, then receives 3x its legitimate attempts as junk; its
+    # share of *during* traffic (2/3) would make the drop look unconcentrated (0.75 / 0.67 < 1.25)
+    psp = [row([("psp", "psp_alpha")], 0.90, 3500, 0.30, 2000), row([("psp", "psp_gamma")], 0.90, 7000, 0.90, 1000)]
+    a = analyze(CAND, {("psp",): psp}, CFG, 3)
+    assert a.locus == (("psp", "psp_alpha"),)
+
+
+def test_degraded_psp_carrying_most_of_a_country_is_still_named():
+    # gradual drift: psp_gamma carries 70 % of ES and loses 10 points; lift 1 / 0.7 = 1.43 >= 1.25
+    cand = dict(CAND, scope=(("customer_country", "ES"),))
+    pair = [row([("psp", "psp_gamma")], 0.90, 4900, 0.80, 700), row([("psp", "psp_beta")], 0.90, 2100, 0.90, 300)]
+    a = analyze(cand, {("psp",): pair}, CFG, 3)
+    assert a.locus == (("customer_country", "ES"), ("psp", "psp_gamma"))

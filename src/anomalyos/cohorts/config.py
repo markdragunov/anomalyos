@@ -9,7 +9,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-COHORT_CONFIG_VERSION = 2  # 2: Gate 1 (ADR-038) concentration rule, canonical locus, new cohorts, sweep off
+COHORT_CONFIG_VERSION = 3  # 2: Gate 1 (ADR-038) concentration rule, canonical locus, new cohorts, sweep off;
+#                            3: lift 1.25 on baseline traffic shares (ADR-038 follow-up)
 
 COMBINATIONS: tuple[tuple[str, ...], ...] = (
     ("psp",), ("customer_country",), ("payment_method_type",), ("card_brand",), ("platform",), ("app_version",),
@@ -36,7 +37,7 @@ class CohortConfig:
     bh_q: float = 0.05  # Benjamini-Hochberg per candidate
     sweep_q: float = 0.01  # Benjamini-Hochberg per sweep day
     locus_coverage: float = 0.6  # share of the parent's change a locus must explain
-    locus_lift: float = 1.5  # a sub-cohort replaces its parent only if its share of the change / share of traffic >= this
+    locus_lift: float = 1.25  # a sub-cohort replaces its parent only if share of the change / baseline traffic share >= this
     rate_share_high: float = 0.7  # >= -> rate_change
     rate_share_low: float = 0.3  # <= -> mix_shift
     volume_only_z: float = 2.0  # count candidates: locus approval |z| below this -> volume_only
