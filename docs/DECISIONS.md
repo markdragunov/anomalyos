@@ -6,6 +6,28 @@ Format: short ID, status, context, decision, consequences.
 
 ---
 
+## ADR-035 — Stage 3 Gate 1: evaluation correction, coverage changes, frozen parameters · *accepted* (2026-10-03, owner OK)
+
+**Context.** First DEV run (20 seeds × v1/v2, scale 1.0): main recall 0.78, 1.06 false positives per day; 28 % of
+detections came from candidates opened *before* the incident began (a flaw in matching rule D-7).
+
+**Decisions (owner OK, two rounds).**
+- Evaluation: a candidate counts for a record only if `detected_at >= start`; during a `data_pipeline_issue` any
+  first-look metric of the delayed cohort is a symptom of the delay.
+- Coverage, not threshold tuning: hourly approval by country (S3h); `dunning_recovery_rate` (S5b);
+  `subscription_cancellation_rate` v2 counting only voluntary cancellations (normalization 1.2.0 distinguishes
+  `canceled_voluntary` / `canceled_involuntary`); S6 uses the new `refund_count` metric instead of the
+  `refund_rate` ratio.
+- Ground truth (sim-1.2.1, sim-1.2.2): `refund_rate` is no longer declared unchanged for approval incidents and the
+  checkout regression — the same-window ratio rises mechanically when captures drop.
+- Detector parameters stay as designed and are **frozen** (`DetectorConfig()`); `HELDOUT_SEEDS` untouched.
+
+**Results (run 3).** Main: recall 0.89 (v1) / 0.87 (v2), 0.53 false positives per day, latency median 1 h, p90
+16–19 h. Static threshold: recall 0.83, 6.2–7.6 false positives per day, p90 4–6 h. Details and limitations:
+`docs/DETECTION.md`.
+
+---
+
 ## ADR-034 — Stage 3 detection design · *accepted* (2026-10-02, owner OK on Gate 0)
 
 **Decision.** As in `docs/tasks/STAGE-3-DESIGN.md` (D-1 … D-8), with the owner's answers: candidates that match

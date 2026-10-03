@@ -11,7 +11,7 @@ one against both and is replaced by this table. Where a spec conflicts with `doc
 | `01_FOUNDATION` | Stage 0 | Stage 0 | `consolidate-repo` → `main` | **Done** (config, ClickHouse dev service, health check, docs, CI). |
 | `02_BILLING_SIMULATION` | Stage 1 | Stage 1 | `consolidate-repo` → `main` (+ `sim-1.1`) | **Done** (sim-1.0.0). Remaining delta: `docs/tasks/SIMULATOR-FIXES.md`. |
 | `03_CLICKHOUSE_ANALYTICS` | Stage 2 | Stage 2 (part), then later | `stage-2-metrics` | **Stage 2 built** (normalized events + metrics, branch `stage-2-metrics`; ADR-022, 025, 026; `docs/METRICS.md`). The typed query layer and evidence objects follow. |
-| `04_ANOMALY_DETECTION` | Stage 3 | Stage 3 | not started | Next (Stage 2 delivers the series). |
+| `04_ANOMALY_DETECTION` | Stage 3 | Stage 3 | `stage-3-detection` | **Built** (ADR-034, ADR-035; `docs/DETECTION.md`). |
 | `05_COHORT_INTELLIGENCE` | Stage 4 | Stage 4 | not started | Pending Stage 3. |
 | `06_JEV_INTELLIGENCE` | Stage 5 | Stage 5 | not started | Pending. Needs the `JevClient` port design (ADR-024) and question-set design (OQ-5). Severity scale fixed (ADR-028). |
 | `07_INCIDENT_ENGINE` | Stage 6 | Stage 6 | not started | Pending. Lifecycle and storage decided (ADR-028). |

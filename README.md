@@ -8,10 +8,10 @@ estimates impact, and supports an evidence-backed investigation that a human clo
 
 **Jev decides. Code routes. LLM explains. Agent investigates.**
 
-> **Status: Stage 2 — normalized events + metrics.** Deterministic Stripe-shaped billing/payments simulator
+> **Status: Stage 3 — statistical detection.** Deterministic Stripe-shaped billing/payments simulator
 > (≈1.37M events per run) with machine-readable ground truth; a normalized event layer (`events_norm`)
-> and ten versioned metrics computed in ClickHouse ([docs/METRICS.md](docs/METRICS.md)). No detection, Jev,
-> incident engine, agent or UI yet. Brief: [docs/tasks/STAGE-2.md](docs/tasks/STAGE-2.md).
+> and versioned metrics computed in ClickHouse ([docs/METRICS.md](docs/METRICS.md)); first-look anomaly detection
+> ([docs/DETECTION.md](docs/DETECTION.md)). No cohorts, Jev, incident engine, agent or UI yet.
 > Stage table: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#stage-status).
 
 This repository is the single home of both the **coding harness** (contract, invariants,

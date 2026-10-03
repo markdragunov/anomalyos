@@ -33,6 +33,9 @@ in ClickHouse over `events_norm` (ADR-022 A, ADR-025) and returns, per window an
 | `checkout_conversion_rate` **v2** | `checkout.started` whose first authorization had been *delivered* by the end of the checkout's window | `checkout.started` | first look, no information from after the window closes; used by detection (ADR-034) |
 | `subscription_cancellation_rate` | `subscription.canceled` | `subscription.renewal_attempted` | same window; can exceed 1 (cancellations after failed dunning come days after the attempt) |
 | `late_arrival_share` | events delivered more than 15 min after they occurred | events delivered | **windowed by delivery time** (`ingested_at`), so it is known when the window closes |
+| `subscription_cancellation_rate` **v2** | voluntary `subscription.canceled` (`canceled_voluntary`) | `subscription.renewal_attempted` + voluntary cancellations | excludes cancellations after failed dunning (ADR-035) |
+| `dunning_recovery_rate` | renewal retries (`attempt_no > 1`) that authorize | `dunning.attempted` | counted at retry time |
+| `refund_count` | `refund.succeeded` | 1 | not moved by this window's captures (ADR-035) |
 | `revenue_collected_minor` | sum of `amount_minor` of `payment.captured` | 1 | always grouped by `currency` (no cross-currency sums) |
 
 ## Dimensions
