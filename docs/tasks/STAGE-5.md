@@ -1,7 +1,7 @@
 # Task: Stage 5 — Jev Decision Layer, Verifier and Policy (Mode A)
 
 Prepared: 2026-10-03  
-Status: Draft for owner review  
+Status: **Approved** by the owner (2026-10-03). Jev access: **none yet** — Stage 5 proceeds on the fake client (OQ-1 open)  
 Branch: `stage-5-jev` (from `main` after PR #9)
 
 ## Read first
