@@ -192,6 +192,7 @@ class CohortAnalysis:
     related_candidates: list[str] = field(default_factory=list)
     queries: int = 0
     flags: list[str] = field(default_factory=list)
+    naive_locus: Dims | None = None  # evaluation baseline only (largest relative move), never in the bundle
 
 
 def _sign(direction: str) -> int:
@@ -375,3 +376,18 @@ def bundle(a: CohortAnalysis, candidate: dict, cfg: CohortConfig) -> dict[str, A
     if size > cfg.bundle_max_bytes:
         raise ValueError(f"evidence bundle of {size} bytes exceeds {cfg.bundle_max_bytes}")
     return b
+
+
+def naive_locus(tables: dict[tuple[str, ...], list[CohortRow]], scope: Dims, direction: str, cfg: CohortConfig) -> Dims | None:
+    """Spec-05 anti-pattern kept as the evaluation baseline: the cohort with the largest relative move in the parent's
+    direction, no decomposition, no multiple-testing control (support gate only)."""
+    sgn = _sign(direction)
+    best, best_val = None, 0.0
+    for rows in tables.values():
+        for r in rows:
+            if r.n_b < cfg.min_support or r.n_d < cfg.min_support or r.k_b <= 0:
+                continue
+            rel = sgn * ((r.k_d / r.n_d) / (r.k_b / r.n_b) - 1)
+            if rel > best_val or (rel == best_val and best is not None and scope + r.dims < best):
+                best, best_val = scope + r.dims, rel
+    return best

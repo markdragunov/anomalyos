@@ -10,7 +10,7 @@ from dataclasses import asdict, is_dataclass
 from typing import Any, Iterable
 
 from anomalyos.cohorts.analysis import (CohortAnalysis, analyze, bundle, estimate_impact, evidence_id, locus_row,
-                                        phi_from_reference_days, z_count, z_rate)
+                                        naive_locus, phi_from_reference_days, z_count, z_rate)
 from anomalyos.cohorts.config import COHORT_CONFIG_VERSION, COMBINATIONS, RELATED_METRICS, CohortConfig
 from anomalyos.cohorts.fetch import query_pooled
 from anomalyos.metrics import get_metric
@@ -66,6 +66,8 @@ def analyze_one(runner, database: str, run_id: str, cand: dict, world_start: int
             tables[combo] = sorted(rows.values(), key=lambda r: (-r.n_d if kind == "rate" else -r.k_d, r.dims))
     a = analyze(cand, tables, cfg, COHORT_CONFIG_VERSION)
     a.queries = queries
+    if kind == "rate":
+        a.naive_locus = naive_locus(tables, a.scope, a.direction, cfg)
     a.related_metrics = _related(runner, database, run_id, a, cand, world_start, cfg) if a.locus is not None else []
     if kind == "count" and a.locus is not None:
         approval = next((m for m in a.related_metrics if m["metric"] == "authorization_rate"), None)
