@@ -70,6 +70,28 @@ _DUPLICATE_SOURCE = """(
     )
 ) AS dup"""
 
+# Conversion as known when the checkout's window closed: the first authorization must have reached the store by then.
+_CONVERSION_FIRST_LOOK_SOURCE = """(
+    SELECT s.*, a.first_known AS first_auth_known
+    FROM {table} AS s
+    LEFT JOIN (
+        SELECT payment_intent_id, min(ingested_at) AS first_known FROM {table}
+        WHERE run_id = {run_id:String} AND event_type = 'payment.authorized' AND channel = 'checkout'
+          AND occurred_at < toDateTime({end:UInt32}, 'UTC') AND ingested_at <= toDateTime({end:UInt32}, 'UTC')
+        GROUP BY payment_intent_id
+    ) AS a ON s.payment_intent_id = a.payment_intent_id
+    WHERE s.run_id = {run_id:String} AND s.event_type = 'checkout.started'
+) AS conv"""
+
+# Rows windowed by *ingestion* time: `occurred_at` here is the delivery time, `event_time` the business time.
+_LATE_ARRIVAL_SOURCE = """(
+    SELECT t.run_id AS run_id, t.event_type AS event_type, t.ingested_at AS occurred_at, t.ingested_at AS ingested_at,
+           t.occurred_at AS event_time, t.psp AS psp, t.customer_country AS customer_country, t.channel AS channel,
+           t.merchant_id AS merchant_id
+    FROM {table} AS t
+    WHERE t.run_id = {run_id:String}
+) AS ing"""
+
 _REGISTRY: dict[tuple[str, int], MetricDef] = {}
 
 
@@ -103,6 +125,42 @@ _register(
                    "AND event_type = 'payment.authorized' AND channel = 'checkout' "
                    "AND occurred_at >= toDateTime({start:UInt32}, 'UTC') AND occurred_at < toDateTime({end:UInt32}, 'UTC')))"),
         denominator="count()", where="event_type = 'checkout.started'", allowed_dims=_CHECKOUT_DIMS),
+    MetricDef(
+        "checkout_conversion_rate", 2,
+        "checkout.started whose first authorization had reached the store by the end of the checkout's window / checkout.started "
+        "(first look: no information from after the window closes)",
+        numerator="countIf(first_auth_known > toDateTime(0, 'UTC') AND first_auth_known <= {window_end})",
+        denominator="count()", source=_CONVERSION_FIRST_LOOK_SOURCE, allowed_dims=_CHECKOUT_DIMS),
+    MetricDef(
+        "subscription_cancellation_rate", 1,
+        "subscription.canceled / subscription.renewal_attempted in the same window (cancellations at renewal and after failed dunning)",
+        numerator="countIf(event_type = 'subscription.canceled')",
+        denominator="countIf(event_type = 'subscription.renewal_attempted')",
+        where="event_type IN ('subscription.canceled', 'subscription.renewal_attempted')", allowed_dims=_BILLING_DIMS),
+    MetricDef(
+        "subscription_cancellation_rate", 2,
+        "voluntary cancellations at renewal / (renewal attempts + voluntary cancellations); involuntary cancellations "
+        "after failed dunning are excluded (they trail the cause by a week)",
+        numerator="countIf(event_type = 'subscription.canceled' AND status = 'canceled_voluntary')",
+        denominator="countIf(event_type = 'subscription.renewal_attempted' OR (event_type = 'subscription.canceled' AND status = 'canceled_voluntary'))",
+        where="event_type IN ('subscription.canceled', 'subscription.renewal_attempted')", allowed_dims=_BILLING_DIMS),
+    MetricDef(
+        "dunning_recovery_rate", 1,
+        "renewal retries (+3 / +7 days) that authorize / renewal retries, counted at retry time",
+        numerator="countIf(event_type = 'payment.authorized')", denominator="countIf(event_type = 'dunning.attempted')",
+        where="channel = 'renewal' AND attempt_no > 1 AND event_type IN ('payment.authorized', 'dunning.attempted')",
+        allowed_dims=_ALL_DIMS),
+    MetricDef(
+        "refund_count", 1,
+        "number of refund.succeeded; denominator is the constant 1. Unlike refund_rate it does not move when this "
+        "window's captures drop (refunds belong to older captures)",
+        numerator="count()", denominator="1", where="event_type = 'refund.succeeded'",
+        allowed_dims=("psp", "customer_country", "currency", "platform", "channel", "merchant_id"), empty_denominator=1),
+    MetricDef(
+        "late_arrival_share", 1,
+        "events delivered more than 15 minutes after they occurred / events delivered, windowed by delivery time",
+        numerator="countIf(ingested_at - event_time > 900)", denominator="count()", source=_LATE_ARRIVAL_SOURCE,
+        allowed_dims=("psp", "customer_country", "channel", "merchant_id")),
     MetricDef(
         "renewal_success_rate", 1, "subscription.renewed / subscription.renewal_attempted (events counted in their own window)",
         numerator="countIf(event_type = 'subscription.renewed')",

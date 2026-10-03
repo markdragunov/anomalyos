@@ -138,15 +138,17 @@ PSP_OUTAGE_CODES = (("processing_error", None, .6), ("card_declined", "issuer_no
 _CHK = ("checkout_volume",)
 METRIC_EXPECTATIONS: dict[str, dict[str, tuple[tuple[str, ...], tuple[str, ...]]]] = {
     "normal_variation": {"suppress": ((), ("charge_approval_rate", "checkout_volume", "payment_intent_conversion_rate", "refund_rate"))},
-    "psp_authorization_degradation": {"incident": (("charge_approval_rate", "technical_failure_rate", "payment_intent_conversion_rate"), ("checkout_volume", "refund_rate"))},
-    "country_degradation": {"incident": (("charge_approval_rate", "payment_intent_conversion_rate"), ("checkout_volume", "refund_rate"))},
-    "payment_method_degradation": {"incident": (("charge_approval_rate", "technical_failure_rate", "payment_intent_conversion_rate"), ("checkout_volume", "refund_rate"))},
-    "checkout_regression_app_version": {"incident": (("payment_intent_conversion_rate",), ("charge_approval_rate", "refund_rate"))},
+    # sim-1.2.1: refund_rate is no longer declared unchanged for approval incidents: the metric divides refunds (of
+    # older captures) by this window's captures, so it rises mechanically when approval drops (Gate 1 finding).
+    "psp_authorization_degradation": {"incident": (("charge_approval_rate", "technical_failure_rate", "payment_intent_conversion_rate"), ("checkout_volume",))},
+    "country_degradation": {"incident": (("charge_approval_rate", "payment_intent_conversion_rate"), ("checkout_volume",))},
+    "payment_method_degradation": {"incident": (("charge_approval_rate", "technical_failure_rate", "payment_intent_conversion_rate"), ("checkout_volume",))},
+    "checkout_regression_app_version": {"incident": (("payment_intent_conversion_rate",), ("charge_approval_rate",))},  # sim-1.2.2
     "subscription_renewal_failure": {"incident": (("renewal_success_rate", "charge_approval_rate"), ("payment_intent_conversion_rate", "checkout_volume"))},
     "refund_spike": {"incident": (("refund_rate",), ("charge_approval_rate", "payment_intent_conversion_rate"))},
     "duplicate_charge": {"incident": (("duplicate_charge_rate", "refund_rate"), ("charge_approval_rate",))},
     "fraud_like_spike": {"incident": (("charge_attempt_volume", "charge_approval_rate", "fraud_flag_rate"), ("renewal_success_rate",))},
-    "gradual_degradation": {"incident": (("charge_approval_rate",), ("checkout_volume", "refund_rate"))},
+    "gradual_degradation": {"incident": (("charge_approval_rate",), ("checkout_volume",))},
     "harmless_seasonality": {"suppress": (("checkout_volume", "global_charge_approval_rate"), ("charge_approval_rate", "refund_rate"))},
     "small_cohort_noisy_anomaly": {"suppress": (("charge_approval_rate",), _CHK)},
     "correlated_unrelated_anomalies": {"suppress": (_CHK, ("charge_approval_rate",)), "incident": (("charge_approval_rate",), _CHK)},

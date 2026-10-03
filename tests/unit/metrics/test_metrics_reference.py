@@ -71,6 +71,22 @@ def build_rows() -> list[dict]:
              norm_row("payment.captured", T0 + 3 * HOUR + 10, idempotency_key_present=0, attempt_no=1, customer_id="cus_b", amount_minor=99)]
     # --- money in two currencies
     rows += [norm_row("payment.captured", T0 + 1200 + k, attempt_no=1, currency="usd", amount_minor=500 + k) for k in range(3)]
+    # --- sim-1.2 / Stage 3: cancellations and late deliveries
+    rows += [norm_row("subscription.canceled", T0 + 300 + k, channel="renewal", plan_id="monthly_eur", status="canceled_voluntary") for k in range(2)]
+    rows += [norm_row("subscription.canceled", T0 + 2 * HOUR + 300, channel="renewal", plan_id="monthly_eur", status="canceled_involuntary")]
+    # renewal retries (dunning): 3 retries in hour 0 (1 authorizes), 2 in hour 2 (both fail)
+    for k, ok in enumerate((True, False, False)):
+        rows.append(norm_row("dunning.attempted", T0 + 1500 + k, channel="renewal", attempt_no=2))
+        rows.append(norm_row("payment.authorized" if ok else "payment.declined", T0 + 1500 + k, channel="renewal", attempt_no=2))
+    for k in range(2):
+        rows.append(norm_row("dunning.attempted", T0 + 2 * HOUR + 1500 + k, channel="renewal", attempt_no=3))
+        rows.append(norm_row("payment.declined", T0 + 2 * HOUR + 1500 + k, channel="renewal", attempt_no=3))
+    # pi_0's authorization reaches the store 2 h late: converted in the end, but not "as known at window close"
+    for r in rows:
+        if r["event_type"] == "payment.authorized" and r["payment_intent_id"] == "pi_0":
+            r["ingested_at"] = r["occurred_at"] + 2 * HOUR
+    rows += [norm_row("payment.declined", T0 + 2 * HOUR + 900, attempt_no=1, psp="psp_gamma", ingested_at=T0 + 3 * HOUR + 60, payment_intent_id="pi_lateA"),
+             norm_row("payment.captured", T0 + 600, attempt_no=1, psp="psp_gamma", ingested_at=T0 + 610, payment_intent_id="pi_onTime")]
     # --- events at/after `end` for every metric type must be invisible
     rows += [norm_row("payment.authorized", END_TS + 1, attempt_no=1), norm_row("payment.captured", END_TS + 1, attempt_no=1),
              norm_row("subscription.renewed", END_TS + 1, channel="renewal"), norm_row("refund.succeeded", END_TS + 1)]
@@ -96,9 +112,34 @@ def _count(rows, *types, **eq):
     return sum(1 for r in rows if r["event_type"] in types and all(r[k] == v for k, v in eq.items()))
 
 
-def reference(metric: str, rows: list[dict], window_rows: list[dict], start_ts=T0, end_ts=END_TS) -> tuple[int, int]:
+def _split(metric: str) -> tuple[str, int]:
+    name, _, version = metric.partition("@")
+    return name, int(version or 1)
+
+
+def reference(metric: str, rows: list[dict], window_rows: list[dict], start_ts=T0, end_ts=END_TS, window_end=None) -> tuple[int, int]:
     """(numerator, denominator) for one window/group, written independently of the SQL."""
     w = window_rows
+    if metric == "checkout_conversion_rate@2":
+        started = [r for r in w if r["event_type"] == "checkout.started"]
+        first: dict[str, int] = {}
+        for r in rows:
+            if (r["event_type"] == "payment.authorized" and r["channel"] == "checkout" and r["occurred_at"] < end_ts
+                    and r["ingested_at"] <= end_ts):
+                first[r["payment_intent_id"]] = min(first.get(r["payment_intent_id"], r["ingested_at"]), r["ingested_at"])
+        return sum(1 for r in started if r["payment_intent_id"] in first and first[r["payment_intent_id"]] <= window_end), len(started)
+    if metric == "subscription_cancellation_rate":
+        return _count(w, "subscription.canceled"), _count(w, "subscription.renewal_attempted")
+    if metric == "subscription_cancellation_rate@2":
+        vol = sum(1 for r in w if r["event_type"] == "subscription.canceled" and r["status"] == "canceled_voluntary")
+        return vol, _count(w, "subscription.renewal_attempted") + vol
+    if metric == "refund_count":
+        return _count(w, "refund.succeeded"), 1
+    if metric == "dunning_recovery_rate":
+        retries = [r for r in w if r["channel"] == "renewal" and r["attempt_no"] > 1]
+        return _count(retries, "payment.authorized"), _count(retries, "dunning.attempted")
+    if metric == "late_arrival_share":  # rows are already windowed by delivery time
+        return sum(1 for r in w if r["ingested_at"] - r["occurred_at"] > 900), len(w)
     if metric == "authorization_rate":
         return _count(w, "payment.authorized"), _count(w, *ATTEMPTS)
     if metric == "first_attempt_authorization_rate":
@@ -138,14 +179,18 @@ def duplicate_reference(rows, window_rows, start_ts=T0, end_ts=END_TS):
     return sum(1 for r in w if r["raw_seq"] in dup_ids), len(w)
 
 
-def reference_series(metric, rows, grain_s, group_dims=(), start_ts=T0, end_ts=END_TS, filters=None):
+def reference_series(metric, rows, grain_s, group_dims=(), start_ts=T0, end_ts=END_TS, filters=None, visibility="all"):
     rows = [r for r in rows if all(r[k] == v for k, v in (filters or {}).items())]
     n = -(-(end_ts - start_ts) // grain_s)
-    in_range = _in_range(rows, start_ts, end_ts)
+    time_key = "ingested_at" if metric == "late_arrival_share" else "occurred_at"
+    in_range = [r for r in rows if start_ts <= r[time_key] < end_ts]
+    if visibility == "window_close":
+        in_range = [r for r in in_range
+                    if r["ingested_at"] <= start_ts + ((r[time_key] - start_ts) // grain_s + 1) * grain_s]
     by = collections.defaultdict(list)
     for r in in_range:
-        by[(tuple(r[d] for d in group_dims), (r["occurred_at"] - start_ts) // grain_s)].append(r)
-    d = get_metric(metric, 1)
+        by[(tuple(r[d] for d in group_dims), (r[time_key] - start_ts) // grain_s)].append(r)
+    d = get_metric(*_split(metric))
     groups = sorted({g for g, _ in by})
     out = []
     for g in groups:
@@ -154,14 +199,15 @@ def reference_series(metric, rows, grain_s, group_dims=(), start_ts=T0, end_ts=E
             if metric == "duplicate_charge_rate":
                 num, den = duplicate_reference(rows, w, start_ts, end_ts)
             else:
-                num, den = reference(metric, rows, w, start_ts, end_ts) if w else (0, d.empty_denominator)
+                num, den = (reference(metric, rows, w, start_ts, end_ts, start_ts + (i + 1) * grain_s) if w
+                            else (0, d.empty_denominator))
             out.append((g, start_ts + i * grain_s, num, den))
     return out
 
 
 def assert_series(got, want, metric):
     """Point-wise equality by (group, window); groups the SQL never saw must be all-empty in the reference."""
-    empty = (0, get_metric(metric, 1).empty_denominator)
+    empty = (0, get_metric(*_split(metric)).empty_denominator)
     got_map = {(g, ts): (n, d) for g, ts, n, d in got}
     want_map = {(g, ts): (n, d) for g, ts, n, d in want}
     seen_groups = {g for g, _ in got_map}
@@ -170,12 +216,13 @@ def assert_series(got, want, metric):
     assert [(ts, g) for g, ts, _, _ in got] == sorted((ts, g) for g, ts, _, _ in got)  # ordered by window, then group
 
 
-def run_metric(ch, metric, grain="1h", group_by=(), filters=None, start=START, end=END):
-    pts = compute(ch.runner, ch.db, RUN, metric, 1, start, end, grain, filters, group_by)
+def run_metric(ch, metric, grain="1h", group_by=(), filters=None, start=START, end=END, visibility="all"):
+    name, version = _split(metric)
+    pts = compute(ch.runner, ch.db, RUN, name, version, start, end, grain, filters, group_by, visibility=visibility)
     return [(tuple(v for _, v in p.dims), int(p.window_start.timestamp()), p.numerator, p.denominator) for p in pts], pts
 
 
-METRICS = [m.name for m in list_metrics()]
+METRICS = [m.name if m.version == 1 else f"{m.name}@{m.version}" for m in list_metrics()]
 
 
 @pytest.mark.parametrize("metric", METRICS)
@@ -248,4 +295,32 @@ def test_revenue_is_always_per_currency(ch, stream):
 def test_every_registered_metric_is_covered_by_a_reference():
     assert set(METRICS) == {
         "authorization_rate", "first_attempt_authorization_rate", "technical_failure_rate", "checkout_conversion_rate",
-        "renewal_success_rate", "refund_rate", "duplicate_charge_rate", "fraud_flag_rate", "attempt_volume", "revenue_collected_minor"}
+        "checkout_conversion_rate@2", "renewal_success_rate", "refund_rate", "duplicate_charge_rate", "fraud_flag_rate",
+        "attempt_volume", "revenue_collected_minor", "subscription_cancellation_rate", "subscription_cancellation_rate@2",
+        "dunning_recovery_rate", "late_arrival_share", "refund_count"}
+
+
+# --------------------------------------------------------------------------- first-look visibility (Stage 3)
+@pytest.mark.parametrize("metric", ["authorization_rate", "attempt_volume", "checkout_conversion_rate@2", "late_arrival_share"])
+def test_window_close_visibility_matches_python_reference(ch, stream, metric):
+    got, _ = run_metric(ch, metric, visibility="window_close")
+    assert_series(got, reference_series(metric, stream, HOUR, visibility="window_close"), metric)
+
+
+def test_late_event_is_invisible_at_window_close_but_counted_later(ch, stream):
+    first_look = {p.window_start: p for p in run_metric(ch, "attempt_volume", visibility="window_close")[1]}
+    full = {p.window_start: p for p in run_metric(ch, "attempt_volume")[1]}
+    h2 = START + timedelta(hours=2)
+    assert full[h2].numerator - first_look[h2].numerator == 1  # the late decline (delivered in hour 3)
+
+
+def test_first_look_conversion_does_not_see_an_authorization_delivered_late(ch, stream):
+    v1 = {p.window_start: p for p in run_metric(ch, "checkout_conversion_rate")[1]}
+    v2 = {p.window_start: p for p in run_metric(ch, "checkout_conversion_rate@2")[1]}
+    assert v1[START].numerator - v2[START].numerator == 1  # pi_0's authorization arrives 2 h after its window closed
+
+
+def test_unknown_visibility_is_rejected(ch):
+    from anomalyos.metrics import MetricError
+    with pytest.raises(MetricError, match="visibility"):
+        compute(ch.runner, ch.db, RUN, "authorization_rate", 1, START, END, "1h", visibility="later")

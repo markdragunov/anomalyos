@@ -155,8 +155,11 @@ def test_subscription_updated_unknown_shape_fails_loudly():
         run(env("evt_u", "customer.subscription.updated", sub_obj("active"), prev={"status": "trialing"}))
 
 
-def test_subscription_deleted_is_canceled():
-    assert types(run(env("evt_d", "customer.subscription.deleted", sub_obj("canceled")))) == ["subscription.canceled"]
+def test_subscription_deleted_is_canceled_and_says_whether_it_was_voluntary():
+    vol = run(env("evt_d", "customer.subscription.deleted", sub_obj("canceled"), prev={"status": "active", "canceled_at": None}))
+    inv = run(env("evt_e", "customer.subscription.deleted", sub_obj("canceled"), prev={"status": "past_due", "canceled_at": None}))
+    assert types(vol) == types(inv) == ["subscription.canceled"]
+    assert vol[0]["status"] == "canceled_voluntary" and inv[0]["status"] == "canceled_involuntary"
 
 
 def test_refund_created_is_requested_plus_succeeded():

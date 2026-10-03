@@ -39,3 +39,6 @@ logs/
 
 # Generated simulator output
 data/
+
+# Generated evaluation reports (Stage 3+)
+reports/
