@@ -6,6 +6,38 @@ Format: short ID, status, context, decision, consequences.
 
 ---
 
+## ADR-038 — Stage 4 Gate 1: locus rules, new cohorts, sweep report-only · *accepted* (2026-10-03, owner OK on recommendations 1–8)
+
+**Context.** The first DEV evaluation (20 seeds × realism v1/v2, rules of ADR-037) localized only 22 % / 21 % of
+incidents exactly with the first matching candidate (naive relative-drop baseline: 1–2 %). Diagnosis on DEV:
+large sub-cohorts chosen over the degraded cohort (19 %), structurally equivalent dimensions (12 %), the first
+candidate belonging to a neighbouring incident (12 %), metric-implied `channel` (renewal metrics), dimensions inherited
+from the Stage 3 scope (6 %), new cohorts without a baseline (5 %). The sweep added 2 / 6 detections of ~330 at
+0.094 / 0.286 false positives per day (threshold 0.1, fixed at Gate 0).
+
+**Decision.**
+1. The daily sweep (S12) is **off** in Mode A (`CohortConfig.sweep_enabled = False`); it runs only for reports.
+2. **Canonical locus**: dimensions that do not change the population (identical before / during counts) are dropped;
+   among equally specific cohorts the earlier combination in `COMBINATIONS` wins (platform before app_version).
+3. **Concentration rule**: a sub-cohort replaces a parent (the scope, or a tested cohort on a subset of its dimensions)
+   only if share of the parent's change / share of the parent's traffic ≥ `locus_lift` = 1.5.
+4. **New cohorts** (traffic now, no supported baseline) are tested against the rest of the scope in the same window, as
+   their own Benjamini–Hochberg family; one that explains ≥ 60 % of the change becomes the locus with label
+   `new_cohort`; its impact uses the rest of the scope as baseline. `volume_only` applies to `attempt_volume` only.
+5. Evaluation: the literal C-10 number stays the headline; an **equivalence-aware** number is reported beside it
+   (synthetic-world equivalences, `channel=renewal` implied by renewal metrics, `affected_cohorts` also count).
+   Top-3 includes the locus itself.
+6. Impact accuracy and attribution between simultaneous incidents move to Stage 6 (incident grouping); Stage 4 keeps
+   the interval labelled `estimated` and reports "any candidate exact" as the second number.
+7. Expected labels: injected-traffic scenarios (`fraud_like_spike`) expect `mix_shift` or `mixed`; app-version
+   regressions accept `new_cohort` (or `rate_change`).
+8. The simulator is not changed (fraud and renewal `root_cause.locus` coarser than `affected_cohorts` is covered by 5).
+
+**Consequences.** `COHORT_CONFIG_VERSION` = 2. Locus dimensions inherited from the Stage 3 scope are not removed
+(not part of this decision). Thresholds still tuned on DEV only; HELDOUT untouched until Stage 9.
+
+---
+
 ## ADR-037 — Stage 4 cohort intelligence design · *accepted* (2026-10-03, owner OK on Gate 0)
 
 **Decision.** As in `docs/tasks/STAGE-4-DESIGN.md` (C-1 … C-10), with the owner's answers: (b) a daily cohort sweep
