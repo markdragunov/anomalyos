@@ -33,7 +33,12 @@ from the Stage 3 scope (6 %), new cohorts without a baseline (5 %). The sweep ad
    regressions accept `new_cohort` (or `rate_change`).
 8. The simulator is not changed (fraud and renewal `root_cause.locus` coarser than `affected_cohorts` is covered by 5).
 
-**Consequences.** `COHORT_CONFIG_VERSION` = 2. Locus dimensions inherited from the Stage 3 scope are not removed
+**Follow-up (owner OK after the second DEV run).** With lift 1.5 on during-traffic shares, card testing lost its
+locus (injected attempts inflate their cohort's share of during traffic) and a PSP carrying 70 % of a country was
+rejected (lift 1 / 0.7 = 1.43). Traffic shares now come from the **baseline** period and `locus_lift` = **1.25**
+(a sub-cohort above 80 % of its parent's traffic still cannot replace it).
+
+**Consequences.** `COHORT_CONFIG_VERSION` = 3. Locus dimensions inherited from the Stage 3 scope are not removed
 (not part of this decision). Thresholds still tuned on DEV only; HELDOUT untouched until Stage 9.
 
 ---
