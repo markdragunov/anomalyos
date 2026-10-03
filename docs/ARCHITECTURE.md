@@ -405,7 +405,7 @@ branches on — and it constrains the design (see ADR-018).
 | 2 ClickHouse schema | **Stage 1** — `events` (raw + flattened dimensions), `<db>_truth.*`; idempotent reload by `run_id` partition |
 | 3 Metrics | **Stage 2** — ten versioned metrics computed in ClickHouse (`docs/METRICS.md`, ADR-026 for grain) |
 | 4 Detection | **Stage 3** — first-look series, lagged baseline, stabilized z, CUSUM, prefilter; DEV recall 0.89 / 0.53 FP per day (`docs/DETECTION.md`) |
-| 5 Cohorts | Not started (next: Stage 4) |
+| 5 Cohorts | **Stage 4** — pooled before/during decomposition, BH-controlled cohorts, concentration rule, new-cohort test, bounded evidence bundle; DEV top-1 exact locus 44 % (61 % equivalence-aware) vs 1–2 % naive (`docs/COHORTS.md`) |
 | 6 Jev | Contract defined (ADR-018); integration deliberately excluded from Stage 0 |
 | 7 Incident engine | Not started |
 | 8 Agent | Not started (deliberately excluded from Stage 0) |
