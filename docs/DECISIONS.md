@@ -6,6 +6,48 @@ Format: short ID, status, context, decision, consequences.
 
 ---
 
+## ADR-036 — Claude Code as the primary coding agent · *accepted* (2026-10-03, owner spec "Claude Code Engineering Harness Optimization")
+
+**Context.** Claude Code is the only coding agent used, but the coding harness still carried Cursor configuration
+(`.cursor/rules/*.mdc`, `.cursor/skills/` planned paths, Cursor references in `AGENTS.md`), and parts of the `.mdc`
+rules were stale (e.g. "only the simulator exists", "do not add pytest").
+
+**Decision.**
+- **`CLAUDE.md` is the entry point:** a short protocol (navigation, task protocol, test selection, final report) that
+  imports `@AGENTS.md`; it does not duplicate the contract.
+- **`AGENTS.md` stays the canonical, tool-independent engineering contract.** Cursor references removed; no rule or
+  invariant changed.
+- **`.claude/rules/`** holds contextual instructions with `paths:` frontmatter (architecture, stage-guard, testing,
+  python, clickhouse, ai-safety). Claude Code loads a path-scoped rule when it works with a matching file, including
+  reading it; rules link documents instead of copying them.
+- **`.claude/skills/`** is where reusable procedures will live; only a README with conventions for now (ADR-004 still
+  forbids empty Skills).
+- **`.claude/settings.json`** holds minimal permissions: exact allow rules for the three harness checks and
+  `git status`, `git diff`, `git branch --show-current`; deny rules for force pushes and reading `.env`. Everything
+  else (commits, pushes, installs, Docker, other shell commands) keeps the standard confirmation prompt; no hooks,
+  MCP servers or plugins.
+- **`.cursor/` is removed.** Architecture tests now check the Claude Code configuration (`CLAUDE.md` imports
+  `AGENTS.md` and stays under 200 lines, every rule is path-scoped, no empty Skills, valid settings).
+
+**Verification of permission syntax (docs, 2026-10-03).** Wildcard allow rules such as `Bash(git diff *)` were
+**not** added: Claude Code already runs read-only `git` forms without a prompt, and a wildcard rule would also allow
+write-capable forms such as `git log --output=<file>`. Force-push deny rules cover the flag after `push` or after the
+refspec and `+refspec`; per the documentation, Bash rules are not a security boundary (`sh -c`, absolute paths,
+aliases bypass them), and `Read` deny rules do not stop a script that opens `.env` itself. The actual protection of
+`main` is GitHub branch protection plus "the owner merges".
+
+**Supersedes (only coding-agent configuration).**
+- ADR-003: `.cursor/rules/*.mdc` as the scoped-rule mechanism → `.claude/rules/*.md`; its Cursor-specific context and
+  consequence. Still in force: `AGENTS.md` is the contract, rules stay thin and do not paste it, no `.cursorrules`,
+  no duplicate `CLAUDE.md` essay (the new `CLAUDE.md` is a short entry point), no marketplace Skills.
+- ADR-004: the Skill path `.cursor/skills/<name>/SKILL.md` → `.claude/skills/<name>/SKILL.md`. Still in force: Skills
+  are planned, not stubbed.
+
+**Consequences.** No product code, invariant or dependency changes. A later Skill or rule follows `.claude/skills/README.md`
+and the path-scoped rule format; the architecture tests fail on drift.
+
+---
+
 ## ADR-035 — Stage 3 Gate 1: evaluation correction, coverage changes, frozen parameters · *accepted* (2026-10-03, owner OK)
 
 **Context.** First DEV run (20 seeds × v1/v2, scale 1.0): main recall 0.78, 1.06 false positives per day; 28 % of
@@ -253,7 +295,7 @@ Related open points: ADR-018 says Jev does not generate text, so the "LLM explai
 
 ## ADR-003 — `AGENTS.md` is the contract; Cursor rules stay thin
 
-**Status:** accepted (2026-09-28)
+**Status:** accepted (2026-09-28); Cursor-specific parts superseded by ADR-036 (2026-10-03) — the rule mechanism is now `.claude/rules/`
 
 **Context.** Cursor (2026) reads root `AGENTS.md` for all agents, and `.cursor/rules/*.mdc` for scoped project rules. Duplicating the contract into always-on rules wastes context and drifts.
 
@@ -265,7 +307,7 @@ Related open points: ADR-018 says Jev does not generate text, so the "LLM explai
 
 ## ADR-004 — Skills are planned, not stubbed
 
-**Status:** accepted (2026-09-28)
+**Status:** accepted (2026-09-28); Skill path superseded by ADR-036 — `.claude/skills/<name>/SKILL.md`
 
 **Context.** Empty `SKILL.md` files still get listed and pollute context. Procedures (ClickHouse, Jev, evals) do not exist yet.
 
