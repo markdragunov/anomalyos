@@ -6,6 +6,29 @@ Format: short ID, status, context, decision, consequences.
 
 ---
 
+## ADR-037 — Stage 4 cohort intelligence design · *accepted* (2026-10-03, owner OK on Gate 0)
+
+**Decision.** As in `docs/tasks/STAGE-4-DESIGN.md` (C-1 … C-10), with the owner's answers: (b) a daily cohort sweep
+(`psp × customer_country`, `customer_country × payment_method_type`, BH q = 0.01 per day, candidates `S12`; dropped if
+DEV shows more than 0.1 false positives per day from it); thresholds fixed before results (locus coverage 0.6, rate share
+0.7 / 0.3, BH q = 0.05 per candidate); `volume_only` for count candidates whose locus approval did not move (|z| < 2).
+Configuration is versioned in `src/anomalyos/cohorts/config.py` (`COHORT_CONFIG_VERSION = 1`).
+
+**Clarifications made while implementing (no threshold changed).**
+- Locus: the candidate's own scope is the coarsest eligible cohort, so "no cohort reaches 60 %" means the change is
+  spread across the scope and the scope is the locus; ties on attempts prefer fewer dimensions, and a sub-cohort
+  holding ≥ 98 % of the scope's attempts (e.g. psp_alpha = cards) is the scope itself.
+- Composition parts are centred on the mean rate, ((r̄ᵢ − R̄)·Δwᵢ): the total is unchanged (ΣΔwᵢ = 0) and a mix shift
+  is attributed to the cohort whose share moved and whose rate differs; ties go to the cohort whose share grew.
+- Mix label: the smallest rate share across combinations with ≥ 2 supported cohorts (a composition artefact vanishes
+  at the level that separates the mixing cohorts; a real rate change persists at every level).
+
+**Known before evaluation (to be quantified at Gate 1).** A cohort that did not exist in the baseline (a new app
+version) cannot be tested, so a version regression is localized only to the platform; at the version level it looks
+like composition. `volume_only` on `refund_count` candidates is misleading (refund spikes do not move approval).
+
+---
+
 ## ADR-035 — Stage 3 Gate 1: evaluation correction, coverage changes, frozen parameters · *accepted* (2026-10-03, owner OK)
 
 **Context.** First DEV run (20 seeds × v1/v2, scale 1.0): main recall 0.78, 1.06 false positives per day; 28 % of
