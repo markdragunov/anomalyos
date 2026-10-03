@@ -61,3 +61,25 @@ def test_first_matching_candidate_is_scored_and_others_count_for_any_exact():
     out = score_cohorts([_analysis("early", locus=()), _analysis("late")], [late, early], [_rec()], W1)
     row = out["records"][0]
     assert row["localization"] == "coarse" and row["any_candidate_exact"] is True
+
+
+def test_equivalence_aware_localization_is_reported_beside_the_literal_one():
+    from anomalyos.evaluation.cohorts import equivalent_exact
+    dup = _rec(root_cause={"locus": {"platform": ["web"]}}, affected_cohorts=[{"platform": ["web"]}])
+    assert equivalent_exact([("app_version", "web")], dup, "duplicate_charge_rate")
+    ren = _rec(root_cause={"locus": {"channel": ["renewal"], "psp": ["psp_beta"]}},
+               affected_cohorts=[{"channel": ["renewal"], "payment_method_type": ["card"], "psp": ["psp_beta"]}])
+    assert equivalent_exact([("psp", "psp_beta"), ("payment_method_type", "card")], ren, "dunning_recovery_rate")
+    assert equivalent_exact([("psp", "psp_beta")], ren, "dunning_recovery_rate")
+    assert not equivalent_exact([("psp", "psp_beta")], ren, "authorization_rate")  # channel not implied here
+    assert not equivalent_exact([("psp", "psp_gamma")], ren, "dunning_recovery_rate")
+    out = score_cohorts([_analysis(locus=(("psp", "psp_beta"), ("payment_method_type", "card")))], [_cand()], [_rec()], W1)
+    assert out["summary"]["top1_exact"] == 0.0 and out["summary"]["top1_equivalent_exact"] == 0.0
+
+
+def test_injected_traffic_and_new_cohort_label_expectations():
+    fraud = _rec(scenario_kind="fraud_like_spike")
+    assert score_cohorts([_analysis(label="mix_shift")], [_cand()], [fraud], W1)["records"][0]["label_ok"] is True
+    assert score_cohorts([_analysis(label="rate_change")], [_cand()], [fraud], W1)["records"][0]["label_ok"] is False
+    app = _rec(scenario_kind="checkout_regression_app_version")
+    assert score_cohorts([_analysis(label="new_cohort")], [_cand()], [app], W1)["records"][0]["label_ok"] is True

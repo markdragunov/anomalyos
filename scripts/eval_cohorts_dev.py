@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Stage 4 Phase 2: cohort analysis on DEV seeds (ADR-037 C-10). Writes reports/stage4_dev.{json,md}.
 
-Per world: generate (randomized calendar, scale 1.0), load, normalize, Stage 3 detection, daily sweep, cohort
-analysis; scores Stage 3 recall / false positives with and without the sweep, and Stage 4 localization, labels,
-impact and cost against a relative-drop baseline. Refuses HELDOUT seeds.
+Per world: generate (randomized calendar, scale 1.0), load, normalize, Stage 3 detection, cohort analysis of the
+Stage 3 candidates; scores Stage 4 localization (literal C-10 and equivalence-aware, ADR-038), labels, impact
+(diagnostic only) and cost against a relative-drop baseline. The daily sweep is off in Mode A (ADR-038); it runs here
+only to report its effect on Stage 3 recall and false positives. Refuses HELDOUT seeds.
 """
 
 from __future__ import annotations
@@ -25,7 +26,7 @@ sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from eval_detection_dev import _Chdb  # noqa: E402
-from anomalyos.cohorts import analyze_candidates, sweep  # noqa: E402
+from anomalyos.cohorts import CohortConfig, analyze_candidates, sweep  # noqa: E402
 from anomalyos.detection import detect  # noqa: E402
 from anomalyos.evaluation.cohorts import score_cohorts  # noqa: E402
 from anomalyos.evaluation.detection import score  # noqa: E402
@@ -58,14 +59,14 @@ def one_world(args) -> dict:
             records = [g.to_dict() for g in res.ground_truth]
             cands = detect(client, "anomalyos", res.run_id, S, E)
             t0 = time.time()
-            swept = sweep(client, "anomalyos", res.run_id, S, E)
+            swept = sweep(client, "anomalyos", res.run_id, S, E, CohortConfig(sweep_enabled=True))
             t_sweep = time.time() - t0
             t0 = time.time()
-            results = analyze_candidates(client, "anomalyos", res.run_id, cands + swept, w.start)
+            results = analyze_candidates(client, "anomalyos", res.run_id, cands, w.start)
             t_an = time.time() - t0
         finally:
             client.close()
-        all_c = [dataclasses.asdict(c) for c in cands + swept]
+        all_c = [dataclasses.asdict(c) for c in cands]
         analyses = [_slim(a) for a, _ in results]
         return {
             "seed": seed, "realism": realism, "scale": scale,
@@ -101,8 +102,10 @@ def report(results: list[dict]) -> str:
                      f"{_f(agg('stage3_without_sweep', 'fp'))} | {_f(agg('stage3_with_sweep', 'fp'))} | "
                      f"{sum(r['sweep_candidates'] for r in rs)} | {sum(r['sweep_fp'] for r in rs)} ({sum(r['sweep_fp'] for r in rs) / (25 * len(rs)):.3f}/day) |")
     lines += ["", "## Stage 4 (first matching candidate per incident)", "",
-              "| realism | incidents | top-1 exact | over-specific | coarse | wrong | top-3 exact | any candidate exact | naive top-1 exact | label (incidents) | label (mix records) | impact median rel. error | impact interval coverage |",
-              "|---|---|---|---|---|---|---|---|---|---|---|---|---|"]
+              "| realism | incidents | top-1 exact | top-1 exact, equivalence-aware | over-specific | coarse | wrong | top-3 exact | any candidate exact | naive top-1 exact | label (incidents) | label (mix records) |",
+              "|---|---|---|---|---|---|---|---|---|---|---|---|"]
+    impact_lines = ["", "## Impact (diagnostic: the candidate window is compared with the whole incident; accuracy check moves to Stage 6, ADR-038)", "",
+                    "| realism | median rel. error | interval coverage |", "|---|---|---|"]
     for realism in sorted({r["realism"] for r in results}):
         rows = [x for r in results if r["realism"] == realism for x in r["stage4"]["records"]]
         inc = [x for x in rows if x["route"] == "incident"]
@@ -110,11 +113,13 @@ def report(results: list[dict]) -> str:
             xs = [x for x in xs if x[k] is not None]
             return sum(x[k] == v for x in xs) / len(xs) if xs else None
         errs = sorted(x["impact_rel_error"] for x in inc if x["impact_rel_error"] is not None)
-        lines.append(f"| {realism} | {len(inc)} | {_f(share(inc, 'localization', 'exact'), 1)} | {_f(share(inc, 'localization', 'over_specific'), 1)} | "
+        lines.append(f"| {realism} | {len(inc)} | {_f(share(inc, 'localization', 'exact'), 1)} | {_f(share(inc, 'equivalent_exact'), 1)} | {_f(share(inc, 'localization', 'over_specific'), 1)} | "
                      f"{_f(share(inc, 'localization', 'coarse'), 1)} | {_f(share(inc, 'localization', 'wrong'), 1)} | {_f(share(inc, 'top3_exact'), 1)} | "
                      f"{_f(share(inc, 'any_candidate_exact'), 1)} | {_f(share(inc, 'naive_localization', 'exact'), 1)} | {_f(share(inc, 'label_ok'), 1)} | "
-                     f"{_f(share([x for x in rows if x['route'] == 'suppress'], 'label_ok'), 1)} | {_f(median(errs) if errs else None)} | {_f(share(inc, 'impact_covered'), 1)} |")
-    lines += ["", "## Localization by scenario kind (v1, first matching candidate)", "", "| kind | n | exact | over-specific | coarse | wrong | label ok |", "|---|---|---|---|---|---|---|"]
+                     f"{_f(share([x for x in rows if x['route'] == 'suppress'], 'label_ok'), 1)} |")
+        impact_lines.append(f"| {realism} | {_f(median(errs) if errs else None)} | {_f(share(inc, 'impact_covered'), 1)} |")
+    lines += impact_lines
+    lines += ["", "## Localization by scenario kind (v1, first matching candidate)", "", "| kind | n | exact | equivalence-aware | over-specific | coarse | wrong | label ok |", "|---|---|---|---|---|---|---|---|"]
     kinds: dict[str, list] = {}
     for r in results:
         if r["realism"] == "v1":
@@ -124,7 +129,7 @@ def report(results: list[dict]) -> str:
         n = len(xs)
         c = lambda v: sum(x["localization"] == v for x in xs)
         lab = [x for x in xs if x["label_ok"] is not None]
-        lines.append(f"| {k} | {n} | {c('exact')} | {c('over_specific')} | {c('coarse')} | {c('wrong')} | "
+        lines.append(f"| {k} | {n} | {c('exact')} | {sum(x['equivalent_exact'] for x in xs)} | {c('over_specific')} | {c('coarse')} | {c('wrong')} | "
                      f"{sum(x['label_ok'] for x in lab)}/{len(lab)} |")
     cost = [r["cost"] for r in results]
     lines += ["", "## Cost", "", f"- analyses per world: median {median(c['analyses'] for c in cost)}; queries per analysis: "
