@@ -50,3 +50,17 @@ def test_password_never_in_repr():
 def test_invalid_values_raise_named_error(key, value, fragment):
     with pytest.raises(ConfigError, match=fragment):
         load_settings({key: value})
+
+
+def test_jev_settings_default_to_replay_and_hide_the_key():
+    from anomalyos.config import ConfigError, load_settings
+    s = load_settings({})
+    assert s.jev.mode == "replay" and s.jev.endpoint is None and s.jev.api_key is None
+    k = load_settings({"JEV_MODE": "fake", "JEV_API_KEY": "sk-secret-123", "JEV_ENDPOINT": "https://example.invalid"})
+    assert k.jev.api_key == "sk-secret-123" and "sk-secret-123" not in repr(k)
+    try:
+        load_settings({"JEV_MODE": "live"})
+    except ConfigError as e:
+        assert "JEV_MODE" in str(e)
+    else:
+        raise AssertionError("unknown JEV_MODE accepted")
