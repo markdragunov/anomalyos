@@ -406,7 +406,8 @@ branches on — and it constrains the design (see ADR-018).
 | 3 Metrics | **Stage 2** — ten versioned metrics computed in ClickHouse (`docs/METRICS.md`, ADR-026 for grain) |
 | 4 Detection | **Stage 3** — first-look series, lagged baseline, stabilized z, CUSUM, prefilter; DEV recall 0.89 / 0.53 FP per day (`docs/DETECTION.md`) |
 | 5 Cohorts | **Stage 4** — pooled before/during decomposition, BH-controlled cohorts, concentration rule, new-cohort test, bounded evidence bundle; DEV top-1 exact locus 44 % (61 % equivalence-aware) vs 1–2 % naive (`docs/COHORTS.md`) |
-| 6 Jev | Contract defined (ADR-018); integration deliberately excluded from Stage 0 |
+| 6 Jev | **Stage 5** — first-look JevState v2, question set v1, `JevClient` port with fake / replay / unconfigured HTTP transport, verifier; **Jev itself not evaluated (no access, OQ-1)** (`docs/DECISIONING.md`) |
+| 6b Policy | **Stage 5** — deterministic `policy_v1`, no-Jev `baseline_v2`, failures → DIGEST, append-only `jev_decisions` audit |
 | 7 Incident engine | Not started |
 | 8 Agent | Not started (deliberately excluded from Stage 0) |
 | 9–10 API, UI | Not started (deliberately excluded from Stage 0) |

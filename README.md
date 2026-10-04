@@ -8,11 +8,13 @@ estimates impact, and supports an evidence-backed investigation that a human clo
 
 **Jev decides. Code routes. LLM explains. Agent investigates.**
 
-> **Status: Stage 4 — cohort intelligence.** Deterministic Stripe-shaped billing/payments simulator
+> **Status: Stage 5 — decision layer (Jev not yet evaluated).** Deterministic Stripe-shaped billing/payments simulator
 > (≈1.37M events per run) with machine-readable ground truth; a normalized event layer (`events_norm`)
 > and versioned metrics computed in ClickHouse ([docs/METRICS.md](docs/METRICS.md)); first-look anomaly detection
 > ([docs/DETECTION.md](docs/DETECTION.md)); cohort localization with bounded evidence bundles
-> ([docs/COHORTS.md](docs/COHORTS.md)). No Jev, incident engine, agent or UI yet.
+> ([docs/COHORTS.md](docs/COHORTS.md)); a first-look Mode A pipeline — JevState, verifier, deterministic policy, audit
+> ([docs/DECISIONING.md](docs/DECISIONING.md)) — running on a fake client until Jev access exists. No incident engine,
+> agent or UI yet.
 > Stage table: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#stage-status).
 
 This repository is the single home of both the **coding harness** (contract, invariants,

@@ -676,7 +676,9 @@ vendor's model.
 - **OQ-7 — Where mutable incident state lives.** Closed by ADR-028.
 - **OQ-8 — Incident lifecycle states.** Closed by ADR-028.
 
-- **OQ-1 — Jev integration details** (resolved in principle by ADR-018). Still open: official
+- **OQ-1 — Jev integration details** (resolved in principle by ADR-018). Stage 5 status (ADR-039, ADR-040): stdlib HTTP
+  transport stub, replay by default, key only in `.env` via `load_settings`; **still open:** provider access, endpoint
+  and wire format, pinned model and its version metadata, limits, price, budget for the live run. Was open: official
   Python SDK vs stdlib HTTP client (dependency trade-off), pinned model version for
   evaluation, context-window budget per state, API key handling (`.env` only, never in git),
   and whether evaluation replays recorded answers by default (recommended).

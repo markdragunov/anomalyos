@@ -13,7 +13,7 @@ one against both and is replaced by this table. Where a spec conflicts with `doc
 | `03_CLICKHOUSE_ANALYTICS` | Stage 2 | Stage 2 (part), then later | `stage-2-metrics` | **Stage 2 built** (normalized events + metrics, branch `stage-2-metrics`; ADR-022, 025, 026; `docs/METRICS.md`). The typed query layer and evidence objects follow. |
 | `04_ANOMALY_DETECTION` | Stage 3 | Stage 3 | `stage-3-detection` | **Built** (ADR-034, ADR-035; `docs/DETECTION.md`). |
 | `05_COHORT_INTELLIGENCE` | Stage 4 | Stage 4 | `stage-4-cohorts` | **Built** (ADR-037, ADR-038; `docs/COHORTS.md`). The daily cohort sweep exists but is off in Mode A. |
-| `06_JEV_INTELLIGENCE` | Stage 5 | Stage 5 | not started | Pending. Needs the `JevClient` port design (ADR-024) and question-set design (OQ-5). Severity scale fixed (ADR-028). |
+| `06_JEV_INTELLIGENCE` | Stage 5 | Stage 5 | `stage-5-jev` | **Built, Jev evaluation blocked** (ADR-039, ADR-040; `docs/DECISIONING.md`): Mode A pipeline, verifier, policy and audit on a fake client and replay; the live run waits for provider access (OQ-1). |
 | `07_INCIDENT_ENGINE` | Stage 6 | Stage 6 | not started | Pending. Lifecycle and storage decided (ADR-028). |
 | `08_INVESTIGATION_AGENT` | Stage 7 | Stage 7 | not started | Pending. Aligned to ADR-019 option 3; three tools have no data source yet. |
 | `09_INCIDENT_UI` | Stage 8 | Stage 8 | not started | Pending. No API contract spec yet; a second stack (Next.js) needs an ADR. |
@@ -22,5 +22,6 @@ one against both and is replaced by this table. Where a spec conflicts with `doc
 
 ## Open points the specs depend on (owner decisions)
 
-- OQ-5 Jev question-set design (the only one left).
+- OQ-1 Jev provider access: endpoint, wire format, pinned model, limits, price and a budget for the live DEV run (blocks the Jev evaluation of Stage 5).
+- OQ-5 closed by ADR-039 (question set v1).
 - Closed by ADR-028: OQ-6 severity, OQ-7 incident state storage, OQ-8 lifecycle, routing/fallback/merge rule, and versions: there is no V1/V2 split; "V2" keeps the `AGENTS.md` meaning and "Mode A first" is only the stage order.
