@@ -6,6 +6,33 @@ Format: short ID, status, context, decision, consequences.
 
 ---
 
+## ADR-040 — Stage 5 Gate 1: Jev evaluation blocked, JevState v2, baseline_v2 · *accepted* (2026-10-04, owner OK on recommendations 1–3, option A)
+
+**Context.** DEV run on 40 worlds with the fake client (no Jev access, OQ-1): 2,116 first-look decisions, all audited,
+failures routed to `DIGEST`. `baseline_v1` caught 17–18 % of incidents at `INCIDENT` on validation seeds; the binding
+condition was impact — at first look the window is one series step, so 94 of 119 incident candidates (and 28 of 38
+non-incidents) had `small` impact on edges meant for whole episodes. Stage 4 at first look: top-1 exact 41–42 %,
+equivalence-aware 55–56 %, labels 57–58 % (full window: 44–45 / 61 / 82–83 %).
+
+**Decision.**
+1. **Gate 1 closes as "Jev evaluation: blocked — no live access"** (option A). The pipeline, audit, verifier, policy
+   and the no-Jev control are built and measured; the live run, `policy_v1` threshold tuning and request-removal
+   ablations wait for provider access and a budget. Stage 5 proceeds to documentation and PR.
+2. **`JevState` v2:** `impact` is estimated lost successes (or excess events) **per hour** of the first-look window,
+   edges 3.8 / 19 / 44 per hour = the 25 / 50 / 75 % quantiles over all decided candidates of DEV seeds 1–10 (no
+   labels used). No Jev call has been made, so the schema change costs nothing.
+3. **`baseline_v2`**, tuned on DEV seeds 1–10 only (`scripts/tune_stage5_dev.py`, rules fixed before results:
+   maximum pooled incident recall at `INCIDENT` with (unmatched + suppress) → `INCIDENT` ≤ 0.10 per day; ties: fewer
+   `INCIDENT` per day): `INCIDENT` if strength = strong, change type rate-like (`rate_change`, `new_cohort`, `mixed`)
+   and impact provided; no impact-size or locus-share threshold won. Tuning seeds: recall 0.21 at 0.066
+   non-incident `INCIDENT` routes per day. Validation on seeds 11–20 is reported in `docs/DECISIONING.md`.
+
+**Consequences.** `STATE_SCHEMA_VERSION` = `jev_state_v2`, `BaselineConfig.version` = `baseline_v2`. The policy
+safety rule (strong signal with medium or large impact is never ignored) now reads the per-hour buckets. HELDOUT and
+validation seeds were not used for tuning.
+
+---
+
 ## ADR-039 — Stage 5 design: first-look decisions, JevState v1, question set v1, policy v1 · *accepted* (2026-10-03, owner OK on Gate 0)
 
 **Context.** Stage 5 turns promoted Stage 3 candidates with their Stage 4 analysis into `IGNORE` / `DIGEST` /
