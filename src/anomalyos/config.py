@@ -12,7 +12,9 @@ Invariants:
   reads files, the network, or the clock. (No .env auto-loading: that would
   make configuration depend on the working directory.)
 - Invalid values raise ``ConfigError`` naming the offending variable.
-- The password never appears in ``repr``/``str`` output or logs.
+- The password and the Jev API key never appear in ``repr``/``str`` output or logs.
+- Jev (ADR-039): mode ``replay`` by default; ``record`` needs owner approval; endpoint and key are optional and,
+  until provider access exists (OQ-1), unused by the transport.
 
 Failure modes: missing or empty required values, non-integer ports, ports out
 of range, unknown environment names, unsafe database identifiers.
@@ -26,6 +28,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 
 ALLOWED_ENVS = frozenset({"local", "test", "ci"})
+JEV_MODES = frozenset({"replay", "fake", "record"})
 _IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,63}$")
 
 DEFAULTS: dict[str, str] = {
@@ -36,6 +39,8 @@ DEFAULTS: dict[str, str] = {
     "CLICKHOUSE_DB": "anomalyos",
     "CLICKHOUSE_USER": "anomalyos",
     "CLICKHOUSE_PASSWORD": "change-me-local-only",
+    "JEV_MODE": "replay",
+    "JEV_MODEL": "unpinned",
 }
 
 
@@ -57,10 +62,19 @@ class ClickHouseSettings:
 
 
 @dataclass(frozen=True)
+class JevSettings:
+    mode: str
+    model: str
+    endpoint: str | None
+    api_key: str | None = field(default=None, repr=False)
+
+
+@dataclass(frozen=True)
 class Settings:
     env: str
     seed: int
     clickhouse: ClickHouseSettings
+    jev: JevSettings = JevSettings("replay", "unpinned", None)
 
 
 def _get(env: Mapping[str, str], key: str) -> str:
@@ -94,6 +108,10 @@ def load_settings(env: Mapping[str, str] | None = None) -> Settings:
     if not _IDENTIFIER.match(database):
         raise ConfigError(f"CLICKHOUSE_DB is not a safe identifier: {database!r}")
 
+    jev_mode = _get(env, "JEV_MODE")
+    if jev_mode not in JEV_MODES:
+        raise ConfigError(f"JEV_MODE must be one of {sorted(JEV_MODES)}, got {jev_mode!r}")
+
     return Settings(
         env=env_name,
         seed=_int(env, "ANOMALYOS_SEED", lo=0, hi=2**32 - 1),
@@ -103,5 +121,11 @@ def load_settings(env: Mapping[str, str] | None = None) -> Settings:
             database=database,
             user=_get(env, "CLICKHOUSE_USER"),
             password=_get(env, "CLICKHOUSE_PASSWORD"),
+        ),
+        jev=JevSettings(
+            mode=jev_mode,
+            model=_get(env, "JEV_MODEL"),
+            endpoint=env.get("JEV_ENDPOINT", "").strip() or None,
+            api_key=env.get("JEV_API_KEY", "").strip() or None,
         ),
     )
