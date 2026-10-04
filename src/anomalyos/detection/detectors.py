@@ -95,6 +95,7 @@ class _Open:
         self.first, self.end, self.detected_at, self.direction = ts, end, detected_at, direction
         self.observed, self.expected, self.score, self.sample = observed, expected, score, sample
         self.methods, self.evidence, self.quiet = set(methods), [ev], 0
+        self.first_score, self.first_methods = score, tuple(sorted(methods))  # known at detected_at (ADR-039 D-0)
 
 
 def _close(o: _Open, system: str, spec: SeriesSpec, scope, recovered_at: int | None) -> AnomalyCandidate:
@@ -106,7 +107,8 @@ def _close(o: _Open, system: str, spec: SeriesSpec, scope, recovered_at: int | N
         observed=round(o.observed, 6), expected=round(o.expected, 6), delta=round(delta, 6),
         relative_delta=round(delta / o.expected, 6) if o.expected else None, score=round(o.score, 3),
         sample_size=o.sample, method=tuple(sorted(o.methods)), evidence_ids=tuple(o.evidence[:48]),
-        status="recovered" if recovered_at is not None else "promoted", recovered_at=recovered_at)
+        status="recovered" if recovered_at is not None else "promoted", recovered_at=recovered_at,
+        score_at_detection=round(o.first_score, 3), methods_at_detection=o.first_methods)
 
 
 def scan_main(spec: SeriesSpec, cfg: DetectorConfig, windows: Iterable[Window], world_start: int, grain_s: int,

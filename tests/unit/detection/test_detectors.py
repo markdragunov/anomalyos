@@ -196,3 +196,22 @@ def test_ratio_metrics_above_one_do_not_crash():
     windows = [(T0 + d * DAY, 60 if d == 10 else 35, 40) for d in range(20)]  # 1.5 cancellations per attempt on day 10
     cands = scan_main(spec, CFG, windows, T0, DAY, ())
     assert all(c.direction == "up" for c in cands)
+
+
+def test_as_of_view_equals_what_was_known_at_detection():
+    # ADR-039 D-0: the first-look view must match a run whose data end at detected_at
+    from anomalyos.detection.candidates import as_of_view, concurrent_at
+    s = T0 + 6 * DAY + 10 * H
+    windows = hourly_rate(10, p=lambda ts: 0.78 if s <= ts < s + H else 0.5 if s + H <= ts < s + 6 * H else 0.9, seed=3)
+    full = run(RATE_H, windows)
+    assert len(full) == 1 and full[0].score > full[0].score_at_detection and full[0].status == "recovered"
+    v = as_of_view(full[0])
+    cut = [w for w in windows if w[0] < full[0].detected_at]
+    part = run(RATE_H, cut)[0]
+    keys = ("anomaly_id", "window_start", "window_end", "detected_at", "observed", "expected", "score", "method",
+            "evidence_ids", "status", "recovered_at", "score_at_detection", "methods_at_detection")
+    assert {k: getattr(v, k) for k in keys} == {k: getattr(part, k) for k in keys}
+    # concurrency uses only candidates already detected and not yet recovered before the window
+    later = replace(full[0], anomaly_id="anom_later", detected_at=full[0].detected_at + H)
+    ended = replace(full[0], anomaly_id="anom_ended", recovered_at=full[0].window_start)
+    assert concurrent_at(full[0], [full[0], later, ended]) == []
