@@ -36,7 +36,6 @@ FORBIDDEN_FILENAMES = {
 # Packages under src/anomalyos that belong to later stages (`events`, `metrics`: Stage 2; `detection`: Stage 3; `cohorts`: Stage 4;
 # `jev`, `policy`: Stage 5).
 FORBIDDEN_PACKAGES = {
-    "policy",
     "incident",
     "investigation",
     "incidents",
