@@ -12,6 +12,9 @@ METRIC_FAMILY = {
     "subscription_cancellation_rate": "cancellations", "late_arrival_share": "ingestion",
 }
 INTRADAY_GRAINS = {"5m", "15m", "1h"}
+# jev_state_v2: impact per hour of the first-look window; edges = 25/50/75 % quantiles on DEV seeds 1-10
+# (scripts/tune_stage5_dev.py, ADR-040). v1 edges (10 / 100 / 1000 events per episode) assumed whole episodes.
+IMPACT_RATE_EDGES = (3.8, 19.0, 44.0)
 
 
 def _edges(x: float, edges: tuple[tuple[float, str], ...], last: str) -> str:
@@ -67,10 +70,12 @@ def cohorts_moved(n: int | None) -> str:
     return "none" if n == 0 else "one" if n == 1 else "few" if n <= 5 else "many"
 
 
-def impact(value: float | None) -> str:
-    if value is None:
+def impact_rate(value: float | None, hours: float) -> str:
+    """Estimated lost successes (or excess events) per hour of the observed window."""
+    if value is None or hours <= 0:
         return "not_provided"
-    return _edges(value, ((10, "negligible"), (100, "small"), (1000, "medium")), "large")
+    a, b, c = IMPACT_RATE_EDGES
+    return _edges(max(0.0, value) / hours, ((a, "negligible"), (b, "small"), (c, "medium")), "large")
 
 
 def concurrent(n: int) -> str:

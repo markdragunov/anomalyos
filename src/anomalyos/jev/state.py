@@ -20,7 +20,7 @@ from typing import Any, Iterable, Mapping
 
 from anomalyos.jev import buckets
 
-STATE_SCHEMA_VERSION = "jev_state_v1"
+STATE_SCHEMA_VERSION = "jev_state_v2"  # v2: impact per hour of the first-look window (ADR-040)
 MAX_STATE_BYTES = 2048
 MAX_DIMS = 3
 NOT_PROVIDED = "not_provided"
@@ -136,7 +136,8 @@ def build_state(candidate: Any, bundle: Mapping[str, Any] | None,
             "cohorts_moved": buckets.cohorts_moved(bundle.get("discoveries")),
             "controls": "present" if controls else "absent",
             "related_metrics": related_value,
-            "impact": buckets.impact(imp["value"]) if imp else NOT_PROVIDED,
+            "impact": buckets.impact_rate(imp["value"] if imp else None,
+                                          (c["window_end"] - c["window_start"]) / 3600),
         })
         prov.update({"change_type": bid, "locus_kind": bid + top_ids, "locus_dims": bid + top_ids,
                      "locus_share": tuple(share_ids), "cohorts_moved": bid,

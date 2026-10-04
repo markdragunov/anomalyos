@@ -20,7 +20,8 @@ def test_buckets_edges():
     assert [buckets.strength(z) for z in (3.0, 4.0, 7.9, 8.0, None)] == ["weak", "moderate", "moderate", "strong", "not_provided"]
     assert [buckets.share(x) for x in (0.1, 0.3, 0.6, 0.95)] == ["minor", "partial", "most", "nearly_all"]
     assert [buckets.cohorts_moved(n) for n in (0, 1, 5, 6)] == ["none", "one", "few", "many"]
-    assert [buckets.impact(v) for v in (-3, 50, 500, 5000, None)] == ["negligible", "small", "medium", "large", "not_provided"]
+    assert [buckets.impact_rate(v, 1.0) for v in (-3, 10, 30, 60, None)] == ["negligible", "small", "medium", "large", "not_provided"]
+    assert buckets.impact_rate(240, 24.0) == "small" and buckets.impact_rate(5, 0) == "not_provided"  # per hour
     assert buckets.detection_rule(("cusum", "z_persistence")) == "both"
 
 
@@ -29,7 +30,7 @@ def test_state_from_candidate_and_bundle():
     assert s.metric_family == "approval" and s.scope_dims == ("psp",) and s.relative_change == "severe"
     assert s.strength == "strong" and s.change_type == "rate_change" and s.locus_kind == "sub_cohort"
     assert s.locus_dims == ("payment_method_type",) and s.locus_share == "nearly_all"
-    assert s.controls == "present" and s.related_metrics == "agree" and s.impact == "medium"
+    assert s.controls == "present" and s.related_metrics == "agree" and s.impact == "large"  # 340 lost in one hour
     assert s.concurrent_alerts == "one" and s.calendar_context == "not_provided"
     assert prov["locus_share"] == ("evd_top",) and prov["concurrent_alerts"] == ("evd_x",)
     assert set(prov) == set(STATE_FIELDS)
@@ -62,7 +63,7 @@ def test_canonical_hash_is_stable_and_schema_bound():
     a, _ = build_state(candidate(), bundle())
     b, _ = build_state(candidate(observed=0.61), bundle())  # same buckets -> same state
     assert canonical_json(a) == canonical_json(b) and state_hash(a) == state_hash(b)
-    assert state_hash(a) != state_hash(a, "jev_state_v2")
+    assert state_hash(a) != state_hash(a, "jev_state_v1")
     assert json.loads(canonical_json(a)) == state_dict(a)
 
 

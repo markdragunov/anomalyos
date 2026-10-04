@@ -1,4 +1,4 @@
-"""policy_v1 and baseline_v1 (ADR-039 D-7): every row of the decision table, determinism, category has no effect."""
+"""policy_v1 and baseline_v2 (ADR-039 D-7, ADR-040): every row of the decision table, determinism, category has no effect."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from anomalyos.jev.state import build_state
 from anomalyos.policy import baseline, rules
 from tests.unit.jev.fixtures import bundle, candidate
 
-STATE, _ = build_state(candidate(), bundle())  # strong, rate_change, sub_cohort, impact medium
+STATE, _ = build_state(candidate(), bundle())  # strong, rate_change, sub_cohort, impact large
 
 
 def a(p=0.9, human=0.1, sev="high", category="psp_degradation"):
@@ -53,4 +53,6 @@ def test_policy_is_deterministic():
 def test_baseline_routes_from_stage_evidence_only():
     assert baseline.route(STATE) == ("INCIDENT", "b1_strong_localized_rate_change")
     assert baseline.route(replace(STATE, change_type="volume_only", strength="weak")) == ("IGNORE", "b2_weak_composition")
-    assert baseline.route(replace(STATE, impact="small")) == ("DIGEST", "b3_otherwise")
+    assert baseline.route(replace(STATE, impact="small"))[0] == "INCIDENT"  # baseline_v2: no impact size threshold
+    assert baseline.route(replace(STATE, impact="not_provided")) == ("DIGEST", "b3_otherwise")
+    assert baseline.route(replace(STATE, strength="moderate")) == ("DIGEST", "b3_otherwise")

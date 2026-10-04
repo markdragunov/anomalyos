@@ -20,4 +20,11 @@ class PolicyConfig:
 
 @dataclass(frozen=True)
 class BaselineConfig:
-    version: str = "baseline_v1"
+    """baseline_v2: tuned on DEV seeds 1-10 (scripts/tune_stage5_dev.py, ADR-040) — maximum incident recall at
+    INCIDENT with (unmatched + suppress) -> INCIDENT <= 0.10 per day. v1: moderate strength, medium impact, partial
+    locus share, rate-like change, never tuned."""
+    version: str = "baseline_v2"
+    strength_min: str = "strong"
+    change_types: tuple[str, ...] = ("rate_change", "new_cohort", "mixed")
+    impact_min: str = "negligible"  # i.e. impact must be provided; no size threshold won
+    locus_share_min: str = "not_provided"  # no locus-share threshold won

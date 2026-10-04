@@ -2,7 +2,7 @@
 """Stage 5 Phase 2: Mode A on DEV seeds (ADR-039 D-9). Writes reports/stage5_dev.{json,md}.
 
 Per world: generate (randomized calendar, scale 1.0), load, normalize, Stage 3 detection, Mode A at first look
-(Stage 4 on the as-of window, JevState, client, verifier, policy_v1) and the no-Jev baseline_v1 on the same states.
+(Stage 4 on the as-of window, JevState, client, verifier, policy_v1) and the no-Jev baseline (``BaselineConfig().version``) on the same states.
 There is no Jev access (OQ-1): the client is the deterministic fake, so Jev itself is **not evaluated** — the report
 shows the baseline (tuning seeds 1-10 and validation seeds 11-20 separately), Stage 4 quality at first look, and
 technical pipeline figures. Refuses HELDOUT seeds.
@@ -37,6 +37,7 @@ from anomalyos.jev.client import BudgetedClient, JevBudget  # noqa: E402
 from anomalyos.jev.fake import FakeJevClient  # noqa: E402
 from anomalyos.jev.state import JevState  # noqa: E402
 from anomalyos.policy import baseline, mode_a  # noqa: E402
+from anomalyos.policy.config import BaselineConfig  # noqa: E402
 from anomalyos.simulation import clickhouse_load as chl  # noqa: E402
 from anomalyos.simulation.runner import generate  # noqa: E402
 from anomalyos.simulation.seeds import DEV_SEEDS, HELDOUT_SEEDS  # noqa: E402
@@ -44,6 +45,7 @@ from anomalyos.simulation.world import WorldConfig  # noqa: E402
 
 TUNING, VALIDATION = set(range(1, 11)), set(range(11, 21))
 PINNED = "fake-jev-0"
+BASE = BaselineConfig().version
 
 
 def _state(record) -> JevState | None:
@@ -79,7 +81,7 @@ def one_world(args) -> dict:
             rows.append({"candidate": full[r.candidate_id], "verified": r.verified, "reasons": r.verifier_reasons,
                          "answers": json.loads(r.answers_json),
                          "routes": {"policy_v1_fake": r.route,
-                                    "baseline_v1": baseline.route(st)[0] if st is not None else "DIGEST"}})
+                                    BASE: baseline.route(st)[0] if st is not None else "DIGEST"}})
         analyses = [_slim(d.analysis) for d in decisions if d.analysis is not None]
         asof = [dataclasses.asdict(d.candidate) for d in decisions]
         states = [json.loads(d.record.state_json) for d in decisions if d.record.state_json != "{}"]
@@ -108,17 +110,17 @@ def _baseline_rows(results, seeds, realism):
     rows = [x for r in rs for x in r["decisions"]["rows"]]
     days = sum(r["decisions"]["days"] for r in rs)
     def per_day(st, route):
-        return sum(1 for x in rows if x["status"] == st and x["routes"]["baseline_v1"] == route) / days
-    routed = sum(r["decisions"]["systems"]["baseline_v1"]["incidents_routed_incident"] for r in rs)
+        return sum(1 for x in rows if x["status"] == st and x["routes"][BASE] == route) / days
+    routed = sum(r["decisions"]["systems"][BASE]["incidents_routed_incident"] for r in rs)
     scored = sum(r["decisions"]["incidents_scored"] for r in rs)
     acc_n = [x for x in rows if x["status"] != "unmatched"]
     expected = {"incident": "INCIDENT", "watch": "DIGEST", "suppress": "IGNORE"}
     return {
-        "INCIDENT/day": sum(1 for x in rows if x["routes"]["baseline_v1"] == "INCIDENT") / days,
-        "DIGEST/day": sum(1 for x in rows if x["routes"]["baseline_v1"] == "DIGEST") / days,
-        "IGNORE/day": sum(1 for x in rows if x["routes"]["baseline_v1"] == "IGNORE") / days,
+        "INCIDENT/day": sum(1 for x in rows if x["routes"][BASE] == "INCIDENT") / days,
+        "DIGEST/day": sum(1 for x in rows if x["routes"][BASE] == "DIGEST") / days,
+        "IGNORE/day": sum(1 for x in rows if x["routes"][BASE] == "IGNORE") / days,
         "recall": routed / scored if scored else None,
-        "accuracy": sum(x["routes"]["baseline_v1"] == expected[x["status"]] for x in acc_n) / len(acc_n) if acc_n else None,
+        "accuracy": sum(x["routes"][BASE] == expected[x["status"]] for x in acc_n) / len(acc_n) if acc_n else None,
         "unmatched→INCIDENT/day": per_day("unmatched", "INCIDENT"), "suppress→INCIDENT/day": per_day("suppress", "INCIDENT"),
         "watch→INCIDENT/day": per_day("watch", "INCIDENT"),
     }
@@ -129,7 +131,7 @@ def report(results: list[dict]) -> str:
              "**Jev evaluation: blocked — no live access** (OQ-1). The client is the deterministic fake; its routes are",
              "pipeline diagnostics, not a model evaluation. Candidate-level routes, not pages (grouping is Stage 6).", "",
              f"Seeds {sorted({r['seed'] for r in results})}; scale {results[0]['scale']}; randomized calendar; decisions at first look (ADR-039 D-0).", "",
-             "## No-Jev baseline (`baseline_v1`, not tuned)", "",
+             f"## No-Jev baseline (`{BASE}`; tuned on seeds 1–10 only)", "",
              "| seeds | realism | INCIDENT / day | DIGEST / day | IGNORE / day | incident recall at INCIDENT | route accuracy (matched) | unmatched → INCIDENT / day | suppress → INCIDENT / day | watch → INCIDENT / day |",
              "|---|---|---|---|---|---|---|---|---|---|"]
     for name, seeds in (("tuning 1–10", TUNING), ("**validation 11–20**", VALIDATION)):
@@ -145,7 +147,7 @@ def report(results: list[dict]) -> str:
         if r["seed"] in VALIDATION and r["realism"] == "v1":
             for x in r["decisions"]["rows"]:
                 if x["status"] == "incident":
-                    kinds.setdefault(x["scenario_kind"], Counter())[x["routes"]["baseline_v1"]] += 1
+                    kinds.setdefault(x["scenario_kind"], Counter())[x["routes"][BASE]] += 1
     for k, c in sorted(kinds.items()):
         lines.append(f"| {k} | {sum(c.values())} | {c['INCIDENT']} | {c['DIGEST']} | {c['IGNORE']} |")
     lines += ["", "## Stage 4 at first look (the real input of Mode A)", "",
