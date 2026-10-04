@@ -45,30 +45,32 @@ def world(ch, tmp_path_factory):
 
 def test_one_decision_per_decidable_candidate(world):
     ids = [c.anomaly_id for c in mode_a.decidable(world["cands"])]
-    assert ids and [r.candidate_id for r, _, _ in world["results"]] == ids
-    assert len({r.decision_id for r, _, _ in world["results"]}) == len(ids)
+    assert ids and [d.record.candidate_id for d in world["results"]] == ids
+    assert len({d.record.decision_id for d in world["results"]}) == len(ids)
 
 
 def test_decisions_use_first_look_inputs_only(world):
-    for r, v, b in world["results"]:
+    for d in world["results"]:
+        r, v, b = d.record, d.candidate, d.bundle
         assert v.window_end == v.detected_at == r.as_of and v.recovered_at is None
         if b is not None:
             assert b["candidate"]["window"] == [v.window_start, v.detected_at]
 
 
 def test_states_are_bounded_and_failures_are_digest(world):
-    sizes = [len(r.state_json.encode()) for r, _, _ in world["results"]]
+    recs = [d.record for d in world["results"]]
+    sizes = [len(r.state_json.encode()) for r in recs]
     assert max(sizes) <= MAX_STATE_BYTES
-    for r, _, _ in world["results"]:
+    for r in recs:
         assert r.route in ("IGNORE", "DIGEST", "INCIDENT")
         if not r.verified:
             assert r.route == "DIGEST" and r.verifier_reasons
-    routes = Counter(r.route for r, _, _ in world["results"])
+    routes = Counter(r.route for r in recs)
     assert routes["DIGEST"] > 0  # the fake injects failures
 
 
 def test_baseline_runs_on_the_same_states(world):
-    for r, _, _ in world["results"]:
+    for r in (d.record for d in world["results"]):
         if r.state_json != "{}":
             s = json.loads(r.state_json)
             state = JevState(**{k: tuple(v) if isinstance(v, list) else v for k, v in s.items()})
@@ -76,7 +78,7 @@ def test_baseline_runs_on_the_same_states(world):
 
 
 def test_every_decision_is_audited(world):
-    recs = [r for r, _, _ in world["results"]]
+    recs = [d.record for d in world["results"]]
     assert audit.append(world["ch"].client, DB, world["run"], recs) == len(recs)
     n = int(world["ch"].client.command(f"SELECT count() FROM {DB}.jev_decisions WHERE run_id = '{world['run']}'"))
     assert n == len(recs)
