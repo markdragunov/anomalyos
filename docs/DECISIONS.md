@@ -20,6 +20,8 @@ open): the pipeline runs on a fake client and replay; Jev itself is not evaluate
 - **D-1 `JevState` v1:** 18 closed-enum fields with versioned bucket edges, no dimension values, numbers,
   timestamps, ids or ground truth; hard budget 2,048 bytes of canonical JSON, rejected (never truncated) above it;
   evidence provenance in a code-owned side map that Jev never sees.
+- **D-1 clarification (owner OK after Phase 1):** rises of rates (duplicates, fraud, cancellations, late data) use
+  the rise scale `slight … extreme`, like counts; drops use `none … collapse`.
 - **D-2** explicit `DecisionContext`; canonical JSON; `state_hash = sha256(schema_version + "\n" + json)`.
 - **D-3 Question set v1 (resolves OQ-5):** `is_incident` (noul), `severity` (choice low…critical), `category`
   (choice, cause vocabulary v1, audit only), `needs_human` (noul; watch records as a stated weak proxy target).
