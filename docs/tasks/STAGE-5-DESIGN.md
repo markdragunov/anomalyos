@@ -1,7 +1,7 @@
 # Stage 5 — design note (Gate 0)
 
-Status: **proposed**, awaiting owner approval. No product code exists yet. Decisions marked **D-n** become ADRs after
-approval. Jev access: **none** (owner, 2026-10-03) — everything below works on the fake client and replay; OQ-1 stays
+Status: **accepted** (owner OK on recommendations 1–6, 2026-10-03; ADR-039). Decisions marked **D-n** are recorded
+in ADR-039. Jev access: **none** (owner, 2026-10-03) — everything below works on the fake client and replay; OQ-1 stays
 open and every provider-specific item is marked *pending access*.
 
 ## D-0. When Mode A decides (new finding — decide first)

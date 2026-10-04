@@ -6,6 +6,46 @@ Format: short ID, status, context, decision, consequences.
 
 ---
 
+## ADR-039 — Stage 5 design: first-look decisions, JevState v1, question set v1, policy v1 · *accepted* (2026-10-03, owner OK on Gate 0)
+
+**Context.** Stage 5 turns promoted Stage 3 candidates with their Stage 4 analysis into `IGNORE` / `DIGEST` /
+`INCIDENT` (brief `docs/tasks/STAGE-5.md`, design `docs/tasks/STAGE-5-DESIGN.md`). No Jev access exists yet (OQ-1
+open): the pipeline runs on a fake client and replay; Jev itself is not evaluated until access exists.
+
+**Decision** (design D-0 … D-12, owner's answers 1–6).
+- **D-0 First look.** Mode A decides at `as_of = detected_at`. Stage 3 candidates gain two additive fields,
+  `score_at_detection` and `methods_at_detection` (what and when Stage 3 detects is unchanged); Stage 4 runs on the
+  as-of window `[window_start, detected_at)`; linked candidates are those detected by `as_of`. Episode-level fields
+  (`score`, `window_end`, `method`, recovery, `parent_id`) never enter a decision. Observed recovery is not a v1 field.
+- **D-1 `JevState` v1:** 18 closed-enum fields with versioned bucket edges, no dimension values, numbers,
+  timestamps, ids or ground truth; hard budget 2,048 bytes of canonical JSON, rejected (never truncated) above it;
+  evidence provenance in a code-owned side map that Jev never sees.
+- **D-2** explicit `DecisionContext`; canonical JSON; `state_hash = sha256(schema_version + "\n" + json)`.
+- **D-3 Question set v1 (resolves OQ-5):** `is_incident` (noul), `severity` (choice low…critical), `category`
+  (choice, cause vocabulary v1, audit only), `needs_human` (noul; watch records as a stated weak proxy target).
+  `recovery_likelihood`, per-cause plausibility and novelty deferred. Answer-removal ablations offline;
+  request-removal ablations need live access.
+- **D-4/D-5** `JevClient` port with fake, replay and HTTP implementations; the HTTP transport is the only module that
+  may do network I/O and returns `not_configured` until the provider's wire format is known; no retry; replay
+  artifacts are gitignored files keyed by request hash; a replay miss is an error, never a silent fake. The fake
+  answers deterministically from the request hash and injects malformed / failing responses; it is not a model.
+- **D-6** pure verifier with structured reason codes; nothing repaired or inferred.
+- **D-7 `policy_v1`:** the 9-row decision table of the design (failure → `DIGEST`; safety: a strong signal with
+  medium or large impact is never `IGNORE`d; healthy composition per Stage 4 cannot reach `INCIDENT` without
+  P(severity ≥ high) ≥ 0.5; `category` never gates). `baseline_v1` (no Jev) is a benchmark control only.
+  Thresholds fixed now, tuned only at Gate 1 on DEV seeds 1–10.
+- **D-8** runtime audit in a ClickHouse append-only table `jev_decisions` (one row per decision, re-decisions are new
+  rows; DDL in `anomalyos.policy.audit`), replay artifacts as files, evaluation joins only in `evaluation/`.
+- **D-9** evaluation protocol of the design; status precedence incident > watch > suppress > unmatched; tuning seeds
+  1–10, validation seeds 11–20 (validation clean only for Stage 5 thresholds).
+- **D-10** budget guard before any client call; **D-11** calendar context `not_provided`; **D-12** Mode A only.
+
+**Consequences.** Packages `jev` and `policy` are created and leave the stage guard. INV-004 holds for the decision
+contract (ADR-024): network I/O only in `jev/transport.py`, tested. INV-015 holds: `jev` and `policy` never import the
+simulator or evaluation. No new dependency.
+
+---
+
 ## ADR-038 — Stage 4 Gate 1: locus rules, new cohorts, sweep report-only · *accepted* (2026-10-03, owner OK on recommendations 1–8)
 
 **Context.** The first DEV evaluation (20 seeds × realism v1/v2, rules of ADR-037) localized only 22 % / 21 % of
@@ -618,5 +658,5 @@ vendor's model.
   cohort decomposition; likely all three as separate dimensions. Stage 1 emits
   `customer_country` and `issuer_country` as separate columns (single merchant, so no
   merchant country yet); scenario cohorts use `customer_country`.
-- **OQ-5 — Question-set design.** The initial Jev question set and bucket edges; to be
+- **OQ-5 — Question-set design.** Closed by ADR-039 (question set v1, JevState v1 buckets). Was: the initial Jev question set and bucket edges; to be
   designed against scenarios 1, 10, 11 and 13 first (clear incident, slow drift, noise, recovery).
