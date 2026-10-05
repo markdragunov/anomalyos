@@ -1,4 +1,4 @@
-# AnomalyOS
+# PulseOS
 
 AI-native Billing & Payments Incident system — Research prototype.
 
