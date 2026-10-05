@@ -10,16 +10,16 @@ from datetime import datetime, timezone
 
 import pytest
 
-from anomalyos.detection import detect
-from anomalyos.events import store
-from anomalyos.jev.client import BudgetedClient, JevBudget
-from anomalyos.jev.fake import FakeJevClient
-from anomalyos.jev.state import MAX_STATE_BYTES
-from anomalyos.policy import audit, baseline, mode_a
-from anomalyos.jev.state import JevState
-from anomalyos.simulation import clickhouse_load as chl
-from anomalyos.simulation.runner import generate
-from anomalyos.simulation.world import WorldConfig
+from pulseos.detection import detect
+from pulseos.events import store
+from pulseos.jev.client import BudgetedClient, JevBudget
+from pulseos.jev.fake import FakeJevClient
+from pulseos.jev.state import MAX_STATE_BYTES
+from pulseos.policy import audit, baseline, mode_a
+from pulseos.jev.state import JevState
+from pulseos.simulation import clickhouse_load as chl
+from pulseos.simulation.runner import generate
+from pulseos.simulation.world import WorldConfig
 
 DB = "anomalyos_mode_a_test"
 WORLD = WorldConfig(seed=42, scale=0.3)

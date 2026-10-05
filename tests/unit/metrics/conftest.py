@@ -9,9 +9,9 @@ from typing import Any, Mapping
 
 import pytest
 
-from anomalyos.events import store
-from anomalyos.events.normalize import NORM_COLUMN_NAMES, MERCHANT_ID
-from anomalyos.metrics.compute import ClickHouseRunner
+from pulseos.events import store
+from pulseos.events.normalize import NORM_COLUMN_NAMES, MERCHANT_ID
+from pulseos.metrics.compute import ClickHouseRunner
 from tests.unit.simulation.conftest import full_run  # noqa: F401  (seeded session fixture reused from Stage 1)
 
 DB = "anomalyos_metrics_test"
@@ -51,8 +51,8 @@ class Env:
 
 @pytest.fixture(scope="module")
 def ch(tmp_path_factory):
-    if os.environ.get("ANOMALYOS_RUN_INTEGRATION") == "1":
-        from anomalyos.simulation.clickhouse_load import connect, target_from_settings
+    if os.environ.get("PULSEOS_RUN_INTEGRATION") == "1":
+        from pulseos.simulation.clickhouse_load import connect, target_from_settings
 
         client = connect(target_from_settings())
         client.command(f"DROP DATABASE IF EXISTS {DB}")

@@ -56,7 +56,7 @@ A design note covering:
 
 ## Phase 1 — Implementation
 
-`src/anomalyos/cohorts/` (remove `cohorts` from the stage guard in the same change): configuration, pooled cohort
+`src/pulseos/cohorts/` (remove `cohorts` from the stage guard in the same change): configuration, pooled cohort
 queries, decomposition, ranking with FDR, controls, impact, `EvidenceBundle`; optional sweep if approved.
 Unit tests on hand-built cohort tables (decomposition sums exactly, Simpson's paradox, small support, FDR on null
 cohorts, bundle bound, determinism, stable ids), an end-to-end test on a simulated world, ground-truth isolation

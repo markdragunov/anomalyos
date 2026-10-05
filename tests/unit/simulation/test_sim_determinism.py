@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import hashlib
 
-from anomalyos.simulation.ids import derive_seed, stable_id
-from anomalyos.simulation.runner import generate, run_id_for
-from anomalyos.simulation.scenarios import build_catalog
-from anomalyos.simulation.world import DAY, HOUR, WorldConfig
+from pulseos.simulation.ids import derive_seed, stable_id
+from pulseos.simulation.runner import generate, run_id_for
+from pulseos.simulation.scenarios import build_catalog
+from pulseos.simulation.world import DAY, HOUR, WorldConfig
 
 TINY = dict(scale=0.02)
 

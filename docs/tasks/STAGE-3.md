@@ -50,15 +50,15 @@ Send a design note covering:
 
 ## Phase 1 — Detection layer
 
-`src/anomalyos/detection/` (remove `detection` and `detector.py` from the stage guard in the same change):
+`src/pulseos/detection/` (remove `detection` and `detector.py` from the stage guard in the same change):
 baseline, detectors, prefilter, candidate model, replay driver. Pure functions over metric series where
-possible; ClickHouse access only through `anomalyos.metrics.compute` (INV-003). Unit tests on hand-built
+possible; ClickHouse access only through `pulseos.metrics.compute` (INV-003). Unit tests on hand-built
 series for every detector: step, ramp, recovery, seasonality, small sample, zero denominator, late data,
 determinism. Ground-truth isolation test extended to `detection`.
 
 ## Phase 2 — Evaluation on DEV seeds ⛔ Gate 1
 
-`src/anomalyos/evaluation/detection.py` (the only new code allowed to read ground truth) and a script that
+`src/pulseos/evaluation/detection.py` (the only new code allowed to read ground truth) and a script that
 runs the replay on DEV seeds and writes a report (not committed: `reports/` is generated output).
 Report per scenario kind and overall, v1 vs v2: recall (oracle-detectable only), latency (median, p90),
 false positives per day, suppress-record hits, misses with a reason, and the parameter values used.

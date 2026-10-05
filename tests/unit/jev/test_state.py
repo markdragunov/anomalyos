@@ -6,8 +6,8 @@ import json
 
 import pytest
 
-from anomalyos.jev import buckets
-from anomalyos.jev.state import (MAX_STATE_BYTES, STATE_FIELDS, StateError, build_state, canonical_json, state_dict,
+from pulseos.jev import buckets
+from pulseos.jev.state import (MAX_STATE_BYTES, STATE_FIELDS, StateError, build_state, canonical_json, state_dict,
                                  state_hash)
 from tests.unit.jev.fixtures import bundle, candidate
 

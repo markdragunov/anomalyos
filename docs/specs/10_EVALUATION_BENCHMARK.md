@@ -16,7 +16,7 @@ A. static threshold
 B. statistical anomaly detector
 C. statistical + cohort intelligence
 D. statistical + cohort + Jev triage
-E. full Mode A AnomalyOS
+E. full Mode A PulseOS
 F. Mode B hierarchical Jev + LLM explanation
 G. full investigation agent
 

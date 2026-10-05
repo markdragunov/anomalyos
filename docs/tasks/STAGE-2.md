@@ -1,6 +1,6 @@
 # Task for Cursor — publish Stage 1, then build Stage 2 (normalized events + metrics)
 
-Owner: Mark Dragunov · Prepared: 2026-09-28 · Repo: https://github.com/markdragunov/anomalyos
+Owner: Mark Dragunov · Prepared: 2026-09-28 · Repo: https://github.com/markdragunov/pulseos
 
 Read first, in this order: `AGENTS.md` → `docs/ARCHITECTURE.md` (layers 1–3, 11) →
 `docs/DATA_MODEL.md` → `docs/DECISIONS.md` (ADR-013, 017, 020, 021, **022**, OQ-2, OQ-4) →
@@ -12,11 +12,11 @@ Work in phases. **Stop and report at every ⛔ gate**; do not continue past a ga
 
 ## Phase 0 — Publish Stage 1 to GitHub · SUPERSEDED
 
-Superseded by ADR-023 (single repository). Stage 0–1 now live in `github.com/markdragunov/anomalyos` on the
+Superseded by ADR-023 (single repository). Stage 0–1 now live in `github.com/markdragunov/pulseos` on the
 `consolidate-repo` branch and arrive in `main` through one PR that Mark merges. What remains of this phase:
 
 - ⛔ **Gate 0:** CI must be green on that PR, including the live ClickHouse job (`ci.yml`, ClickHouse 25.8,
-  `ANOMALYOS_RUN_INTEGRATION=1`). `tests/integration/test_sim_clickhouse_live.py` has never run against a real
+  `PULSEOS_RUN_INTEGRATION=1`). `tests/integration/test_sim_clickhouse_live.py` has never run against a real
   server (only on embedded ClickHouse); if it fails, fix it minimally and explain the root cause in the PR.
 - Expected skip in CI: `test_load_and_sql_checks_on_embedded_clickhouse` (chdb is not installed, ADR-020).
 
@@ -46,7 +46,7 @@ logical contract, not on a vendor-shaped source.
 **Input.** A Stage 1 run directory (`events.jsonl.gz`, stream order) or the raw rows already in
 `<db>.events`. **Output.** `<db>.events_norm` (MergeTree, `PARTITION BY run_id`).
 
-Module: `src/anomalyos/events/normalize.py` (new package — the layer now has code).
+Module: `src/pulseos/events/normalize.py` (new package — the layer now has code).
 A pure function over the ordered raw stream (it may keep per-PaymentIntent state, e.g. to
 number attempts); no I/O, no clock, no randomness.
 
@@ -87,7 +87,7 @@ Starting mapping (adjust only with a written reason in the ADR):
 
 `chargeback.opened` is in the vocabulary but not generated yet — note it, don't fake it.
 
-Loader: extend `anomalyos-sim load` (or add `anomalyos normalize`) to write `events_norm`
+Loader: extend `pulseos-sim load` (or add `pulseos normalize`) to write `events_norm`
 idempotently per `run_id`, with SQL checks: every normalized row has a `raw_event_id` that exists
 in `events`; every mapped raw type produced ≥ 1 normalized row; no empty-string dimensions.
 
@@ -99,7 +99,7 @@ explicit `unknown`; no `_truth`/scenario identifiers in output.
 
 ## Phase 3 — Metrics layer (Architecture layer 3)
 
-Module: `src/anomalyos/metrics/`. **Aggregation runs in ClickHouse** (AGENTS.md rule 1);
+Module: `src/pulseos/metrics/`. **Aggregation runs in ClickHouse** (AGENTS.md rule 1);
 Python builds parameterized SQL and returns compact series. Never pull raw rows into Python.
 
 Contract: `compute(metric, version, start, end, grain, filters, group_by) →
@@ -143,8 +143,8 @@ Tests (`tests/unit/metrics/` + one integration test):
   clearly below psp_alpha/psp_gamma; android 5.14.0 shows lower `checkout_conversion_rate` but
   not lower `authorization_rate`. These tests may read the scenario *window* from
   `docs/SIMULATION.md`/catalog constants, **never** from `<db>_truth` — metrics code must not
-  import or query ground truth (add a test that greps `src/anomalyos/metrics` and
-  `src/anomalyos/events` for `_truth` / `ground_truth`).
+  import or query ground truth (add a test that greps `src/pulseos/metrics` and
+  `src/pulseos/events` for `_truth` / `ground_truth`).
 
 ---
 

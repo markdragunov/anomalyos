@@ -1,8 +1,8 @@
-# AnomalyOS
+# PulseOS
 
 AI-native Billing & Payments Incident system — Research prototype.
 
-AnomalyOS detects meaningful anomalies in billing and payment systems, decides whether an
+PulseOS detects meaningful anomalies in billing and payment systems, decides whether an
 anomaly is a real business incident, isolates the affected cohorts and likely causes,
 estimates impact, and supports an evidence-backed investigation that a human closes.
 
@@ -37,20 +37,20 @@ docker compose up -d clickhouse      # waits on /ping healthcheck
 python3 -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
 set -a; source .env; set +a          # export config to the Python process
-anomalyos doctor                     # -> clickhouse: OK
+pulseos doctor                     # -> clickhouse: OK
 pytest                               # unit tests (integration auto-skipped)
-ANOMALYOS_RUN_INTEGRATION=1 pytest   # + live ClickHouse tests
+PULSEOS_RUN_INTEGRATION=1 pytest   # + live ClickHouse tests
 ```
 
 Generate and load a synthetic world:
 
 ```bash
-anomalyos-sim generate --seed 42 --out data/run_42 --validate   # ~1.37M events, ~1.5 min
-anomalyos-sim load --in data/run_42 --replace                   # needs .env exported
-anomalyos normalize --in data/run_42 --replace                  # builds events_norm (metrics read only this)
+pulseos-sim generate --seed 42 --out data/run_42 --validate   # ~1.37M events, ~1.5 min
+pulseos-sim load --in data/run_42 --replace                   # needs .env exported
+pulseos normalize --in data/run_42 --replace                  # builds events_norm (metrics read only this)
 ```
 
-`anomalyos doctor` exit codes: `0` healthy, `1` ClickHouse unreachable/unauthorized, `2` invalid config.
+`pulseos doctor` exit codes: `0` healthy, `1` ClickHouse unreachable/unauthorized, `2` invalid config.
 Stop / reset: `docker compose down` (keeps data), `docker compose down -v` (wipes the volume).
 
 ## Layout
@@ -58,7 +58,7 @@ Stop / reset: `docker compose down` (keeps data), `docker compose down -v` (wipe
 | Path | Role |
 | --- | --- |
 | `AGENTS.md` | The contract for coding agents (`CLAUDE.md` points to it) |
-| `src/anomalyos/` | Runtime: `config`, `clickhouse` (health), `simulation/` (world, scenarios, ground truth, loader) |
+| `src/pulseos/` | Runtime: `config`, `clickhouse` (health), `simulation/` (world, scenarios, ground truth, loader) |
 | `tests/architecture/` | Harness constraints (stdlib unittest) |
 | `tests/unit/`, `tests/integration/` | Product tests (pytest; integration is opt-in, needs ClickHouse) |
 | `evals/`, `scripts/` | Scenario/baseline/benchmark structure, architecture check, eval smoke |

@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from dataclasses import replace
 
-from anomalyos.jev.assessment import Assessment
-from anomalyos.jev.questions import CAUSES_V1
-from anomalyos.jev.state import build_state
-from anomalyos.policy import baseline, rules
+from pulseos.jev.assessment import Assessment
+from pulseos.jev.questions import CAUSES_V1
+from pulseos.jev.state import build_state
+from pulseos.policy import baseline, rules
 from tests.unit.jev.fixtures import bundle, candidate
 
 STATE, _ = build_state(candidate(), bundle())  # strong, rate_change, sub_cohort, impact large

@@ -33,7 +33,7 @@ FORBIDDEN_FILENAMES = {
     "clickhouse_client.py",
 }
 
-# Packages under src/anomalyos that belong to later stages (`events`, `metrics`: Stage 2; `detection`: Stage 3; `cohorts`: Stage 4;
+# Packages under src/pulseos that belong to later stages (`events`, `metrics`: Stage 2; `detection`: Stage 3; `cohorts`: Stage 4;
 # `jev`, `policy`: Stage 5).
 FORBIDDEN_PACKAGES = {
     "incident",
@@ -78,7 +78,7 @@ class TestNoProductImplementation(unittest.TestCase):
         self.assertEqual(present, [], f"product directories present too early: {present}")
 
     def test_no_later_stage_packages(self) -> None:
-        base = ROOT / "src" / "anomalyos"
+        base = ROOT / "src" / "pulseos"
         present = sorted(name for name in FORBIDDEN_PACKAGES if (base / name).exists())
         self.assertEqual(present, [], f"packages for later stages present too early: {present}")
 

@@ -133,7 +133,7 @@ Never claim:
 - Jev is always calibrated
 - Jev is always better than an LLM
 
-The benchmark must test these claims on AnomalyOS data.
+The benchmark must test these claims on PulseOS data.
 
 ## Failure behavior
 

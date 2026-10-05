@@ -1,10 +1,10 @@
 ---
 paths:
-  - "src/anomalyos/jev/**/*.py"
-  - "src/anomalyos/policy/**/*.py"
-  - "src/anomalyos/incidents/**/*.py"
-  - "src/anomalyos/incident/**/*.py"
-  - "src/anomalyos/investigation/**/*.py"
+  - "src/pulseos/jev/**/*.py"
+  - "src/pulseos/policy/**/*.py"
+  - "src/pulseos/incidents/**/*.py"
+  - "src/pulseos/incident/**/*.py"
+  - "src/pulseos/investigation/**/*.py"
   - "docs/specs/06_JEV_INTELLIGENCE.md"
   - "docs/specs/07_INCIDENT_ENGINE.md"
   - "docs/specs/08_INVESTIGATION_AGENT.md"

@@ -154,7 +154,7 @@ IDs are stable. Do not renumber.
 
 **How it could be violated.** A metric query joining `<db>_truth`; a Jev state containing `scenario_id`; a detector importing `ground_truth`; a prompt including the expected cause.
 
-**How it could be tested.** `tests/architecture/test_ground_truth_isolation.py` fails if any module under `src/anomalyos` outside the allowlist (`simulation`, `evaluation`) mentions `_truth` or `ground_truth`. Stage 2 adds a runtime check that no metrics query references the truth database.
+**How it could be tested.** `tests/architecture/test_ground_truth_isolation.py` fails if any module under `src/pulseos` outside the allowlist (`simulation`, `evaluation`) mentions `_truth` or `ground_truth`. Stage 2 adds a runtime check that no metrics query references the truth database.
 
 ## INV-016 — Seeded and Reproducible
 
@@ -164,7 +164,7 @@ IDs are stable. Do not renumber.
 
 **How it could be violated.** `datetime.now()` in a generator; `random.random()` on the global generator; `hash(str)` (salted per process); `uuid4()`; a module-level counter for IDs.
 
-**How it could be tested.** Determinism tests in `tests/unit/simulation/test_sim_determinism.py` (digest equality) and `tests/architecture/test_reproducibility_static.py`, which parses `src/anomalyos/simulation` and fails on calls to `hash`, wall-clock functions, global `random` functions or `uuid4`.
+**How it could be tested.** Determinism tests in `tests/unit/simulation/test_sim_determinism.py` (digest equality) and `tests/architecture/test_reproducibility_static.py`, which parses `src/pulseos/simulation` and fails on calls to `hash`, wall-clock functions, global `random` functions or `uuid4`.
 
 ## Operating rules that are not numbered invariants
 

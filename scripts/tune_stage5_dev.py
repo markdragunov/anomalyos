@@ -29,15 +29,15 @@ sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from eval_detection_dev import _Chdb  # noqa: E402
-from anomalyos.detection import detect  # noqa: E402
-from anomalyos.evaluation.decisions import status  # noqa: E402
-from anomalyos.events import store  # noqa: E402
-from anomalyos.jev.client import BudgetedClient, JevBudget  # noqa: E402
-from anomalyos.jev.fake import FakeJevClient  # noqa: E402
-from anomalyos.policy import mode_a  # noqa: E402
-from anomalyos.simulation import clickhouse_load as chl  # noqa: E402
-from anomalyos.simulation.runner import generate  # noqa: E402
-from anomalyos.simulation.world import WorldConfig  # noqa: E402
+from pulseos.detection import detect  # noqa: E402
+from pulseos.evaluation.decisions import status  # noqa: E402
+from pulseos.events import store  # noqa: E402
+from pulseos.jev.client import BudgetedClient, JevBudget  # noqa: E402
+from pulseos.jev.fake import FakeJevClient  # noqa: E402
+from pulseos.policy import mode_a  # noqa: E402
+from pulseos.simulation import clickhouse_load as chl  # noqa: E402
+from pulseos.simulation.runner import generate  # noqa: E402
+from pulseos.simulation.world import WorldConfig  # noqa: E402
 
 TUNING = tuple(range(1, 11))
 NON_INCIDENT_BUDGET = 0.10

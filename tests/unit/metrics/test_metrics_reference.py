@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from anomalyos.metrics import compute, get_metric, list_metrics
+from pulseos.metrics import compute, get_metric, list_metrics
 from tests.unit.metrics.conftest import DB, RUN, T0, load_rows, norm_row
 
 HOUR = 3600
@@ -321,6 +321,6 @@ def test_first_look_conversion_does_not_see_an_authorization_delivered_late(ch, 
 
 
 def test_unknown_visibility_is_rejected(ch):
-    from anomalyos.metrics import MetricError
+    from pulseos.metrics import MetricError
     with pytest.raises(MetricError, match="visibility"):
         compute(ch.runner, ch.db, RUN, "authorization_rate", 1, START, END, "1h", visibility="later")

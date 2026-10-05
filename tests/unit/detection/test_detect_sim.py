@@ -7,11 +7,11 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from anomalyos.detection import detect
-from anomalyos.events import store
-from anomalyos.simulation import clickhouse_load as chl
-from anomalyos.simulation.runner import generate
-from anomalyos.simulation.world import WorldConfig
+from pulseos.detection import detect
+from pulseos.events import store
+from pulseos.simulation import clickhouse_load as chl
+from pulseos.simulation.runner import generate
+from pulseos.simulation.world import WorldConfig
 
 DB = "anomalyos_detect_test"
 START = datetime(2026, 8, 3, tzinfo=timezone.utc)

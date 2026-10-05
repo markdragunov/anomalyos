@@ -2,7 +2,7 @@
 
 Turns every promoted Stage 3 candidate, with its Stage 4 analysis, into exactly one route — **`IGNORE` / `DIGEST` /
 `INCIDENT`** — and one audit record. **Jev decides. Code verifies and routes.** No generated text, no tools, no
-grouping or lifecycle (Stage 6). Code: `src/anomalyos/jev/`, `src/anomalyos/policy/`. Decisions: ADR-039 (design,
+grouping or lifecycle (Stage 6). Code: `src/pulseos/jev/`, `src/pulseos/policy/`. Decisions: ADR-039 (design,
 Gate 0), ADR-040 (Gate 1). Brief and design: `docs/tasks/STAGE-5.md`, `docs/tasks/STAGE-5-DESIGN.md`.
 
 > **Jev evaluation: blocked — no live access** (OQ-1). Everything below runs on a deterministic fake client and on

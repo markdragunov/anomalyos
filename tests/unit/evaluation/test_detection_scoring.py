@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from anomalyos.evaluation.detection import score
+from pulseos.evaluation.detection import score
 
 W0, W1 = 0, 28 * 86_400
 H = 3600

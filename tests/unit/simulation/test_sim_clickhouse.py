@@ -6,7 +6,7 @@ import json
 
 import pytest
 
-from anomalyos.simulation import clickhouse_load as chl
+from pulseos.simulation import clickhouse_load as chl
 
 
 def test_flatten_is_pure_and_typed(full_run):

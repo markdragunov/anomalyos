@@ -6,8 +6,8 @@ import json
 
 import pytest
 
-from anomalyos.simulation.runner import generate
-from anomalyos.simulation.world import WorldConfig
+from pulseos.simulation.runner import generate
+from pulseos.simulation.world import WorldConfig
 
 SMALL = dict(seed=1234, scale=0.08)
 
