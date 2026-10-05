@@ -56,9 +56,10 @@ and no silent split:** both are human commands. Every link row stores why (time 
 Jev never creates a relationship.
 
 **Campaign + outage negative case:** the campaign's candidates are `attempt_volume` up with a country locus; the
-outage's are `authorization_rate` down with a payment-method locus — groups differ (payments vs fraud for volume up)
-and loci are not nested, so they do not merge; a global approval candidate overlapping both is ambiguous by rule 2 and
-stays separate. A unit test pins this for both variants (iDEAL and SEPA).
+outage's are `authorization_rate` down with a payment-method locus. Their metric groups **do** share one (fraud
+contains both `attempt_volume` up and `authorization_rate`), so rule 3 alone would not separate them; **rule 2 does** —
+a country locus and a payment-method locus are not nested. A global approval candidate overlapping both is ambiguous
+by rule 2 and stays separate. A unit test pins this for both variants (iDEAL and SEPA).
 
 ## D-3. Incident object
 
