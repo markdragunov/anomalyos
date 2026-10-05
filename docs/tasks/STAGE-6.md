@@ -1,7 +1,7 @@
 # Task: Stage 6 — Incident engine: correlation, lifecycle, re-evaluation (spec 07)
 
 Prepared: 2026-10-04  
-Status: **Draft for owner review**  
+Status: **Approved** by the owner (2026-10-05). Stage 6 decisions use ADR-041 … ADR-045 (reserved by ADR-046)  
 Branch: `stage-6-incidents` (from `main` after PR #10)
 
 ## Read first
