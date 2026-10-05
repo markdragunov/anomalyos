@@ -6,17 +6,17 @@ import os
 
 import pytest
 
-from anomalyos.simulation.runner import generate
-from anomalyos.simulation.world import WorldConfig
+from pulseos.simulation.runner import generate
+from pulseos.simulation.world import WorldConfig
 
 pytestmark = [
     pytest.mark.integration,
-    pytest.mark.skipif(os.environ.get("ANOMALYOS_RUN_INTEGRATION") != "1", reason="set ANOMALYOS_RUN_INTEGRATION=1"),
+    pytest.mark.skipif(os.environ.get("PULSEOS_RUN_INTEGRATION") != "1", reason="set PULSEOS_RUN_INTEGRATION=1"),
 ]
 
 
 def test_generate_load_and_check(tmp_path):
-    from anomalyos.simulation.clickhouse_load import connect, load_run, target_from_settings
+    from pulseos.simulation.clickhouse_load import connect, load_run, target_from_settings
 
     res = generate(WorldConfig(seed=2026, scale=0.02), "full", tmp_path / "run")
     t = target_from_settings()

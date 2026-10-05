@@ -1,13 +1,13 @@
 > **Status:** build specs, aligned with the accepted ADRs (019, 022, 024, 026, 027) in Phase 3 of the consolidation closeout. Where a spec still conflicts with `docs/DECISIONS.md`, the ADRs win. Stage/branch/status table: [`STATUS.md`](STATUS.md).
 
-# AnomalyOS v2 — Claude Opus 5.5 Build Specs
+# PulseOS v2 — Claude Opus 5.5 Build Specs
 
-These 13 Markdown files are the revised build specification for AnomalyOS.
+These 13 Markdown files are the revised build specification for PulseOS.
 
 They incorporate the architectural lessons from:
 - Muhamad Talebi's JevOps article
 - the `Mu99Ti/Jevops` repository
-- the existing AnomalyOS Stripe-shaped billing design
+- the existing PulseOS Stripe-shaped billing design
 
 Core principle:
 
@@ -100,7 +100,7 @@ This is Stripe-inspired, not an official Stripe API implementation.
 
 ## Final product framing
 
-> **AnomalyOS is an AI Incident Intelligence system for Billing & Payments that separates high-volume typed decision-making from slower investigation and explanation.**
+> **PulseOS is an AI Incident Intelligence system for Billing & Payments that separates high-volume typed decision-making from slower investigation and explanation.**
 
 The strongest demo should make the architecture visible:
 

@@ -1,6 +1,6 @@
 # Product
 
-AnomalyOS is **AI Incident Intelligence for Billing & Payments**.
+PulseOS is **AI Incident Intelligence for Billing & Payments**.
 
 This file is product intent for coding agents. Implementation proceeds one stage at a time (`docs/ARCHITECTURE.md` → *Stage status*); a stage starts only when its task brief in `docs/tasks/` is requested.
 
@@ -67,7 +67,7 @@ from zero: *what changed, where, since when, how much, why?*
 Generic observability tools answer "is the service up?". They do not answer "is revenue
 leaking, for whom, and why?".
 
-### What AnomalyOS is
+### What PulseOS is
 
 An incident-intelligence system for billing and payments. It:
 

@@ -12,9 +12,9 @@ import json
 
 import pytest
 
-from anomalyos.simulation.engine import Simulation
-from anomalyos.simulation.scenarios import FACTORIES
-from anomalyos.simulation.world import WorldConfig
+from pulseos.simulation.engine import Simulation
+from pulseos.simulation.scenarios import FACTORIES
+from pulseos.simulation.world import WorldConfig
 
 WORLD = WorldConfig(seed=42, scale=0.1)
 

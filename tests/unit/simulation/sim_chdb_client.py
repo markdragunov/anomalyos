@@ -9,8 +9,8 @@ from __future__ import annotations
 import os
 import tempfile
 
-from anomalyos.events import normalize as nz
-from anomalyos.simulation import clickhouse_load as chl
+from pulseos.events import normalize as nz
+from pulseos.simulation import clickhouse_load as chl
 
 _TYPES = {}
 for cols in (chl.EVENT_COLUMNS, chl.TRUTH_COLUMNS, chl.RUN_COLUMNS, nz.NORM_COLUMNS):
@@ -19,7 +19,7 @@ for cols in (chl.EVENT_COLUMNS, chl.TRUTH_COLUMNS, chl.RUN_COLUMNS, nz.NORM_COLU
 
 
 def _audit_columns():
-    from anomalyos.policy.audit import COLUMNS
+    from pulseos.policy.audit import COLUMNS
     return COLUMNS
 
 

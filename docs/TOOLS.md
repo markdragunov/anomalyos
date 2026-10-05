@@ -6,7 +6,7 @@ Classification of coding-agent and runtime tooling. **Claude Code is the primary
 | --- | --- | --- |
 | **Claude Code** | **Required** | Primary coding agent. Entry point `CLAUDE.md` (imports `AGENTS.md`); path-scoped rules in `.claude/rules/`; minimal permissions in `.claude/settings.json` (ADR-036). |
 | **GitHub** | **Required** | Pull requests, code review and CI (GitHub Actions). The engineering loop is PR → checks → review; the owner merges. |
-| **Filesystem** | **Required** | The working surface: agents implement AnomalyOS by reading and writing this tree. There is no other coding surface. |
+| **Filesystem** | **Required** | The working surface: agents implement PulseOS by reading and writing this tree. There is no other coding surface. |
 | **Test runner** | **Required** | `python -m unittest` (architecture), `pytest` (product), plus `scripts/check_architecture.py` and `scripts/eval_smoke.py`. Architecture and eval gates are how invariants stay real. |
 | **ClickHouse** | **Required** (product infrastructure) | Analytical infrastructure of the product, not a free-form tool for the agent. Analytical source of truth; local Docker Compose node and `clickhouse-connect` loader exist since Stage 1 (ADR-012, ADR-020; supersedes ADR-008). Agents reach it only through approved typed interfaces — never as a generic SQL MCP. |
 | **Playwright** | **Useful later** | Only when an operator UI exists and we must assert real browser behavior. No UI in this harness; adding Playwright now would be a dependency with nothing to drive. |

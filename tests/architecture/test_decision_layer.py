@@ -12,9 +12,9 @@ import unittest
 
 from tests.architecture.paths import ROOT
 
-SRC = ROOT / "src" / "anomalyos"
+SRC = ROOT / "src" / "pulseos"
 NETWORK_MODULES = {"socket", "http", "urllib", "requests", "httpx", "aiohttp", "clickhouse_connect", "subprocess", "ssl"}
-FORBIDDEN_IMPORTS = {"anomalyos.simulation", "anomalyos.evaluation"}
+FORBIDDEN_IMPORTS = {"pulseos.simulation", "pulseos.evaluation"}
 CLOCK_CALLS = {("time", "time"), ("time", "monotonic"), ("datetime", "now"), ("datetime", "utcnow"), ("date", "today")}
 
 
@@ -35,7 +35,7 @@ def _imports(tree: ast.AST) -> set[str]:
 
 class TestDecisionLayer(unittest.TestCase):
     def test_packages_exist(self) -> None:
-        self.assertTrue(_modules("jev"), "src/anomalyos/jev is the Stage 5 decision layer")
+        self.assertTrue(_modules("jev"), "src/pulseos/jev is the Stage 5 decision layer")
 
     def test_network_io_only_in_the_transport_module(self) -> None:
         hits = []

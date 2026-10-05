@@ -7,7 +7,7 @@ import json
 
 import pytest
 
-from anomalyos.simulation.validate import EventValidator, luhn_ok, scan_sensitive, validate_ground_truth
+from pulseos.simulation.validate import EventValidator, luhn_ok, scan_sensitive, validate_ground_truth
 
 
 def _validate(events, lines=None):

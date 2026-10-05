@@ -10,9 +10,9 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from anomalyos.events import store
-from anomalyos.metrics import compute
-from anomalyos.simulation import clickhouse_load as chl
+from pulseos.events import store
+from pulseos.metrics import compute
+from pulseos.simulation import clickhouse_load as chl
 
 WORLD_START = datetime(2026, 8, 3, tzinfo=timezone.utc)
 DB = "anomalyos_metrics_sim_test"

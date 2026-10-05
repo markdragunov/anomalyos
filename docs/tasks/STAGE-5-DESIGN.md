@@ -187,8 +187,8 @@ Mode A only. Mode B questions → Stage 7 (ADR-019 option 3); grouping and lifec
 
 ## Phase 1 sketch (after approval)
 
-`src/anomalyos/jev/` (`state.py`, `buckets.py`, `questions.py`, `client.py`, `fake.py`, `replay.py`, `transport.py`,
-`verifier.py`, `assessment.py`) and `src/anomalyos/policy/` (`config.py`, `rules.py`, `baseline.py`, `records.py`,
+`src/pulseos/jev/` (`state.py`, `buckets.py`, `questions.py`, `client.py`, `fake.py`, `replay.py`, `transport.py`,
+`verifier.py`, `assessment.py`) and `src/pulseos/policy/` (`config.py`, `rules.py`, `baseline.py`, `records.py`,
 `audit.py`); Stage 3 additive fields (D-0); `jev` and `policy` removed from the stage guard; tests per the brief;
 `scripts/eval_decisions_dev.py`.
 

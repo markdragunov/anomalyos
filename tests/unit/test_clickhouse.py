@@ -9,8 +9,8 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 
 import pytest
 
-from anomalyos.clickhouse import check_health
-from anomalyos.config import ClickHouseSettings
+from pulseos.clickhouse import check_health
+from pulseos.config import ClickHouseSettings
 
 
 def _settings(port: int, password: str = "pw") -> ClickHouseSettings:

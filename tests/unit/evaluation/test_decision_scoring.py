@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from anomalyos.evaluation.decisions import score_decisions, status
+from pulseos.evaluation.decisions import score_decisions, status
 
 H, D = 3600, 86_400
 W0, W1 = 0, 28 * D

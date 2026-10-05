@@ -5,7 +5,7 @@
 1. **Deterministic by default.** Unit tests use no network, no Docker, no wall-clock time, and
    no unseeded randomness. A failing unit test must fail the same way on every machine.
 2. **Opt-in integration.** Tests needing live services are marked `integration` and are
-   *skipped with a stated reason* unless `ANOMALYOS_RUN_INTEGRATION=1`. CI always runs them.
+   *skipped with a stated reason* unless `PULSEOS_RUN_INTEGRATION=1`. CI always runs them.
 3. **Contracts over internals.** Tests assert layer contracts from `ARCHITECTURE.md` (inputs,
    outputs, invariants, failure modes), so refactors do not break them.
 4. **No silent failures.** Failed or skipped tests are reported, never hidden or deleted to go green.
@@ -15,9 +15,9 @@
 | Level | Location | Needs | Runs |
 |---|---|---|---|
 | Architecture (harness) | `tests/architecture/` | nothing (stdlib `unittest`, Python 3.12) | always; `harness.yml` |
-| Unit | `tests/unit/` | nothing (`pytest`); SQL tests use a live ClickHouse when `ANOMALYOS_RUN_INTEGRATION=1`, else embedded `chdb`, else skip | always |
+| Unit | `tests/unit/` | nothing (`pytest`); SQL tests use a live ClickHouse when `PULSEOS_RUN_INTEGRATION=1`, else embedded `chdb`, else skip | always |
 | Integration | `tests/integration/` | ClickHouse | opt-in locally, always in CI |
-| Slow | marker `slow` | minutes of CPU (full-scale seed 42 golden digest) | opt-in: `ANOMALYOS_RUN_SLOW=1` |
+| Slow | marker `slow` | minutes of CPU (full-scale seed 42 golden digest) | opt-in: `PULSEOS_RUN_SLOW=1` |
 | Scenario (future) | `tests/scenarios/` | ClickHouse | per scenario: ground truth vs system output |
 | Evaluation | `evals/` (scenario JSON with `ground_truth`, `scripts/eval_smoke.py`) | recorded model responses | deterministic replay by default; live runs are explicit |
 
@@ -48,7 +48,7 @@ Jev returns typed answers, so tests target the question set and the code around 
 
 ```bash
 pytest                                  # unit (integration skipped with reason)
-ANOMALYOS_RUN_INTEGRATION=1 pytest      # unit + integration (ClickHouse must be up)
+PULSEOS_RUN_INTEGRATION=1 pytest      # unit + integration (ClickHouse must be up)
 pytest -m integration                   # integration only
 ```
 

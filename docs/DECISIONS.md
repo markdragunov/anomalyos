@@ -6,6 +6,26 @@ Format: short ID, status, context, decision, consequences.
 
 ---
 
+## ADR-046 — Product renamed AnomalyOS → PulseOS; storage names kept · *accepted* (2026-10-05, owner decision)
+
+**Context.** The owner renamed the product and the GitHub repository (`markdragunov/anomalyos` → `markdragunov/pulseos`).
+Code, docs and the agent contract still used the old name. Some names are not just labels: the ClickHouse database and
+user hold loaded runs, the Compose project name decides the Docker volume, and `API_VERSION` is written into every
+generated event (it feeds the simulator digests and golden tests). ADR-041…045 are reserved by the Stage 6 drafts.
+
+**Decision.**
+1. Product name `PulseOS`; Python package `pulseos` (`src/pulseos/`); console scripts `pulseos` and `pulseos-sim`;
+   environment variables `PULSEOS_ENV`, `PULSEOS_SEED`, `PULSEOS_RUN_INTEGRATION`, `PULSEOS_RUN_SLOW`.
+2. **Kept unchanged on purpose:** ClickHouse database and user `anomalyos` (defaults in `config.py`, `.env.example`,
+   `docker-compose.yml`, CI), `<db>_truth`, the per-test databases `anomalyos_*_test`, the Compose project and container
+   names (`anomalyos`, `anomalyos-clickhouse`), and `API_VERSION = "2026-09-01.anomalyos-sim"`. Renaming them would make
+   existing loaded data unreachable or change simulator output.
+3. Historical references to former repositories and folders (`anomalyos_simulator`, `anomalyos_claude_specs`, `~/anomalyos`)
+   stay as written.
+
+**Consequences.** Local `.env` files must rename `ANOMALYOS_*` to `PULSEOS_*`; reinstall with `pip install -e ".[dev]"`
+so the new console scripts exist. Storage names can be migrated later in one step (new database + reload), with its own ADR.
+
 ## ADR-040 — Stage 5 Gate 1: Jev evaluation blocked, JevState v2, baseline_v2 · *accepted* (2026-10-04, owner OK on recommendations 1–3, option A)
 
 **Context.** DEV run on 40 worlds with the fake client (no Jev access, OQ-1): 2,116 first-look decisions, all audited,
@@ -64,7 +84,7 @@ open): the pipeline runs on a fake client and replay; Jev itself is not evaluate
   P(severity ≥ high) ≥ 0.5; `category` never gates). `baseline_v1` (no Jev) is a benchmark control only.
   Thresholds fixed now, tuned only at Gate 1 on DEV seeds 1–10.
 - **D-8** runtime audit in a ClickHouse append-only table `jev_decisions` (one row per decision, re-decisions are new
-  rows; DDL in `anomalyos.policy.audit`), replay artifacts as files, evaluation joins only in `evaluation/`.
+  rows; DDL in `pulseos.policy.audit`), replay artifacts as files, evaluation joins only in `evaluation/`.
 - **D-9** evaluation protocol of the design; status precedence incident > watch > suppress > unmatched; tuning seeds
   1–10, validation seeds 11–20 (validation clean only for Stage 5 thresholds).
 - **D-10** budget guard before any client call; **D-11** calendar context `not_provided`; **D-12** Mode A only.
@@ -118,7 +138,7 @@ rejected (lift 1 / 0.7 = 1.43). Traffic shares now come from the **baseline** pe
 (`psp × customer_country`, `customer_country × payment_method_type`, BH q = 0.01 per day, candidates `S12`; dropped if
 DEV shows more than 0.1 false positives per day from it); thresholds fixed before results (locus coverage 0.6, rate share
 0.7 / 0.3, BH q = 0.05 per candidate); `volume_only` for count candidates whose locus approval did not move (|z| < 2).
-Configuration is versioned in `src/anomalyos/cohorts/config.py` (`COHORT_CONFIG_VERSION = 1`).
+Configuration is versioned in `src/pulseos/cohorts/config.py` (`COHORT_CONFIG_VERSION = 1`).
 
 **Clarifications made while implementing (no threshold changed).**
 - Locus: the candidate's own scope is the coarsest eligible cohort, so "no cohort reaches 60 %" means the change is
@@ -280,7 +300,7 @@ numerator sees authorizations up to the end of the whole range, which would leak
 
 **Status:** accepted for implementation in Stage 2; follows ADR-022 option A. Not reviewed by the owner beyond the brief in `docs/tasks/STAGE-2.md`; deviations from that brief are listed explicitly.
 
-**Context.** Metrics, detection, cohorts and evaluation read one normalized layer (`<db>.events_norm`), produced by a pure, versioned mapping (`src/anomalyos/events/normalize.py`, `NORMALIZATION_VERSION = 1.0.0`, `schema_version = norm-1`).
+**Context.** Metrics, detection, cohorts and evaluation read one normalized layer (`<db>.events_norm`), produced by a pure, versioned mapping (`src/pulseos/events/normalize.py`, `NORMALIZATION_VERSION = 1.0.0`, `schema_version = norm-1`).
 
 **Decisions.**
 1. **`ingested_at` = `occurred_at`** for sim-1.0.0: the raw stream has no ingestion delay. Never the wall clock. The column exists so late and out-of-order events are representable once the simulator emits them (`docs/tasks/SIMULATOR-FIXES.md`, phase 5); `as_of` filters use `ingested_at`.
@@ -295,7 +315,7 @@ numerator sees authorizations up to the end of the whole range, which would leak
    - `plan_id` is resolved from the subscription (invoice -> subscription, renewal PaymentIntent -> invoice).
    - `payment.attempted` and `chargeback.opened` stay in the vocabulary but are not produced (attempts are counted from authorized/declined/failed; no chargebacks are simulated).
 7. **Strictness.** An unknown raw type, unknown `failure_code`, unexpected `subscription.updated` shape or a charge before its intent raises `NormalizationError`. Intentionally unmapped raw types are listed in code (`INTENTIONALLY_UNMAPPED`).
-8. **Loading** is idempotent per `run_id` (drop partition + insert) and self-verifying (8 SQL checks, all 0): `anomalyos normalize --in <run_dir> [--replace]`, after `anomalyos-sim load`.
+8. **Loading** is idempotent per `run_id` (drop partition + insert) and self-verifying (8 SQL checks, all 0): `pulseos normalize --in <run_dir> [--replace]`, after `pulseos-sim load`.
 
 **Consequences.** `docs/DATA_MODEL.md` updated (envelope fields, `run_id`, new attributes). Any change to the mapping bumps `NORMALIZATION_VERSION`. Late events need a mapping change (a raw ingestion timestamp) when the simulator produces them.
 
@@ -370,12 +390,12 @@ numerator sees authorizations up to the end of the whole range, which would leak
 
 **Context.** Work existed in three places: this harness repo (docs, architecture tests, eval skeleton, "no runtime"), a nested, remote-less `anomalyos_simulator` git repo (Stage 0 foundation + Stage 1 synthetic world, with its own `CLAUDE.md` and ADR-001…013), and loose build specs. The two contracts conflicted (ADR-001, ADR-002, ADR-008 here forbid `src/`, dependency manifests, pytest and any ClickHouse client; the simulator needs all of them).
 
-**Decision.** One repository, `markdragunov/anomalyos`. The simulator tree is imported as a single commit (no history preserved). Layout: `src/anomalyos/` (runtime), `tests/unit`, `tests/integration` (pytest, product), `tests/architecture` (stdlib unittest, harness), `docs/specs/` (build specs), `docs/tasks/` (current task briefs). `AGENTS.md` is the only agent contract; `CLAUDE.md` is a thin pointer to it. Simulator ADR-001…013 were renumbered to ADR-010…022 in this file (offset +9); code and docs were updated.
+**Decision.** One repository, `markdragunov/pulseos`. The simulator tree is imported as a single commit (no history preserved). Layout: `src/pulseos/` (runtime), `tests/unit`, `tests/integration` (pytest, product), `tests/architecture` (stdlib unittest, harness), `docs/specs/` (build specs), `docs/tasks/` (current task briefs). `AGENTS.md` is the only agent contract; `CLAUDE.md` is a thin pointer to it. Simulator ADR-001…013 were renumbered to ADR-010…022 in this file (offset +9); code and docs were updated.
 
 This ADR supersedes:
 - **ADR-001** — runtime is now allowed, **stage by stage**: each new layer (metrics, detection, cohorts, Jev, incident engine, agent, API, UI) needs its Stage brief and, where it adds a dependency or top-level package, an ADR. Architecture tests were rewritten from "no product code" to "no code beyond the current stage" (forbidden layer filenames, dependency allowlist, forbidden top-level app directories stay enforced).
 - **ADR-002** (partly) — the harness stays stdlib-only and runs without pip; the product uses `clickhouse-connect` (ADR-020) and `pytest` as the only dev dependency (ADR-011). A test pins the dependency allowlist so nothing is added without editing it and this log.
-- **ADR-008** — ClickHouse is now provisioned (Docker Compose, ADR-012) and has a bounded client module (`anomalyos.simulation.clickhouse_load`, ADR-020).
+- **ADR-008** — ClickHouse is now provisioned (Docker Compose, ADR-012) and has a bounded client module (`pulseos.simulation.clickhouse_load`, ADR-020).
 - **ADR-009** (partly) — harness scripts remain Python 3.12 stdlib; product code targets Python ≥ 3.11.
 
 **Consequences.** CI has two workflows: `harness.yml` (3.12, stdlib: architecture tests, architecture check, eval smoke) and `ci.yml` (product: ClickHouse service, pytest). The harness unittest run is scoped to `tests/architecture`; `tests/unit` and `tests/integration` run under pytest.
@@ -514,15 +534,15 @@ Originally ADR-001…013 of the former `anomalyos_simulator` repository, renumbe
 
 **Context.** The target repo `markdragunov/ai-pm-case` already contains a working project
 (AI Recovery Engine, v0/v1/v2, passing tests) whose own CLAUDE.md forbids `pyproject.toml`,
-dependencies and scope expansion. AnomalyOS needs all three.
-**Decision.** Build AnomalyOS as its own repository. Do not modify `ai-pm-case`.
-**Consequences.** Both projects keep coherent contracts. Confirmed by the owner: the single repository is `github.com/markdragunov/anomalyos`, which also
+dependencies and scope expansion. PulseOS needs all three.
+**Decision.** Build PulseOS as its own repository. Do not modify `ai-pm-case`.
+**Consequences.** Both projects keep coherent contracts. Confirmed by the owner: the single repository is `github.com/markdragunov/pulseos`, which also
 absorbs the former separate simulator tree (ADR-023).
 
 ## ADR-011 — Python 3.11+, `src/` layout, setuptools, pytest · *accepted*
 
 **Context.** Need a standard, dependency-light, installable package.
-**Decision.** `pyproject.toml` with setuptools backend; `src/anomalyos`; pytest as the only
+**Decision.** `pyproject.toml` with setuptools backend; `src/pulseos`; pytest as the only
 dev dependency.
 **Consequences.** `pip install -e ".[dev]"` is the whole setup. No lint tooling yet (add
 with an ADR when a real need appears).
@@ -614,7 +634,7 @@ Revisit if investigation quality plateaus on scenarios that need open-ended expl
 **Context.** Stage 1 loads ≈1.37M events per run. Hand-rolled `urllib` HTTP (ADR-013) would
 need its own batching, compression, typed parameters and error handling. Resolves OQ-3.
 **Decision.** Add `clickhouse-connect` (official client, Apache-2.0, HTTP transport, no native
-build), pinned `>=0.8,<2`. Imported lazily and only by `anomalyos.simulation.clickhouse_load`;
+build), pinned `>=0.8,<2`. Imported lazily and only by `pulseos.simulation.clickhouse_load`;
 generation and validation stay stdlib-only. The Stage 0 `doctor` health check keeps its
 stdlib implementation. Inserts use `raw_insert(fmt="JSONEachRow")` in 50k-row batches.
 **Alternatives.** stdlib `urllib` (no dep, more code); `clickhouse-driver` (native port 9000,

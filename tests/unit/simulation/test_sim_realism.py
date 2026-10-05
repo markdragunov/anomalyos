@@ -7,11 +7,11 @@ import json
 
 import pytest
 
-from anomalyos.simulation.engine import Simulation
-from anomalyos.simulation.runner import generate, run_id_for
-from anomalyos.simulation.scenarios import build_catalog
-from anomalyos.simulation.validate import validate_ground_truth
-from anomalyos.simulation.world import WorldConfig
+from pulseos.simulation.engine import Simulation
+from pulseos.simulation.runner import generate, run_id_for
+from pulseos.simulation.scenarios import build_catalog
+from pulseos.simulation.validate import validate_ground_truth
+from pulseos.simulation.world import WorldConfig
 
 
 def dispersion_index(w: WorldConfig) -> dict[str, float]:

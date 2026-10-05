@@ -2,7 +2,7 @@
 
 Answers **"where is the change, and is it a rate change or a change of mix?"** for every promoted Stage 3 candidate —
 no severity, no cause, no incident. Output: a `CohortAnalysis` and a bounded `EvidenceBundle` for Stage 5 (Jev).
-Code: `src/anomalyos/cohorts/`. Decisions: ADR-037 (design, Gate 0), ADR-038 (Gate 1 rules and results).
+Code: `src/pulseos/cohorts/`. Decisions: ADR-037 (design, Gate 0), ADR-038 (Gate 1 rules and results).
 Ground truth is never read (INV-015); ClickHouse only through `metrics.compute` (INV-003).
 
 ## Inputs and queries
@@ -19,7 +19,7 @@ adds at least one dimension to the scope:
 | triple | psp × customer_country × platform |
 
 Median cost on DEV: 9.5 queries and 0.27 s per candidate. Configuration is versioned (`COHORT_CONFIG_VERSION` = 3,
-`CohortConfig` in `src/anomalyos/cohorts/config.py`).
+`CohortConfig` in `src/pulseos/cohorts/config.py`).
 
 ## Method
 
@@ -63,7 +63,7 @@ Mode A (`sweep_enabled = False`, ADR-038): 0.09 / 0.29 false positives per day o
 - Impact is a diagnostic only: the candidate window covers a median 75 % of the incident, while ground truth counts
   the whole incident; the accuracy check moves to Stage 6.
 
-Code: `src/anomalyos/evaluation/cohorts.py`; runner: `scripts/eval_cohorts_dev.py` (DEV seeds only; refuses HELDOUT
+Code: `src/pulseos/evaluation/cohorts.py`; runner: `scripts/eval_cohorts_dev.py` (DEV seeds only; refuses HELDOUT
 seeds; writes `reports/`, not committed).
 
 ## Results on DEV seeds (20 seeds × realism v1/v2, scale 1.0, randomized calendar)

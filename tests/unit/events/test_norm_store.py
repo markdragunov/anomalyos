@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from anomalyos.events import store
-from anomalyos.simulation import clickhouse_load as chl
+from pulseos.events import store
+from pulseos.simulation import clickhouse_load as chl
 
 
 def test_ddl_is_validated_and_partitioned_by_run():

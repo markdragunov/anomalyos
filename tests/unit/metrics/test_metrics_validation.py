@@ -7,8 +7,8 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from anomalyos.metrics import ALLOWED_DIMENSIONS, GRAINS, MetricError, compute, get_metric, list_metrics
-from anomalyos.metrics.compute import MAX_WINDOWS
+from pulseos.metrics import ALLOWED_DIMENSIONS, GRAINS, MetricError, compute, get_metric, list_metrics
+from pulseos.metrics.compute import MAX_WINDOWS
 from tests.unit.metrics.conftest import DB, RUN, T0, load_rows, norm_row
 
 START = datetime.fromtimestamp(T0, tz=timezone.utc)
@@ -104,7 +104,7 @@ def test_other_runs_are_invisible(ch, tiny):
 
 
 def test_metrics_and_events_code_never_touch_ground_truth():
-    root = pathlib.Path(__file__).resolve().parents[3] / "src" / "anomalyos"
+    root = pathlib.Path(__file__).resolve().parents[3] / "src" / "pulseos"
     hits = [str(p.relative_to(root)) for pkg in ("metrics", "events") for p in (root / pkg).rglob("*.py")
             if any(m in p.read_text(encoding="utf-8") for m in ("_truth", "ground_truth", "scenario_id"))]
     assert hits == [], hits

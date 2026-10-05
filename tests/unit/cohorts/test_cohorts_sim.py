@@ -8,12 +8,12 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from anomalyos.cohorts import CohortConfig, analyze_candidates, sweep
-from anomalyos.detection import detect
-from anomalyos.events import store
-from anomalyos.simulation import clickhouse_load as chl
-from anomalyos.simulation.runner import generate
-from anomalyos.simulation.world import WorldConfig
+from pulseos.cohorts import CohortConfig, analyze_candidates, sweep
+from pulseos.detection import detect
+from pulseos.events import store
+from pulseos.simulation import clickhouse_load as chl
+from pulseos.simulation.runner import generate
+from pulseos.simulation.world import WorldConfig
 
 DB = "anomalyos_cohort_test"
 WORLD = WorldConfig(seed=42, scale=0.5)

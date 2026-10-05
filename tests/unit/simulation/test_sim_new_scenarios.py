@@ -7,11 +7,11 @@ import json
 
 import pytest
 
-from anomalyos.events.normalize import normalize
-from anomalyos.simulation.engine import Simulation
-from anomalyos.simulation.ground_truth import RootCause
-from anomalyos.simulation.scenarios import FACTORIES, build_catalog
-from anomalyos.simulation.world import DAY, HOUR, WorldConfig
+from pulseos.events.normalize import normalize
+from pulseos.simulation.engine import Simulation
+from pulseos.simulation.ground_truth import RootCause
+from pulseos.simulation.scenarios import FACTORIES, build_catalog
+from pulseos.simulation.world import DAY, HOUR, WorldConfig
 
 WORLD = WorldConfig(seed=42, scale=0.3)
 

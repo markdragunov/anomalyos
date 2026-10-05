@@ -17,17 +17,17 @@ jobs:
           --health-cmd "wget --no-verbose --tries=1 --spider http://localhost:8123/ping"
           --health-interval 5s --health-timeout 3s --health-retries 20
     env:
-      ANOMALYOS_ENV: ci
+      PULSEOS_ENV: ci
       CLICKHOUSE_HOST: 127.0.0.1
       CLICKHOUSE_HTTP_PORT: "8123"
       CLICKHOUSE_DB: anomalyos
       CLICKHOUSE_USER: anomalyos
       CLICKHOUSE_PASSWORD: ci-only-password
-      ANOMALYOS_RUN_INTEGRATION: "1"
+      PULSEOS_RUN_INTEGRATION: "1"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: "3.11" }
       - run: pip install -e ".[dev]"
-      - run: python -m anomalyos doctor
+      - run: python -m pulseos doctor
       - run: pytest -v

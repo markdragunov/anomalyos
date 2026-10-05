@@ -10,9 +10,9 @@ from __future__ import annotations
 
 import pytest
 
-from anomalyos.simulation.ground_truth import GENERATOR_VERSION
-from anomalyos.simulation.runner import generate
-from anomalyos.simulation.world import WorldConfig
+from pulseos.simulation.ground_truth import GENERATOR_VERSION
+from pulseos.simulation.runner import generate
+from pulseos.simulation.world import WorldConfig
 
 # sim-1.2.2 (event digests equal sim-1.2.0; ground truth differs in unchanged_metrics). sim-1.2.1: seed 5 run_43bec258f2017f19 / 1e0c6f92...; seed 42 run_75e402c8fdb77d3b / ea261229.... sim-1.2.0: seed 5 run_311ecbd4d37db101 / bb488a2f...; seed 42 run_b84548339e942431 / de48da75.... sim-1.1.1: seed 5 run_7f4755d4ca384dea / 47add09d... / c643e0f0...; seed 42 run_b50c96ff698d7675 / 2cf8a9b7... / 61520d2a.... sim-1.0.0 values, for the record: seed 5 run_3e694f661a80226d /
 # c883137194271c77... / aebaf8d1...; seed 42 run_133c4a3a198eb8c1 / 1ac6d592589287ac... / 79bfe1fd...

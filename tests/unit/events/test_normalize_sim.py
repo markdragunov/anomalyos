@@ -5,8 +5,8 @@ from __future__ import annotations
 import collections
 import json
 
-from anomalyos.events import normalize as nz
-from anomalyos.events.store import norm_rows, run_id_of
+from pulseos.events import normalize as nz
+from pulseos.events.store import norm_rows, run_id_of
 
 
 def test_every_raw_type_is_mapped_or_intentionally_unmapped(full_run):

@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-AnomalyOS — AI incident intelligence for billing and payments, built stage by stage. Current stage and what exists:
+PulseOS — AI incident intelligence for billing and payments, built stage by stage. Current stage and what exists:
 *Stage status* in `docs/ARCHITECTURE.md` and `docs/specs/STATUS.md`; the active task brief is in `docs/tasks/`.
 
 The canonical, tool-independent engineering contract is `AGENTS.md`, imported below. This file only says how to work
@@ -33,8 +33,8 @@ Read only what the task needs; do not load every document up front.
 5. **Test** — choose by what changed:
    - always: `python3 -m unittest discover -s tests/architecture -t . -v`, `python3 scripts/check_architecture.py`,
      `python3 scripts/eval_smoke.py`;
-   - `src/` or `tests/unit|integration` changed: `pytest` (live ClickHouse: `ANOMALYOS_RUN_INTEGRATION=1`);
-   - simulator output changed: the golden tests, plus `ANOMALYOS_RUN_SLOW=1 pytest -m slow`.
+   - `src/` or `tests/unit|integration` changed: `pytest` (live ClickHouse: `PULSEOS_RUN_INTEGRATION=1`);
+   - simulator output changed: the golden tests, plus `PULSEOS_RUN_SLOW=1 pytest -m slow`.
 6. **Review** the diff for secrets, invariant bypasses, duplicated instructions and dependency creep.
 7. **Commit** in small, meaningful commits whose message explains why. Never merge to `main`; the owner merges.
 

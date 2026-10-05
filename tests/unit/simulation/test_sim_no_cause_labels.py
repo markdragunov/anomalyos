@@ -7,9 +7,9 @@ import json
 
 import pytest
 
-from anomalyos.simulation.engine import Simulation
-from anomalyos.simulation.scenarios import build_catalog
-from anomalyos.simulation.world import EFFECT_ONLY_DECLINE_CODES, ORGANIC_CARD_DECLINES, ORGANIC_LOCAL_DECLINES, WorldConfig
+from pulseos.simulation.engine import Simulation
+from pulseos.simulation.scenarios import build_catalog
+from pulseos.simulation.world import EFFECT_ONLY_DECLINE_CODES, ORGANIC_CARD_DECLINES, ORGANIC_LOCAL_DECLINES, WorldConfig
 
 ORGANIC = {(a, b) for a, b, _ in ORGANIC_CARD_DECLINES + ORGANIC_LOCAL_DECLINES}
 

@@ -1,11 +1,11 @@
 ---
 paths:
-  - "src/anomalyos/metrics/**/*.py"
-  - "src/anomalyos/events/store.py"
-  - "src/anomalyos/detection/run.py"
-  - "src/anomalyos/simulation/clickhouse_load.py"
-  - "src/anomalyos/clickhouse.py"
-  - "src/anomalyos/cohorts/**/*.py"
+  - "src/pulseos/metrics/**/*.py"
+  - "src/pulseos/events/store.py"
+  - "src/pulseos/detection/run.py"
+  - "src/pulseos/simulation/clickhouse_load.py"
+  - "src/pulseos/clickhouse.py"
+  - "src/pulseos/cohorts/**/*.py"
 ---
 
 # ClickHouse access
@@ -28,5 +28,5 @@ Purpose: ClickHouse is the analytical source of truth (`INV-003`); access to it 
   (`(name, version)` in the registry, `NORMALIZATION_VERSION`); a new analytical interface needs an architectural
   justification (ADR).
 
-Validate: `pytest tests/unit/metrics tests/unit/events` (live ClickHouse in CI via `ANOMALYOS_RUN_INTEGRATION=1`).
+Validate: `pytest tests/unit/metrics tests/unit/events` (live ClickHouse in CI via `PULSEOS_RUN_INTEGRATION=1`).
 References: `docs/METRICS.md`, `docs/DATA_MODEL.md`, ADR-022, ADR-025, ADR-026, ADR-034.

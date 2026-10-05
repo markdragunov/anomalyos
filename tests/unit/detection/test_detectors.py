@@ -6,9 +6,9 @@ import math
 import random
 from dataclasses import replace
 
-from anomalyos.detection.candidates import AnomalyCandidate, prefilter
-from anomalyos.detection.config import DetectorConfig, SeriesSpec
-from anomalyos.detection.detectors import DAY, robust_phi, scan_main, scan_static
+from pulseos.detection.candidates import AnomalyCandidate, prefilter
+from pulseos.detection.config import DetectorConfig, SeriesSpec
+from pulseos.detection.detectors import DAY, robust_phi, scan_main, scan_static
 
 H = 3600
 T0 = 1_785_715_200
@@ -74,7 +74,7 @@ def test_false_alarm_rate_on_stationary_seasonal_series_is_small():
 
 
 def test_tail_calibration_of_the_stabilized_z():
-    from anomalyos.detection.detectors import baseline, unit_z
+    from pulseos.detection.detectors import baseline, unit_z
     below = total = 0
     for seed in range(15):
         for pfun in (seasonal, lambda ts: 0.95, lambda ts: 0.6):
@@ -200,7 +200,7 @@ def test_ratio_metrics_above_one_do_not_crash():
 
 def test_as_of_view_equals_what_was_known_at_detection():
     # ADR-039 D-0: the first-look view must match a run whose data end at detected_at
-    from anomalyos.detection.candidates import as_of_view, concurrent_at
+    from pulseos.detection.candidates import as_of_view, concurrent_at
     s = T0 + 6 * DAY + 10 * H
     windows = hourly_rate(10, p=lambda ts: 0.78 if s <= ts < s + H else 0.5 if s + H <= ts < s + 6 * H else 0.9, seed=3)
     full = run(RATE_H, windows)

@@ -1,15 +1,15 @@
 # Задание: довести консолидацию репозитория до слияния в `main`
 
-Автор: Mark Dragunov · Подготовлено: 2026-10-02 · Источники: `specs/REVIEW_SPECS_02-11.md`, `specs/REVIEW_SIMULATOR_STAGE1.md` (проект AnomalyOS), состояние ветки `consolidate-repo` на момент проверки.
-Репозиторий: `markdragunov/anomalyos`.
+Автор: Mark Dragunov · Подготовлено: 2026-10-02 · Источники: `specs/REVIEW_SPECS_02-11.md`, `specs/REVIEW_SIMULATOR_STAGE1.md` (проект PulseOS), состояние ветки `consolidate-repo` на момент проверки.
+Репозиторий: `markdragunov/pulseos`.
 
 ## Что уже сделано (проверено, повторять не нужно)
 
 Коммит `32d7d20 Consolidate harness, Stage 0-1 simulator and specs into one repository` на ветке `consolidate-repo`:
-- Один репозиторий: `src/anomalyos/` (рантайм), `tests/unit` и `tests/integration` (pytest), `tests/architecture` (stdlib unittest), `docs/specs/`, `docs/tasks/`.
+- Один репозиторий: `src/pulseos/` (рантайм), `tests/unit` и `tests/integration` (pytest), `tests/architecture` (stdlib unittest), `docs/specs/`, `docs/tasks/`.
 - ADR-023 (единый репозиторий, заменяет ADR-001, частично ADR-002, ADR-008, ADR-009) и ADR-024 (чистота Jev против сетевого Jev, `proposed`). ADR симулятора перенумерованы с 001–013 на 010–022 (сдвиг +9), ссылки в коде и документах обновлены.
 - `scripts/check_architecture.py`: 26 тестов, все зелёные (я запускал). Рабочее дерево чистое, вложенных папок `anomalyos_simulator/` и `anomalyos_claude_specs/` больше нет, копия спеков лежит в `docs/specs/`.
-- Два CI-процесса: `harness.yml` (Python 3.12, stdlib) и `ci.yml` (pytest, ClickHouse 25.8, `ANOMALYOS_RUN_INTEGRATION=1`).
+- Два CI-процесса: `harness.yml` (Python 3.12, stdlib) и `ci.yml` (pytest, ClickHouse 25.8, `PULSEOS_RUN_INTEGRATION=1`).
 
 Я не запускал `pytest` на консолидированной ветке (в моём окружении нет доступа к репо целиком), но тот же код симулятора до слияния прошёл 49 тестов, а ещё 4 теста на embedded ClickHouse прошли после `pip install chdb`.
 
@@ -19,8 +19,8 @@
 
 ## Фаза 1 — страховка и проверка ветки
 
-1. **Резервная копия вложенного репозитория.** История симулятора в консолидацию не переносилась («imported as a single commit»), а его папки в рабочем дереве больше нет. Проверить, что где-то сохранены ветки `main` и `stage-1-simulation` (коммиты `d30a547`, `80ff5cd`, `0022fd3`) в виде клона или `git bundle`. Если копии нет, а вложенный репозиторий ещё где-то лежит, сделать `git bundle create anomalyos-simulator-backup.bundle --all` и сохранить вне репозитория. Сам bundle в репо не коммитить.
-2. **Полный прогон.** В окружении с Python ≥ 3.11 и поднятым ClickHouse: `pip install -e ".[dev]"`, `docker compose up -d clickhouse`, `set -a; source .env; set +a`, `pytest`, `ANOMALYOS_RUN_INTEGRATION=1 pytest`, `python scripts/check_architecture.py`, `python scripts/eval_smoke.py`. Приложить результат (passed / failed / skipped с причинами).
+1. **Резервная копия вложенного репозитория.** История симулятора в консолидацию не переносилась («imported as a single commit»), а его папки в рабочем дереве больше нет. Проверить, что где-то сохранены ветки `main` и `stage-1-simulation` (коммиты `d30a547`, `80ff5cd`, `0022fd3`) в виде клона или `git bundle`. Если копии нет, а вложенный репозиторий ещё где-то лежит, сделать `git bundle create pulseos-simulator-backup.bundle --all` и сохранить вне репозитория. Сам bundle в репо не коммитить.
+2. **Полный прогон.** В окружении с Python ≥ 3.11 и поднятым ClickHouse: `pip install -e ".[dev]"`, `docker compose up -d clickhouse`, `set -a; source .env; set +a`, `pytest`, `PULSEOS_RUN_INTEGRATION=1 pytest`, `python scripts/check_architecture.py`, `python scripts/eval_smoke.py`. Приложить результат (passed / failed / skipped с причинами).
 3. **Проверка ссылок на ADR.** `grep -rn "ADR-0" src tests docs .cursor AGENTS.md CLAUDE.md README.md` и убедиться, что каждая ссылка указывает на запись с тем же смыслом после сдвига +9 (ожидаемо: ADR-013 = «нет клиентской библиотеки ClickHouse в Stage 0», ADR-017 = «ground truth отдельно от событий», ADR-018 = Jev, ADR-019 = агент, ADR-020 = `clickhouse-connect`, ADR-021 = механизмы симулятора, ADR-022 = формат сырых событий). Любая ссылка на старый номер (например, «ADR-004» из симулятора) считается ошибкой.
 4. **Мусор.** Убедиться, что в индекс не попали `.DS_Store`, `.pytest_cache`, `__pycache__`, `data/`, `evals/output/` (сейчас не попали, но проверить после прогона).
 

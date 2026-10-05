@@ -50,7 +50,7 @@ Every analytical result serialises to an evidence object: `evidence_id` (stable 
 
 ## Ground-truth isolation (test-enforced)
 
-Metrics, detection, cohorts, Jev and agent code must never import or query `<db>_truth` / `ground_truth`. A test greps `src/anomalyos/events` and `src/anomalyos/metrics` for `_truth` and `ground_truth`; the same test is extended to each later package as it is created. Neither `run_id` nor `scenario_id` may reach detection or AI inputs.
+Metrics, detection, cohorts, Jev and agent code must never import or query `<db>_truth` / `ground_truth`. A test greps `src/pulseos/events` and `src/pulseos/metrics` for `_truth` and `ground_truth`; the same test is extended to each later package as it is created. Neither `run_id` nor `scenario_id` may reach detection or AI inputs.
 
 ## Acceptance
 
