@@ -34,11 +34,10 @@ FORBIDDEN_FILENAMES = {
 }
 
 # Packages under src/pulseos that belong to later stages (`events`, `metrics`: Stage 2; `detection`: Stage 3; `cohorts`: Stage 4;
-# `jev`, `policy`: Stage 5).
+# `jev`, `policy`: Stage 5; `incidents`: Stage 6).
 FORBIDDEN_PACKAGES = {
     "incident",
     "investigation",
-    "incidents",
     "agent",
     "explanation",
     "api",
