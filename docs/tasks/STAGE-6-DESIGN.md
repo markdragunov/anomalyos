@@ -1,7 +1,6 @@
 # Stage 6 — design note (Gate 0)
 
-Status: **proposed**, awaiting owner approval. No product code exists yet. Decisions marked **D-n** become ADR-041
-(and, if needed, ADR-042 … ADR-045) after approval. Jev is still blocked (OQ-1): nothing here depends on Jev quality.
+Status: **accepted** (owner OK on recommendations 1–8, 2026-10-05; ADR-041). Jev is still blocked (OQ-1): nothing here depends on Jev quality.
 
 ## D-0. Event stream and time
 

@@ -26,6 +26,46 @@ generated event (it feeds the simulator digests and golden tests). ADR-041…045
 **Consequences.** Local `.env` files must rename `ANOMALYOS_*` to `PULSEOS_*`; reinstall with `pip install -e ".[dev]"`
 so the new console scripts exist. Storage names can be migrated later in one step (new database + reload), with its own ADR.
 
+## ADR-041 — Stage 6 design: event-stream engine, correlation, lifecycle, re-evaluation, impact · *accepted* (2026-10-05, owner OK on Gate 0)
+
+**Context.** Stage 6 turns Mode A decisions into incidents (brief `docs/tasks/STAGE-6.md`, design
+`docs/tasks/STAGE-6-DESIGN.md`). Jev is still blocked (OQ-1); nothing here depends on Jev quality.
+
+**Decision** (design D-0 … D-10, owner's answers 1–8).
+- **D-0** The engine is a pure fold over a time-ordered event stream (detected, checkpoint, recovered, recovery check,
+  human action, impact estimated); same events and versions ⇒ same history; no clock reads.
+- **D-1** `IGNORE` creates nothing; `DIGEST` creates a digest item grouped by the correlation rules, or supports an
+  open incident; `INCIDENT` creates or joins an incident; a checkpoint decision may upgrade a digest group to an
+  incident; never an automatic downgrade or closure.
+- **D-2** A candidate joins an open incident only if time (overlap or gap ≤ `G`), cohort (Stage 4 loci nested along
+  the approved chains `psp ⊂ psp×country ⊂ psp×country×platform`, `psp ⊂ psp×card_brand`, `country ⊂ psp×country`,
+  `country ⊂ country×payment_method`, `platform ⊂ platform×app_version`, equal loci) and metric group (engine-owned
+  table) all hold. Nesting that relies on a global locus counts only when exactly one incident qualifies; otherwise
+  the candidate stays separate, `related_to` each. Tie-break: oldest incident. No automatic merge or split of
+  existing incidents (human commands). Every link records why.
+- **D-3** Incident fields with sources and epistemic labels as in the design; Jev-derived fields are `INFERRED` and
+  marked `not_evaluated` while Jev is blocked.
+- **D-4** Lifecycle per ADR-028: system `DETECTED` on creation, `RECOVERING` after all linked signals recovered and
+  `H` elapsed, `RECOVERING → INVESTIGATING` when a signal returns; human commands acknowledge, escalate, resolve,
+  dismiss, merge; only a human reaches `RESOLVED` / `DISMISSED`; no automatic escalation in Stage 6.
+- **D-5** Re-evaluation at `detected_at + 6 h`, `+ 24 h` while open and at `recovered_at` (≤ 3 per candidate): Stage 4
+  on `[window_start, t)` and a new Stage 5 decision; upgrades only.
+- **D-6** Impact anchored on one candidate per incident (the most specific approval / conversion candidate at its
+  latest checkpoint), extended to the incident interval; lost revenue per currency from `revenue_collected_minor`
+  against the Stage 3 lagged same-slot baseline, with an interval from the reference days; `OBSERVED` vs `ESTIMATED`.
+- **D-7** Package `src/pulseos/incidents/`; append-only ClickHouse tables `incident_events`, `incident_links`,
+  `digest_items` (DDL in `pulseos.incidents.storage`); current state = latest `incident_events` row per incident.
+- **D-8** Burst ranking deferred until Jev access and a call budget exist.
+- **D-9** Evaluation protocol of the design (coverage, duplicates, purity, wrong merges with campaign + outage pairs
+  required to be 0, volume, timeliness, recovery, impact); `G` and `H` tuned on DEV seeds 1–10 by the fixed rule
+  (no campaign + outage merge; wrong merges ≤ 5 %; fewest duplicates; smaller values on ties), reported on 11–20.
+- **D-10** Scope as the brief.
+
+**Consequences.** `incidents` leaves the stage guard (`incident` stays). The decision-layer architecture test extends
+to `incidents` (no clock reads, no simulator or evaluation imports). No new dependency.
+
+---
+
 ## ADR-040 — Stage 5 Gate 1: Jev evaluation blocked, JevState v2, baseline_v2 · *accepted* (2026-10-04, owner OK on recommendations 1–3, option A)
 
 **Context.** DEV run on 40 worlds with the fake client (no Jev access, OQ-1): 2,116 first-look decisions, all audited,
