@@ -6,10 +6,10 @@ from dataclasses import replace
 
 import pytest
 
-from anomalyos.jev.client import DecisionContext, JevError, make_request
-from anomalyos.jev.fake import FakeJevClient
-from anomalyos.jev.state import build_state
-from anomalyos.jev.verifier import verify
+from pulseos.jev.client import DecisionContext, JevError, make_request
+from pulseos.jev.fake import FakeJevClient
+from pulseos.jev.state import build_state
+from pulseos.jev.verifier import verify
 from tests.unit.jev.fixtures import bundle, candidate
 
 PIN = "fake-jev-0"

@@ -6,7 +6,7 @@ import unittest
 
 from tests.architecture.paths import ROOT
 
-SRC = ROOT / "src" / "anomalyos"
+SRC = ROOT / "src" / "pulseos"
 ALLOWED_PACKAGES = {"simulation", "evaluation"}
 MARKERS = ("_truth", "ground_truth")
 

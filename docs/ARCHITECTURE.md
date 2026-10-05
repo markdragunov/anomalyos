@@ -1,12 +1,12 @@
 # Architecture
 
-This document describes system boundaries for AnomalyOS. The **coding harness is implemented**. The **runtime is built stage by stage** (see *Stage status* at the end): layers not marked done there are documented, not implemented.
+This document describes system boundaries for PulseOS. The **coding harness is implemented**. The **runtime is built stage by stage** (see *Stage status* at the end): layers not marked done there are documented, not implemented.
 
 ## Two harnesses
 
 ### Coding harness (implemented)
 
-Purpose: let coding agents (Claude Code is the primary one, ADR-036) and humans change AnomalyOS **safely and repeatedly**.
+Purpose: let coding agents (Claude Code is the primary one, ADR-036) and humans change PulseOS **safely and repeatedly**.
 
 It enforces architecture, invariants, tests, evaluation structure, cost/latency trace shape, documentation, and git discipline.
 
@@ -14,7 +14,7 @@ Contents: `AGENTS.md`, `CLAUDE.md`, `.claude/` (rules, skills, settings), `docs/
 
 It is **not** the product. It does not ingest events, talk to ClickHouse, call an LLM, or open incidents; the runtime under `src/` does (to the extent its stage is done), and the harness constrains it.
 
-### AnomalyOS runtime harness (built stage by stage)
+### PulseOS runtime harness (built stage by stage)
 
 Purpose: detect billing/payment anomalies, disposition them, investigate, and explain — with Jev as the only decision authority.
 
@@ -391,7 +391,7 @@ branches on — and it constrains the design (see ADR-018).
 ## Cross-cutting
 
 - **Determinism:** seeds everywhere; injected clock; no hidden randomness.
-- **Configuration:** typed and validated at startup (`anomalyos.config`).
+- **Configuration:** typed and validated at startup (`pulseos.config`).
 - **Security:** no secrets in git; dev services bind to localhost; AI never receives credentials.
 - **Observability of the system itself:** structured logs and the audit log; no external
   telemetry stack in the prototype.

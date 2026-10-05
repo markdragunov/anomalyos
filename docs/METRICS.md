@@ -1,6 +1,6 @@
 # Metrics
 
-Canonical definitions of the metrics layer (`src/anomalyos/metrics/registry.py`). One definition per
+Canonical definitions of the metrics layer (`src/pulseos/metrics/registry.py`). One definition per
 `(name, version)`; changing a definition bumps its version, never edits it. Every metric is computed
 in ClickHouse over `events_norm` (ADR-022 A, ADR-025) and returns, per window and group,
 `numerator`, `denominator` and `value` (`NULL` when the denominator is 0; never 0, never NaN).
@@ -44,4 +44,4 @@ in ClickHouse over `events_norm` (ADR-022 A, ADR-025) and returns, per window an
 
 ## Tests
 
-`tests/unit/metrics/`: every metric against an independent Python reference on a hand-built stream (zero-denominator window, incomplete trailing window, events at or after `end`, 60 s / 61 s duplicate boundary, lookback before `start`); validation and injection tests; sanity on simulated data (PSP degradation, Android 5.14.0 regression, renewal failure on `psp_gamma`). The SQL runs on a live ClickHouse when `ANOMALYOS_RUN_INTEGRATION=1` (CI), else on embedded `chdb`, else the tests skip with a stated reason.
+`tests/unit/metrics/`: every metric against an independent Python reference on a hand-built stream (zero-denominator window, incomplete trailing window, events at or after `end`, 60 s / 61 s duplicate boundary, lookback before `start`); validation and injection tests; sanity on simulated data (PSP degradation, Android 5.14.0 regression, renewal failure on `psp_gamma`). The SQL runs on a live ClickHouse when `PULSEOS_RUN_INTEGRATION=1` (CI), else on embedded `chdb`, else the tests skip with a stated reason.

@@ -1,6 +1,6 @@
-# AnomalyOS agent contract
+# PulseOS agent contract
 
-AnomalyOS is an AI Incident Intelligence platform for Billing & Payments.
+PulseOS is an AI Incident Intelligence platform for Billing & Payments.
 
 This file is the **primary engineering contract** for any coding agent working in this repository (Claude Code is the primary one, ADR-036; `CLAUDE.md` imports this file). Read it before changing code or architecture. If an instruction here conflicts with convenience, this file wins.
 
@@ -52,7 +52,7 @@ Do not invert this. LLMs do not disposition incidents. Agents do not decide poli
 | Harness | Purpose | What lives here now |
 | --- | --- | --- |
 | **Coding harness** | How agents change *this repository* safely | `AGENTS.md`, `CLAUDE.md`, `.claude/` (rules, skills, settings), docs, architecture tests, eval structure, CI |
-| **AnomalyOS runtime harness** | How the *product* detects, decides, investigates, and explains | Built stage by stage under `src/anomalyos/`: config, ClickHouse health, synthetic world + loader today. |
+| **PulseOS runtime harness** | How the *product* detects, decides, investigates, and explains | Built stage by stage under `src/pulseos/`: config, ClickHouse health, synthetic world + loader today. |
 
 Runtime (target flow; see *Stage status* for what exists):
 
@@ -67,7 +67,7 @@ Every non-trivial change follows:
 1. **READ** — relevant docs, invariants, existing tests, and surrounding code. Do not skip `docs/INVARIANTS.md` for behavioral changes.
 2. **PLAN** — name the files, invariants, and tests you will touch. Name the stage you are working in; if the change belongs to a later stage, stop and say so.
 3. **IMPLEMENT** — smallest change that matches the plan. No speculative frameworks.
-4. **TEST** — harness: `python -m unittest discover -s tests/architecture -t . -v`; product: `pytest` (add `ANOMALYOS_RUN_INTEGRATION=1` with ClickHouse up). Report failed or skipped tests explicitly; never silence them.
+4. **TEST** — harness: `python -m unittest discover -s tests/architecture -t . -v`; product: `pytest` (add `PULSEOS_RUN_INTEGRATION=1` with ClickHouse up). Report failed or skipped tests explicitly; never silence them.
 5. **ARCHITECTURE CHECK** — run `python scripts/check_architecture.py`. Failures are blockers, not warnings.
 6. **EVALUATE** — run `python scripts/eval_smoke.py`. New scenarios need explicit ground truth.
 7. **REVIEW** — read the diff. Check secrets, invariant bypasses, duplicated instructions, and dependency creep.
@@ -76,8 +76,8 @@ Every non-trivial change follows:
 ## Coding conventions
 
 - Prefer the Python standard library. Record any new dependency in `docs/DECISIONS.md` before adding it; the allowlist is pinned in `tests/architecture/test_no_product_implementation.py` (currently `clickhouse-connect`, ADR-020).
-- Product code lives in `src/anomalyos/`, one package per layer, created in the stage that implements it. Module docstrings state why / input / output / invariants / failure modes.
-- Configuration only via `anomalyos.config.load_settings` (a pure function over an env mapping).
+- Product code lives in `src/pulseos/`, one package per layer, created in the stage that implements it. Module docstrings state why / input / output / invariants / failure modes.
+- Configuration only via `pulseos.config.load_settings` (a pure function over an env mapping).
 - Keep `.claude/rules/` focused and path-scoped; link this file instead of copying it into rules or `CLAUDE.md`.
 - Do not install marketplace / external Skills. Future Skills are listed in `docs/SKILLS.md` and must be introduced only when the procedure they encode exists.
 
@@ -107,11 +107,11 @@ python3 scripts/eval_smoke.py
 docker compose up -d clickhouse
 pip install -e ".[dev]"
 set -a; source .env; set +a
-anomalyos doctor
+pulseos doctor
 pytest                               # unit
-ANOMALYOS_RUN_INTEGRATION=1 pytest   # unit + integration
-anomalyos-sim generate --seed 42 --out data/run_42 --validate
-anomalyos-sim load --in data/run_42 --replace
+PULSEOS_RUN_INTEGRATION=1 pytest   # unit + integration
+pulseos-sim generate --seed 42 --out data/run_42 --validate
+pulseos-sim load --in data/run_42 --replace
 ```
 
 Run the harness checks before finishing any change, and the product tests when `src/` or `tests/unit|integration` changed. Do not merge to `main`; the owner merges.

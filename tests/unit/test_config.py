@@ -2,7 +2,7 @@ import dataclasses
 
 import pytest
 
-from anomalyos.config import DEFAULTS, ConfigError, load_settings
+from pulseos.config import DEFAULTS, ConfigError, load_settings
 
 
 def test_defaults_load():
@@ -14,7 +14,7 @@ def test_defaults_load():
 
 
 def test_overrides_apply():
-    s = load_settings({"ANOMALYOS_ENV": "ci", "CLICKHOUSE_HTTP_PORT": "18123", "ANOMALYOS_SEED": "7"})
+    s = load_settings({"PULSEOS_ENV": "ci", "CLICKHOUSE_HTTP_PORT": "18123", "PULSEOS_SEED": "7"})
     assert (s.env, s.seed, s.clickhouse.http_port) == ("ci", 7, 18123)
 
 
@@ -38,11 +38,11 @@ def test_password_never_in_repr():
 @pytest.mark.parametrize(
     ("key", "value", "fragment"),
     [
-        ("ANOMALYOS_ENV", "production", "ANOMALYOS_ENV"),
+        ("PULSEOS_ENV", "production", "PULSEOS_ENV"),
         ("CLICKHOUSE_HTTP_PORT", "abc", "integer"),
         ("CLICKHOUSE_HTTP_PORT", "0", "CLICKHOUSE_HTTP_PORT"),
         ("CLICKHOUSE_HTTP_PORT", "70000", "CLICKHOUSE_HTTP_PORT"),
-        ("ANOMALYOS_SEED", "-1", "ANOMALYOS_SEED"),
+        ("PULSEOS_SEED", "-1", "PULSEOS_SEED"),
         ("CLICKHOUSE_DB", "db; DROP TABLE x", "safe identifier"),
         ("CLICKHOUSE_USER", "   ", "must not be empty"),
     ],
@@ -53,7 +53,7 @@ def test_invalid_values_raise_named_error(key, value, fragment):
 
 
 def test_jev_settings_default_to_replay_and_hide_the_key():
-    from anomalyos.config import ConfigError, load_settings
+    from pulseos.config import ConfigError, load_settings
     s = load_settings({})
     assert s.jev.mode == "replay" and s.jev.endpoint is None and s.jev.api_key is None
     k = load_settings({"JEV_MODE": "fake", "JEV_API_KEY": "sk-secret-123", "JEV_ENDPOINT": "https://example.invalid"})

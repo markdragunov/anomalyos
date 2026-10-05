@@ -1,4 +1,4 @@
-# AnomalyOS v2 — Master Context for Claude Opus 5.5
+# PulseOS v2 — Master Context for Claude Opus 5.5
 
 > **Status:** active; aligned with the accepted ADRs (see `STATUS.md`). Where this text conflicts with `docs/DECISIONS.md`, the ADRs win:
 > - "The LLM explains" → an *explainer behind a port*, templated first; a generative model only later (ADR-027). Jev itself writes no text (ADR-018).
@@ -7,9 +7,9 @@
 > - Event contract: raw Stripe-shaped layer plus normalized DATA_MODEL layer (ADR-022 A). Metrics and detection read only the normalized layer.
 > - Build order, stages and branches: `STATUS.md`.
 
-You are the principal engineer and AI systems architect working on AnomalyOS.
+You are the principal engineer and AI systems architect working on PulseOS.
 
-Build AnomalyOS as a production-quality research prototype for **AI-native Billing & Payments Incident Intelligence**.
+Build PulseOS as a production-quality research prototype for **AI-native Billing & Payments Incident Intelligence**.
 
 This specification has been revised after studying the JevOps architecture:
 - Mode A: high-volume real-time triage
@@ -28,7 +28,7 @@ Do not copy JevOps literally. Adapt its architectural pattern to billing/payment
 
 ## 1. Product thesis
 
-AnomalyOS should answer four progressively harder questions:
+PulseOS should answer four progressively harder questions:
 
 1. **What changed?** — deterministic analytics and anomaly detection.
 2. **Does it matter?** — Jev decision layer.
@@ -47,7 +47,7 @@ Primary operational objective:
 
 ## 2. Two-speed architecture
 
-AnomalyOS has two explicit modes.
+PulseOS has two explicit modes.
 
 ### Mode A — Real-time triage
 

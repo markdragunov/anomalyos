@@ -1,7 +1,7 @@
 # Detection (Stage 3)
 
 Answers **"what changed?"** deterministically on the metric series of Stage 2 — no severity, no cause, no incident.
-Output: `AnomalyCandidate`s for Stage 4 (cohorts) and Stage 5 (Jev). Code: `src/anomalyos/detection/`.
+Output: `AnomalyCandidate`s for Stage 4 (cohorts) and Stage 5 (Jev). Code: `src/pulseos/detection/`.
 Decisions: ADR-034 (design), ADR-035 (Gate 1 results, frozen parameters). Ground truth is never read (INV-015).
 
 ## Monitored series
@@ -43,7 +43,7 @@ truncating a series never changes earlier decisions.
    are not applicable yet.
 7. **Static-threshold system** (comparison, spec 10): fixed band around the warm-up median, single-window firing.
 
-Parameters (frozen, ADR-035): `DetectorConfig()` in `src/anomalyos/detection/config.py`.
+Parameters (frozen, ADR-035): `DetectorConfig()` in `src/pulseos/detection/config.py`.
 
 ## Evaluation rules (fixed before results; ADR-034 D-7, Gate 1 corrections)
 
@@ -55,7 +55,7 @@ Parameters (frozen, ADR-035): `DetectorConfig()` in `src/anomalyos/detection/con
 - False positives: no match; matches only `suppress` records; or a metric the record declares unchanged.
   `watch` hits are reported only.
 
-Code: `src/anomalyos/evaluation/detection.py`; runner: `scripts/eval_detection_dev.py` (DEV seeds only; refuses
+Code: `src/pulseos/evaluation/detection.py`; runner: `scripts/eval_detection_dev.py` (DEV seeds only; refuses
 HELDOUT seeds; writes `reports/`, not committed).
 
 ## Results on DEV seeds (20 seeds × realism v1/v2, scale 1.0, randomized calendar)

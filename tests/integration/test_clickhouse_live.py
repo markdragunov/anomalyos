@@ -1,6 +1,6 @@
 """Live check against the Docker Compose ClickHouse.
 
-Opt-in: ANOMALYOS_RUN_INTEGRATION=1 pytest -m integration
+Opt-in: PULSEOS_RUN_INTEGRATION=1 pytest -m integration
 Skipped (never silently passed) otherwise.
 """
 
@@ -8,14 +8,14 @@ import os
 
 import pytest
 
-from anomalyos.clickhouse import check_health
-from anomalyos.config import load_settings
+from pulseos.clickhouse import check_health
+from pulseos.config import load_settings
 
 pytestmark = [
     pytest.mark.integration,
     pytest.mark.skipif(
-        os.environ.get("ANOMALYOS_RUN_INTEGRATION") != "1",
-        reason="set ANOMALYOS_RUN_INTEGRATION=1 with ClickHouse running",
+        os.environ.get("PULSEOS_RUN_INTEGRATION") != "1",
+        reason="set PULSEOS_RUN_INTEGRATION=1 with ClickHouse running",
     ),
 ]
 

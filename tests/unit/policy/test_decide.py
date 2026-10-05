@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import pytest
 
-from anomalyos.jev.client import BudgetedClient, DecisionContext, JevBudget, JevError
-from anomalyos.jev.fake import FakeJevClient
-from anomalyos.jev.replay import RecordingClient, ReplayJevClient, ReplayStore
-from anomalyos.jev.transport import HttpJevClient
-from anomalyos.policy import audit
-from anomalyos.policy.decide import decide
+from pulseos.jev.client import BudgetedClient, DecisionContext, JevBudget, JevError
+from pulseos.jev.fake import FakeJevClient
+from pulseos.jev.replay import RecordingClient, ReplayJevClient, ReplayStore
+from pulseos.jev.transport import HttpJevClient
+from pulseos.policy import audit
+from pulseos.policy.decide import decide
 from tests.unit.jev.fixtures import bundle, candidate
 
 CTX = DecisionContext(as_of=candidate()["detected_at"], evaluated_at=candidate()["detected_at"])

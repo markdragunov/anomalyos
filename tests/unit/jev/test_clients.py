@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import json
 
-from anomalyos.jev.client import BudgetedClient, DecisionContext, JevBudget, JevError, make_request
-from anomalyos.jev.fake import FakeJevClient
-from anomalyos.jev.questions import CAUSES_V1
-from anomalyos.jev.replay import RecordingClient, ReplayJevClient, ReplayStore, redact
-from anomalyos.jev.state import build_state
-from anomalyos.jev.transport import HttpJevClient
-from anomalyos.jev.verifier import verify
+from pulseos.jev.client import BudgetedClient, DecisionContext, JevBudget, JevError, make_request
+from pulseos.jev.fake import FakeJevClient
+from pulseos.jev.questions import CAUSES_V1
+from pulseos.jev.replay import RecordingClient, ReplayJevClient, ReplayStore, redact
+from pulseos.jev.state import build_state
+from pulseos.jev.transport import HttpJevClient
+from pulseos.jev.verifier import verify
 from tests.unit.jev.fixtures import bundle, candidate
 
 CTX = DecisionContext(as_of=candidate()["detected_at"], evaluated_at=candidate()["detected_at"])
@@ -27,7 +27,7 @@ def test_fake_is_deterministic_and_exercises_failures():
     assert f.ask(req, CTX) == f.ask(req, CTX)
     kinds = {"ok": 0, "error": 0, "malformed": 0}
     import itertools
-    from anomalyos.jev.buckets import METRIC_FAMILY
+    from pulseos.jev.buckets import METRIC_FAMILY
     grid = itertools.product(sorted(METRIC_FAMILY), (-0.01, -0.03, -0.1, -0.3, -0.6), (3.0, 5.0, 9.0), (100, 1000, 9000))
     for metric, rel, z, n in grid:  # 495 distinct states -> 495 distinct request hashes
         r, prov = _req(metric=metric, relative_delta=rel, score_at_detection=z, sample_size=n)
@@ -77,7 +77,7 @@ def test_transport_is_not_configured_until_access_exists():
 
 
 def test_cause_vocabulary_matches_the_simulator():
-    from anomalyos.simulation.ground_truth import RootCause
+    from pulseos.simulation.ground_truth import RootCause
     assert set(CAUSES_V1) == {c.value for c in RootCause}
 
 

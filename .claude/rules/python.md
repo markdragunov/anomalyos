@@ -14,6 +14,6 @@ paths:
 - Type hints on public functions; explicit, typed interfaces between layers (dataclasses, closed vocabularies).
 - Keep functions focused, pure where possible, and testable without I/O. No speculative frameworks or abstractions.
 - Module docstrings state why / input / output / invariants / failure modes; match the density of the surrounding code.
-- Configuration only via `anomalyos.config.load_settings`. Money in integer minor units + ISO 4217 currency; timestamps
+- Configuration only via `pulseos.config.load_settings`. Money in integer minor units + ISO 4217 currency; timestamps
   UTC; missing dimensions are the explicit value `unknown`.
 - IDs and randomness in the simulator via `ids.stable_id` / `ids.derive_seed`; never `hash()` or global counters.

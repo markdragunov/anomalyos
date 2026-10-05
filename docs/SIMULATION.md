@@ -5,16 +5,16 @@ stream for one synthetic merchant and, separately, a machine-readable record of 
 injected scenario. Shapes follow Stripe's public object model; **no compatibility with the
 Stripe API is claimed**.
 
-Code: `src/anomalyos/simulation/` · CLI: `anomalyos-sim` (`python -m anomalyos.simulation`).
+Code: `src/pulseos/simulation/` · CLI: `pulseos-sim` (`python -m pulseos.simulation`).
 
 ## 1. Quickstart
 
 ```bash
-anomalyos-sim generate --seed 42 --out data/run_42 --validate   # ≈1.37M events, ~1.5–2 min
-anomalyos-sim generate --seed 42 --preset core --scale 0.1 --out data/core_small
-anomalyos-sim validate --in data/run_42
+pulseos-sim generate --seed 42 --out data/run_42 --validate   # ≈1.37M events, ~1.5–2 min
+pulseos-sim generate --seed 42 --preset core --scale 0.1 --out data/core_small
+pulseos-sim validate --in data/run_42
 set -a; source .env; set +a
-anomalyos-sim load --in data/run_42 [--replace]                  # → ClickHouse + SQL checks
+pulseos-sim load --in data/run_42 [--replace]                  # → ClickHouse + SQL checks
 ```
 
 Output directory: `events.jsonl.gz` (one event envelope per line, stream order) ·
@@ -101,7 +101,7 @@ payments and amount, extra refunds, duplicates, fraud — computed by code from 
 
 ### Calendar: fixed or randomized (ADR-029)
 
-`--schedule fixed` (default) reproduces the table below on every seed. `--schedule randomized` draws, per seed, start, duration, cohort and strength of each scenario from closed lists and ranges in `src/anomalyos/simulation/schedule.py`; ground truth always carries the realized values, and records of different scenarios that overlap in time point at each other in `unrelated_to`. Use `DEV_SEEDS` for tuning and `HELDOUT_SEEDS` for reporting (`simulation/seeds.py`).
+`--schedule fixed` (default) reproduces the table below on every seed. `--schedule randomized` draws, per seed, start, duration, cohort and strength of each scenario from closed lists and ranges in `src/pulseos/simulation/schedule.py`; ground truth always carries the realized values, and records of different scenarios that overlap in time point at each other in `unrelated_to`. Use `DEV_SEEDS` for tuning and `HELDOUT_SEEDS` for reporting (`simulation/seeds.py`).
 
 ### Catalog (`--preset full`; `core` = the four marked ★; fixed calendar)
 
@@ -158,7 +158,7 @@ Dimension columns use DATA_MODEL names; a dimension that does not apply is `unkn
 empty. Country is always named: `customer_country` and `issuer_country`.
 
 > **Raw layer (ADR-022 A).** This table is the *raw* layer. The normalized DATA_MODEL envelope
-> lives in `<db>.events_norm` (`anomalyos normalize`, ADR-025); metrics read only that layer.
+> lives in `<db>.events_norm` (`pulseos normalize`, ADR-025); metrics read only that layer.
 `<db>_truth.ground_truth`, `<db>_truth.runs`. Reload = drop partition + insert.
 
 ```sql

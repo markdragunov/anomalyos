@@ -2,7 +2,7 @@
 
 > **Status:** after all stages (`STATUS.md`). Run it in a fresh context, preferably with a different model than the one that built the code; an agent grading its own work is not a review.
 
-Review the completed AnomalyOS repository. Do not modify production code initially.
+Review the completed PulseOS repository. Do not modify production code initially.
 
 Act as:
 1. Staff AI Engineer
@@ -14,7 +14,7 @@ Act as:
 ## 1. Product review
 
 Answer:
-- What exact operational problem does AnomalyOS solve?
+- What exact operational problem does PulseOS solve?
 - Is the core workflow compelling?
 - Is this merely observability with an LLM attached?
 - What is genuinely differentiated?
@@ -38,7 +38,7 @@ Compare our implementation to the architectural lessons of JevOps:
 - honest degradation
 - separation of decision and explanation
 
-Identify where AnomalyOS copied the pattern correctly and where it diverged intentionally.
+Identify where PulseOS copied the pattern correctly and where it diverged intentionally.
 
 Do not copy vendor-specific claims as facts.
 

@@ -6,9 +6,9 @@ from collections import defaultdict
 
 import pytest
 
-from anomalyos.simulation.ground_truth import Mechanism, RootCause, Route, Severity, TruthSpec
-from anomalyos.simulation.scenarios import FACTORIES, PRESETS, Effect, ScenarioSpec, build_catalog, degrade_then_recover, ramp, step
-from anomalyos.simulation.world import DAY, HOUR, WorldConfig
+from pulseos.simulation.ground_truth import Mechanism, RootCause, Route, Severity, TruthSpec
+from pulseos.simulation.scenarios import FACTORIES, PRESETS, Effect, ScenarioSpec, build_catalog, degrade_then_recover, ramp, step
+from pulseos.simulation.world import DAY, HOUR, WorldConfig
 
 REQUIRED_KINDS = {
     "psp_authorization_degradation", "country_degradation", "payment_method_degradation",

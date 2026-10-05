@@ -6,7 +6,7 @@ import copy
 
 import pytest
 
-from anomalyos.events.normalize import (
+from pulseos.events.normalize import (
     EVENT_TYPES, INTENTIONALLY_UNMAPPED, MAPPED_RAW_TYPES, NORM_COLUMN_NAMES, DIMENSION_COLUMNS, Normalizer,
     NormalizationError, normalize,
 )

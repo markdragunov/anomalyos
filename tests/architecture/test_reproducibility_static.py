@@ -7,7 +7,7 @@ import unittest
 
 from tests.architecture.paths import ROOT
 
-SIM = ROOT / "src" / "anomalyos" / "simulation"
+SIM = ROOT / "src" / "pulseos" / "simulation"
 
 FORBIDDEN_BARE = {"hash"}
 FORBIDDEN_ATTRS = {

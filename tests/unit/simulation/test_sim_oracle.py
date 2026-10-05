@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import pytest
 
-from anomalyos.simulation.ground_truth import oracle_detectability
-from anomalyos.simulation.runner import generate
-from anomalyos.simulation.validate import validate_ground_truth
-from anomalyos.simulation.world import DAY, HOUR, WorldConfig
+from pulseos.simulation.ground_truth import oracle_detectability
+from pulseos.simulation.runner import generate
+from pulseos.simulation.validate import validate_ground_truth
+from pulseos.simulation.world import DAY, HOUR, WorldConfig
 
 
 @pytest.fixture(scope="module")

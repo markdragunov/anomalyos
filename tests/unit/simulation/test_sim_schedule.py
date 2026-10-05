@@ -6,13 +6,13 @@ import json
 
 import pytest
 
-from anomalyos.simulation import schedule as sch
-from anomalyos.simulation.ground_truth import GENERATOR_VERSION
-from anomalyos.simulation.runner import generate, run_id_for
-from anomalyos.simulation.scenarios import FACTORIES, PRESETS, build_catalog
-from anomalyos.simulation.seeds import DEMO_SEED, DEV_SEEDS, HELDOUT_SEEDS
-from anomalyos.simulation.validate import EventValidator, validate_ground_truth
-from anomalyos.simulation.world import DAY, HOUR, WorldConfig
+from pulseos.simulation import schedule as sch
+from pulseos.simulation.ground_truth import GENERATOR_VERSION
+from pulseos.simulation.runner import generate, run_id_for
+from pulseos.simulation.scenarios import FACTORIES, PRESETS, build_catalog
+from pulseos.simulation.seeds import DEMO_SEED, DEV_SEEDS, HELDOUT_SEEDS
+from pulseos.simulation.validate import EventValidator, validate_ground_truth
+from pulseos.simulation.world import DAY, HOUR, WorldConfig
 
 # sim-1.0 start of each scenario relative to the world start (docs/SIMULATION.md section 5; day N = start + N days).
 FIXED_STARTS = {

@@ -1,6 +1,6 @@
 ---
 paths:
-  - "src/anomalyos/**/*.py"
+  - "src/pulseos/**/*.py"
   - "tests/**/*.py"
   - "docs/tasks/**/*.md"
 ---

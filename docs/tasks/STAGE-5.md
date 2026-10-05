@@ -792,7 +792,7 @@ Only start after explicit Gate 0 approval.
 
 Implement:
 
-`src/anomalyos/jev/`
+`src/pulseos/jev/`
 
 - typed JevState;
 - state builder;
@@ -806,7 +806,7 @@ Implement:
 - verifier;
 - assessment assembly.
 
-`src/anomalyos/policy/`
+`src/pulseos/policy/`
 
 - versioned policy configuration;
 - Jev policy;

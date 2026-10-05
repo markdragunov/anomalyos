@@ -5,9 +5,9 @@ from __future__ import annotations
 import json
 import random
 
-from anomalyos.cohorts.analysis import (CohortRow, analyze, benjamini_hochberg, bh_qvalues, bundle, decompose_rate,
+from pulseos.cohorts.analysis import (CohortRow, analyze, benjamini_hochberg, bh_qvalues, bundle, decompose_rate,
                                         estimate_impact, locus_row)
-from anomalyos.cohorts.config import CohortConfig
+from pulseos.cohorts.config import CohortConfig
 
 CFG = CohortConfig()
 CAND = {"anomaly_id": "anom_test", "metric": "authorization_rate", "metric_version": 1, "direction": "down", "scope": (),
@@ -147,7 +147,7 @@ def test_equivalent_dimensions_resolve_by_combination_order_and_drop_constant_di
     # card_brand=unknown inside sepa_debit adds nothing: the canonical locus drops it
     pm = [row([("payment_method_type", "sepa_debit")], 0.90, 2000, 0.60, 300), row([("payment_method_type", "card")], 0.90, 12000, 0.90, 1700)]
     pair = [row([("payment_method_type", "sepa_debit"), ("card_brand", "unknown")], 0.90, 2000, 0.60, 300)]
-    from anomalyos.cohorts.analysis import canonical_locus
+    from pulseos.cohorts.analysis import canonical_locus
     tables = {("payment_method_type",): pm, ("payment_method_type", "card_brand"): pair}
     assert canonical_locus(pair[0].dims, (), tables) == (("payment_method_type", "sepa_debit"),)
 

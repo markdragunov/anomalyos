@@ -3,7 +3,7 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "anomalyos"
+name = "pulseos"
 version = "0.0.1"
 description = "AI-native Billing Incident Intelligence — research prototype"
 readme = "README.md"
@@ -16,8 +16,8 @@ dependencies = ["clickhouse-connect>=0.8,<2"]
 dev = ["pytest>=8"]
 
 [project.scripts]
-anomalyos = "anomalyos.__main__:main"
-anomalyos-sim = "anomalyos.simulation.__main__:main"
+pulseos = "pulseos.__main__:main"
+pulseos-sim = "pulseos.simulation.__main__:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -26,6 +26,6 @@ where = ["src"]
 testpaths = ["tests"]
 addopts = "-ra --strict-markers"
 markers = [
-    "integration: requires a running ClickHouse (opt-in via ANOMALYOS_RUN_INTEGRATION=1)",
-    "slow: minutes-long checks (opt-in via ANOMALYOS_RUN_SLOW=1)",
+    "integration: requires a running ClickHouse (opt-in via PULSEOS_RUN_INTEGRATION=1)",
+    "slow: minutes-long checks (opt-in via PULSEOS_RUN_SLOW=1)",
 ]

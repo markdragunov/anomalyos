@@ -29,19 +29,19 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 from eval_cohorts_dev import _slim  # noqa: E402
 from eval_detection_dev import _Chdb  # noqa: E402
-from anomalyos.detection import detect  # noqa: E402
-from anomalyos.evaluation.cohorts import score_cohorts  # noqa: E402
-from anomalyos.evaluation.decisions import score_decisions  # noqa: E402
-from anomalyos.events import store  # noqa: E402
-from anomalyos.jev.client import BudgetedClient, JevBudget  # noqa: E402
-from anomalyos.jev.fake import FakeJevClient  # noqa: E402
-from anomalyos.jev.state import JevState  # noqa: E402
-from anomalyos.policy import baseline, mode_a  # noqa: E402
-from anomalyos.policy.config import BaselineConfig  # noqa: E402
-from anomalyos.simulation import clickhouse_load as chl  # noqa: E402
-from anomalyos.simulation.runner import generate  # noqa: E402
-from anomalyos.simulation.seeds import DEV_SEEDS, HELDOUT_SEEDS  # noqa: E402
-from anomalyos.simulation.world import WorldConfig  # noqa: E402
+from pulseos.detection import detect  # noqa: E402
+from pulseos.evaluation.cohorts import score_cohorts  # noqa: E402
+from pulseos.evaluation.decisions import score_decisions  # noqa: E402
+from pulseos.events import store  # noqa: E402
+from pulseos.jev.client import BudgetedClient, JevBudget  # noqa: E402
+from pulseos.jev.fake import FakeJevClient  # noqa: E402
+from pulseos.jev.state import JevState  # noqa: E402
+from pulseos.policy import baseline, mode_a  # noqa: E402
+from pulseos.policy.config import BaselineConfig  # noqa: E402
+from pulseos.simulation import clickhouse_load as chl  # noqa: E402
+from pulseos.simulation.runner import generate  # noqa: E402
+from pulseos.simulation.seeds import DEV_SEEDS, HELDOUT_SEEDS  # noqa: E402
+from pulseos.simulation.world import WorldConfig  # noqa: E402
 
 TUNING, VALIDATION = set(range(1, 11)), set(range(11, 21))
 PINNED = "fake-jev-0"

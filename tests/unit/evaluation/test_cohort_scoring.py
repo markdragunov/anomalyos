@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from anomalyos.evaluation.cohorts import localization, score_cohorts
+from pulseos.evaluation.cohorts import localization, score_cohorts
 
 H = 3600
 W1 = 28 * 86_400
@@ -64,7 +64,7 @@ def test_first_matching_candidate_is_scored_and_others_count_for_any_exact():
 
 
 def test_equivalence_aware_localization_is_reported_beside_the_literal_one():
-    from anomalyos.evaluation.cohorts import equivalent_exact
+    from pulseos.evaluation.cohorts import equivalent_exact
     dup = _rec(root_cause={"locus": {"platform": ["web"]}}, affected_cohorts=[{"platform": ["web"]}])
     assert equivalent_exact([("app_version", "web")], dup, "duplicate_charge_rate")
     ren = _rec(root_cause={"locus": {"channel": ["renewal"], "psp": ["psp_beta"]}},

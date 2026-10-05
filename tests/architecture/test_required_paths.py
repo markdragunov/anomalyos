@@ -34,7 +34,7 @@ REQUIRED_PATHS = [
     ".claude/settings.json",
     "CLAUDE.md",
     "pyproject.toml",
-    "src/anomalyos",
+    "src/pulseos",
     "tests/unit",
     "tests/integration",
     "docs/DATA_MODEL.md",

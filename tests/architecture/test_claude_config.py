@@ -90,7 +90,7 @@ class TestRules(unittest.TestCase):
                 if target.exists():
                     continue
                 parts = base.split("/")
-                is_planned_package = parts[:2] == ["src", "anomalyos"] and len(parts) >= 3 and parts[2] in planned
+                is_planned_package = parts[:2] == ["src", "pulseos"] and len(parts) >= 3 and parts[2] in planned
                 self.assertTrue(is_planned_package, f"{path.name}: {glob!r} points at nothing (not even a planned package)")
 
     def test_rules_do_not_copy_the_contract(self) -> None:
