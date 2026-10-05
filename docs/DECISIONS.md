@@ -26,6 +26,31 @@ generated event (it feeds the simulator digests and golden tests). ADR-041…045
 **Consequences.** Local `.env` files must rename `ANOMALYOS_*` to `PULSEOS_*`; reinstall with `pip install -e ".[dev]"`
 so the new console scripts exist. Storage names can be migrated later in one step (new database + reload), with its own ADR.
 
+## ADR-042 — Stage 6 Gate 1: correlation fixes, impact over the anchor episode, hysteresis by recovery · *accepted* (2026-10-06, owner OK on recommendations 1–4)
+
+**Context.** After the ADR-041 amendment, tuning (seeds 1–10) found no campaign + outage merge, but validation (seeds
+11–20) had one per realism: a campaign's volume rise with the PSP scope left in its locus nested with an approval drop
+on that PSP through the shared "fraud" group (seed 15), and a global first-look member whose locus was later refined
+to an unrelated PSP became an entry point for unrelated candidates (seed 11). Duplicates were 0.74–0.89 per covered
+record; lost-revenue estimates were off by a factor of 2.5–3; the tuning rule could not choose the hysteresis.
+
+**Decision.**
+1. `authorization_rate` leaves the "fraud" metric group (a volume rise never joins an approval drop through it); a
+   checkpoint refines a member's locus only if the refined locus still nests with the member it joined through.
+   **These mechanisms were found on validation seeds, so seeds 11–20 are no longer a clean validation for Stage 6
+   correlation;** the next clean check is HELDOUT (Stage 9).
+2. Duplicates are a known Stage 6 limitation (strict chains, Stage 3 scope dimensions in Stage 4 loci); revisited with
+   the deferred scope-dimension task.
+3. Impact is measured over the **anchor's episode**, and a new-cohort anchor is measured on its Stage 3 scope. If the
+   pooled median relative error of lost revenue on tuning seeds stays above 1.0, the lost-revenue estimate is reported
+   `not_provided` (observed revenue stays).
+4. The hysteresis `H` is chosen on seeds 1–10 as the most `RECOVERING` transitions within 6 h of the true recovery,
+   after `G` is chosen by the ADR-041 rule.
+
+**Consequences.** `IncidentConfig.version` = `incidents_v2`.
+
+---
+
 ## ADR-041 — Stage 6 design: event-stream engine, correlation, lifecycle, re-evaluation, impact · *accepted* (2026-10-05, owner OK on Gate 0)
 
 **Context.** Stage 6 turns Mode A decisions into incidents (brief `docs/tasks/STAGE-6.md`, design
