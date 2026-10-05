@@ -44,6 +44,8 @@ class CandidateInfo:
     evidence_ids: tuple[str, ...] = ()
     impact: dict | None = None  # Stage 4 estimate on the as-of window
     window_end: int = 0  # end of the as-of window the analysis used
+    scope: frozenset = frozenset()  # the Stage 3 scope (impact of a new cohort is measured on it, ADR-042)
+    change_type: str = ""  # the Stage 4 label of this analysis
 
 
 @dataclass(frozen=True)
@@ -93,6 +95,7 @@ class Engine:
         self.home: dict[str, str] = {}  # candidate -> group id
         self.info: dict[str, CandidateInfo] = {}
         self.recovered: dict[str, int] = {}
+        self.anchor_of: dict[str, str] = {}  # member -> the member it joined through (absent for creators)
         self.events: list[dict] = []
         self.links: list[dict] = []
         self.digest: list[dict] = []
@@ -117,6 +120,8 @@ class Engine:
 
     def _link(self, g: _Group, info: CandidateInfo, t: int, kind: str, evidence: dict) -> None:
         g.members[info.candidate_id] = self._member(info)
+        if evidence.get("member") and evidence["member"] != info.candidate_id:
+            self.anchor_of[info.candidate_id] = evidence["member"]
         g.starts[info.candidate_id] = info.start
         self.home[info.candidate_id] = g.gid
         if g.kind == "incident":
@@ -182,8 +187,13 @@ class Engine:
     def _arrive(self, info: CandidateInfo, t: int) -> None:
         cid = info.candidate_id
         home = self.groups.get(self.home.get(cid, ""))
-        if home is not None:  # a checkpoint refines the member's locus (Gate 1 fix, owner OK)
-            home.members[cid] = self._member(info)
+        if home is not None:  # a checkpoint refines the member's locus (ADR-041 amendment) ...
+            anchor = home.members.get(self.anchor_of.get(cid, ""))
+            refined = self._member(info)
+            # ... but a refined locus must still nest with the member it joined through, or it would become a new
+            # entry point for unrelated candidates (ADR-042); otherwise the member keeps its locus
+            if anchor is None or correlate.nested(refined.locus, anchor.locus) == (True, False):
+                home.members[cid] = refined
         if home is not None and home.kind == "incident":
             if info.verified:
                 self._row(home, t, "policy", "checkpoint_update")

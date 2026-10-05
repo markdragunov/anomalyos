@@ -31,6 +31,7 @@ def test_nesting_follows_the_approved_chains_only():
 
 def test_metric_groups():
     assert groups("attempt_volume", "up") == {"fraud"} and groups("attempt_volume", "down") == {"payments"}
+    assert groups("authorization_rate", "down") == {"payments"}
     assert groups_compatible(groups("authorization_rate", "down"), groups("checkout_conversion_rate", "down")) == {"payments"}
     assert not groups_compatible(groups("refund_count", "up"), groups("renewal_success_rate", "down"))
     assert groups_compatible(groups("late_arrival_share", "up"), groups("renewal_success_rate", "down"))
@@ -60,14 +61,16 @@ def test_campaign_and_outage_never_merge(method):
     # correlated_unrelated_anomalies: a country campaign (volume up) and an iDEAL or SEPA outage (approval down)
     campaign = group("i_campaign", [Member("vol", "attempt_volume", "up", L(customer_country="DE"))], created=0)
     outage = group("i_outage", [Member("auth", "authorization_rate", "down", L(payment_method_type=method))], created=1)
-    # the outage candidate does not join the campaign (groups share "fraud", but loci are not nested)
+    # the outage candidate does not join the campaign: approval is not in the fraud group (ADR-042)
     m = decide(Member("auth", "authorization_rate", "down", L(payment_method_type=method)), H, 2 * H, [campaign], CFG)
-    assert m.target is None
-    # a global approval candidate overlapping both is ambiguous and stays separate, related to both
+    assert m.target is None and m.related == ()
+    # even when Stage 4 leaves the PSP scope in the campaign locus (psp ⊂ psp×country), a volume rise and an
+    # approval drop do not merge (the seed-15 case)
+    camp_psp = group("i_c", [Member("vol", "attempt_volume", "up", L(psp="psp_beta", customer_country="DE"))])
+    assert decide(Member("auth", "authorization_rate", "down", L(psp="psp_beta")), H, 2 * H, [camp_psp], CFG).target is None
+    # a global approval candidate overlapping both joins only the group-compatible outage
     g = decide(Member("glob", "authorization_rate", "down", L()), H, 2 * H, [campaign, outage], CFG)
-    assert g.target is None and set(g.related) == {"i_campaign", "i_outage"}
-    # with only one candidate incident the global locus links unambiguously
-    assert decide(Member("glob", "authorization_rate", "down", L()), H, 2 * H, [outage], CFG).target == "i_outage"
+    assert g.target == "i_outage"
 
 
 def test_a_global_member_never_anchors_a_specific_candidate():

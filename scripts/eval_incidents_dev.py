@@ -3,7 +3,8 @@
 
 ``--tune``: seeds 1-10 only, route-agnostic events; refolds the engine for every gap G in {0, 1, 3, 6} h and
 hysteresis H in {0, 1, 3} h and picks (G, H) by the rule fixed at Gate 0 — (1) zero campaign + outage merges,
-(2) wrong merges <= 5 % of engine incidents, (3) fewest duplicates per covered record; ties: smaller G, then smaller H.
+(2) wrong merges <= 5 % of engine incidents, (3) fewest duplicates per covered record, ties: smaller G — and then H
+(ADR-042) as the most RECOVERING transitions within 6 h of the true recovery for that G, ties: smaller H.
 Writes reports/stage6_tuning.json.
 Default: all DEV seeds with the chosen (G, H), route sources ``all`` (route-agnostic) and ``baseline`` (baseline_v2,
 the control), impact estimated; tuning seeds 1-10 and validation seeds 11-20 reported separately. Writes
@@ -113,8 +114,15 @@ def choose(worlds: list[dict]) -> dict:
                        "wrong_merge_rate": sum(x["counts"]["wrong_merges"] for x in c) / inc if inc else 0.0,
                        "duplicates_per_covered": sum(x["counts"]["duplicates"] for x in c) / covered if covered else 0.0,
                        "incidents": inc, "covered": covered}
+        scored = sum(x["counts"]["recovery_scored"] for x in c)
+        hits = sum((x["summary"]["recovery_within_6h"] or 0) * x["counts"]["recovery_scored"] for x in c)
+        pooled[key]["recovery_within_6h"] = hits / scored if scored else 0.0
     ok = [k for k, v in pooled.items() if v["campaign_merges"] == 0 and v["wrong_merge_rate"] <= WRONG_MERGE_MAX]
-    pick = min(ok, key=lambda k: (pooled[k]["duplicates_per_covered"], int(k.split("|")[0]), int(k.split("|")[1]))) if ok else None
+    if not ok:
+        return {"pooled": pooled, "eligible": ok, "chosen": None}
+    g = min(ok, key=lambda k: (pooled[k]["duplicates_per_covered"], int(k.split("|")[0])))
+    same_g = [k for k in ok if k.split("|")[0] == g.split("|")[0]]
+    pick = max(same_g, key=lambda k: (pooled[k]["recovery_within_6h"], -int(k.split("|")[1])))
     return {"pooled": pooled, "eligible": ok, "chosen": pick}
 
 
@@ -178,12 +186,12 @@ def report(results: list[dict], tuning: dict) -> str:
                     a[1] += v["accuracy"] * v["n"]
         lines.append(f"| realism_{realism} | " + " | ".join(
             f"{100 * acc[i][1] / acc[i][0]:.0f} % (n={acc[i][0]})" if i in acc else "—" for i in range(4)) + " |")
-    lines += ["", "## Tuning grid (seeds 1–10, route-agnostic, pooled)", "", "| G h | H h | campaign merges | wrong merges | duplicates per covered | incidents |",
-              "|---|---|---|---|---|---|"]
+    lines += ["", "## Tuning grid (seeds 1–10, route-agnostic, pooled)", "", "| G h | H h | campaign merges | wrong merges | duplicates per covered | recovery ≤ 6 h | incidents |",
+              "|---|---|---|---|---|---|---|"]
     for k, v in sorted(tuning["pooled"].items(), key=lambda kv: tuple(int(x) for x in kv[0].split("|"))):
         gg, hh = (int(x) // HOUR for x in k.split("|"))
         mark = " **chosen**" if k == tuning.get("chosen") else ""
-        lines.append(f"| {gg} | {hh}{mark} | {v['campaign_merges']} | {_f(v['wrong_merge_rate'], True)} | {_f(v['duplicates_per_covered'])} | {v['incidents']} |")
+        lines.append(f"| {gg} | {hh}{mark} | {v['campaign_merges']} | {_f(v['wrong_merge_rate'], True)} | {_f(v['duplicates_per_covered'])} | {_f(v.get('recovery_within_6h'), True)} | {v['incidents']} |")
     return "\n".join(lines) + "\n"
 
 

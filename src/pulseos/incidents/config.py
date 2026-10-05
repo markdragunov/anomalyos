@@ -20,7 +20,7 @@ CHAIN_EDGES: tuple[tuple[frozenset[str], frozenset[str]], ...] = tuple(
 
 # Metric groups (D-2), keyed by (metric, direction); None = either direction. "ingestion" is compatible with all.
 METRIC_GROUPS: dict[tuple[str, str | None], frozenset[str]] = {
-    ("authorization_rate", None): frozenset({"payments", "fraud"}),
+    ("authorization_rate", None): frozenset({"payments"}),  # not "fraud": a volume rise must not join an approval drop (ADR-042)
     ("checkout_conversion_rate", None): frozenset({"payments"}),
     ("attempt_volume", "down"): frozenset({"payments"}),
     ("attempt_volume", "up"): frozenset({"fraud"}),
@@ -38,7 +38,7 @@ IMPACT_METRICS = ("authorization_rate", "checkout_conversion_rate")
 
 @dataclass(frozen=True)
 class IncidentConfig:
-    version: str = "incidents_v1"
+    version: str = "incidents_v2"  # v2: Gate 1 fixes (ADR-042)
     gap_s: int = 1 * HOUR  # D-2 rule 1 (tuned over 0, 1, 3, 6 h)
     hysteresis_s: int = 1 * HOUR  # D-4 quiet time before RECOVERING (tuned over 0, 1, 3 h)
     checkpoints_s: tuple[int, ...] = (6 * HOUR, 24 * HOUR)  # D-5, after detected_at, while the episode is open

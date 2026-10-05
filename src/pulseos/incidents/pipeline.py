@@ -60,7 +60,8 @@ def _info(c: AnomalyCandidate, view: AnomalyCandidate, analysis, bundle, record:
         route_source={"policy": record.policy_version, "baseline": "baseline_v2", "all": "all_candidates"}[source],
         policy_version=record.policy_version, verified=record.verified, incident_p=record.incident_p,
         severity_level=record.severity_level, categories=tuple(sorted(cats, key=lambda k: (-cats[k], k))[:3]),
-        evidence_ids=tuple(record.evidence_ids), impact=(bundle or {}).get("impact"), window_end=view.window_end)
+        evidence_ids=tuple(record.evidence_ids), impact=(bundle or {}).get("impact"), window_end=view.window_end,
+        scope=frozenset(tuple(x) for x in view.scope), change_type=analysis.label if analysis is not None else "")
 
 
 def checkpoint_times(c: AnomalyCandidate, world_end: int, cfg: IncidentConfig) -> list[int]:
@@ -113,9 +114,9 @@ def run(runner, database: str, run_id: str, candidates: Iterable[AnomalyCandidat
     if estimate_impact:
         for iid, inc in sorted(result.incidents.items()):
             members = [engine.info[cid] for cid in inc["linked_anomalies"]]
-            start = inc["started_at"]
-            end = max((c.recovered_at or world_end) for c in full if c.anomaly_id in inc["linked_anomalies"])
-            imp = impact_mod.estimate(runner, database, run_id, members, start, min(end, world_end), world_start)
+            episode_end = {c.anomaly_id: min(c.recovered_at or world_end, world_end) for c in full
+                           if c.anomaly_id in inc["linked_anomalies"]}
+            imp = impact_mod.estimate(runner, database, run_id, members, episode_end, world_start)
             engine.apply(Event(inc["last_updated_at"], "impact", incident_id=iid, impact=imp))
         result = engine.result()
     return PipelineResult(result, decisions, events, infos)

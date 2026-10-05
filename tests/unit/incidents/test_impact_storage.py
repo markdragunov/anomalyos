@@ -27,6 +27,16 @@ def test_one_anchor_the_most_specific_approval_candidate():
     assert impact.anchor([info("vol", metric="attempt_volume")]) is None
 
 
+def test_impact_target_uses_the_anchor_episode_and_scope_for_new_cohorts():
+    a = replace(info("pair", locus=(("psp", "b"), ("customer_country", "DE")), start=2 * H), scope=frozenset({("psp", "b")}))
+    long = info("long", metric="attempt_volume", start=0)
+    anc, s, e, loc = impact.target([a, long], {"pair": 6 * H, "long": 90 * H})
+    assert anc.candidate_id == "pair" and (s, e) == (2 * H, 6 * H) and loc == a.locus
+    new = replace(a, change_type="new_cohort", locus=frozenset({("platform", "android"), ("app_version", "5.14.0")}),
+                  scope=frozenset({("platform", "android")}))
+    assert impact.target([new], {"pair": 6 * H})[3] == {("platform", "android")}
+
+
 def test_storage_is_append_only(ch):
     db = "anomalyos_incidents_test"
     for stmt in storage.ddl(db):

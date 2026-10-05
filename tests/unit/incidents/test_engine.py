@@ -116,3 +116,19 @@ def test_a_checkpoint_refines_the_member_locus():
     assert len(r.incidents) == 1 and next(iter(r.incidents.values()))["linked_anomalies"] == ["c1", "c2"]
     without = run([det(H, g), det(4 * H, info("c2", start=3 * H))])
     assert len(without.incidents) == 2  # the global member alone does not anchor c2
+
+
+def test_a_refined_locus_must_still_nest_with_its_anchor():
+    # ADR-042 (the seed-11 case): a global candidate joins c1's incident, then its locus is refined to an unrelated
+    # PSP; the refinement is not accepted, so it cannot become an entry point for that PSP's candidates
+    c1 = info("c1", locus=(("psp", "a"), ("customer_country", "GB")))
+    g = info("g", locus=(), start=H)
+    elsewhere = info("g", locus=(("psp", "b"),), start=H)
+    r = run([det(H, c1), det(2 * H, g), Event(3 * H, "checkpoint", "g", info=elsewhere),
+             det(4 * H, info("x", locus=(("psp", "b"), ("customer_country", "FR")), start=3 * H))])
+    assert len(r.incidents) == 2
+    # a refinement that still nests with the anchor is accepted
+    inside = info("g", locus=(("psp", "a"),), start=H)
+    r = run([det(H, c1), det(2 * H, g), Event(3 * H, "checkpoint", "g", info=inside),
+             det(4 * H, info("y", locus=(("psp", "a"), ("card_brand", "visa")), start=3 * H))])
+    assert len(r.incidents) == 1  # y nests only with g's refined locus (psp a ⊂ psp×card_brand), not with c1

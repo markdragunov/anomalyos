@@ -1,12 +1,14 @@
 """Incident impact (ADR-041 D-6): one anchor per incident, so overlapping candidates are not counted twice.
 
-Input: the incident's member candidates as known at the end (``CandidateInfo``), its interval, a query runner.
+Input: the incident's member candidates as known at the end (``CandidateInfo``), each member's episode end, a runner.
 Output: a dict of labelled values — ``OBSERVED`` captured revenue and attempts are measured; ``ESTIMATED`` lost
 successful payments and lost revenue carry an interval.
+* the interval is the **anchor's episode** (ADR-042), not the incident span, which grows with its longest member;
 * lost successful payments: the anchor (most specific approval / conversion member, latest analysis) Stage 4 estimate,
-  extended from its analysis window to the incident interval;
+  extended from its analysis window to that interval;
 * lost revenue per currency: Stage 3 lagged same-slot baseline (days d-8 … d-2, the most extreme dropped when ≥ 4)
-  of ``revenue_collected_minor`` in the anchor locus, minus the observed revenue; interval from the reference spread.
+  of ``revenue_collected_minor`` minus the observed revenue, in the anchor locus — or in its Stage 3 scope when the
+  locus is a new cohort, which has no baseline (ADR-042); interval from the reference spread.
 ClickHouse only through ``metrics.compute`` (INV-003). Never reads ground truth.
 """
 
@@ -70,11 +72,18 @@ def revenue(runner, database: str, run_id: str, locus: frozenset, start: int, en
     return out
 
 
-def estimate(runner, database: str, run_id: str, members: Iterable[CandidateInfo], start: int, end: int,
+def target(members: list[CandidateInfo], episode_end: dict[str, int]) -> tuple[CandidateInfo | None, int, int, frozenset]:
+    """(anchor, start, end, locus): the anchor's episode; a new cohort is measured on its Stage 3 scope."""
+    a = anchor(members)
+    ref = a or max(members, key=lambda m: (len(m.locus), m.candidate_id))
+    locus = ref.scope if ref.change_type == "new_cohort" else ref.locus
+    return a, ref.start, episode_end[ref.candidate_id], locus
+
+
+def estimate(runner, database: str, run_id: str, members: Iterable[CandidateInfo], episode_end: dict[str, int],
              world_start: int) -> dict:
     members = list(members)
-    a = anchor(members)
-    locus = a.locus if a else max((m.locus for m in members), key=len, default=frozenset())
+    a, start, end, locus = target(members, episode_end)
     rev = revenue(runner, database, run_id, locus, start, end, world_start) if end > start else {}
     return {
         "lost_successful_payments": lost_successes(a, start, end) if a else None,
