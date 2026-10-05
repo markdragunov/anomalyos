@@ -18,6 +18,11 @@ for cols in (chl.EVENT_COLUMNS, chl.TRUTH_COLUMNS, chl.RUN_COLUMNS, nz.NORM_COLU
         _TYPES.setdefault(name, typ.split(" CODEC")[0])
 
 
+def _incident_tables():
+    from pulseos.incidents.storage import TABLES
+    return TABLES
+
+
 def _audit_columns():
     from pulseos.policy.audit import COLUMNS
     return COLUMNS
@@ -43,7 +48,7 @@ class ChdbClient:
             f.write(insert_block)
         cols = list(column_names)
         types = {"ground_truth": chl.TRUTH_COLUMNS, "runs": chl.RUN_COLUMNS, "events": chl.EVENT_COLUMNS,
-                 "events_norm": nz.NORM_COLUMNS, "jev_decisions": _audit_columns()}[table.split(".")[1]]
+                 "events_norm": nz.NORM_COLUMNS, "jev_decisions": _audit_columns(), **_incident_tables()}[table.split(".")[1]]
         tmap = {n: t.split(" CODEC")[0] for n, t in types}
         structure = ", ".join(f"`{c}` {tmap[c]}" for c in cols).replace("'", "\\'")
         col_list = ", ".join(f"`{c}`" for c in cols)
