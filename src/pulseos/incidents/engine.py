@@ -182,6 +182,8 @@ class Engine:
     def _arrive(self, info: CandidateInfo, t: int) -> None:
         cid = info.candidate_id
         home = self.groups.get(self.home.get(cid, ""))
+        if home is not None:  # a checkpoint refines the member's locus (Gate 1 fix, owner OK)
+            home.members[cid] = self._member(info)
         if home is not None and home.kind == "incident":
             if info.verified:
                 self._row(home, t, "policy", "checkpoint_update")

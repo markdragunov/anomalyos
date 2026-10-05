@@ -61,6 +61,11 @@ so the new console scripts exist. Storage names can be migrated later in one ste
   (no campaign + outage merge; wrong merges ≤ 5 %; fewest duplicates; smaller values on ties), reported on 11–20.
 - **D-10** Scope as the brief.
 
+**Amendment (owner OK during Phase 2, 2026-10-05).** Tuning found one campaign + outage merge at every `G` / `H`: an
+incident seeded by a candidate with a global first-look locus attracted unrelated candidates one by one, each
+"unambiguous" by the D-2 global rule. Fix: (a) a global locus counts for nesting only on the joining candidate, never
+on an incident member; (b) a checkpoint replaces the member's locus with its latest Stage 4 locus.
+
 **Consequences.** `incidents` leaves the stage guard (`incident` stays). The decision-layer architecture test extends
 to `incidents` (no clock reads, no simulator or evaluation imports). No new dependency.
 

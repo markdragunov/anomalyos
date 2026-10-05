@@ -106,3 +106,13 @@ def test_replay_is_deterministic_regardless_of_input_order():
     a, b = run(evs), run(list(reversed(evs)))
     assert a.incident_events == b.incident_events and a.links == b.links and a.digest_items == b.digest_items
     assert json.loads(a.incident_events[-1]["snapshot_json"])["linked_anomalies"] == ["c1", "c2", "d1"]
+
+
+def test_a_checkpoint_refines_the_member_locus():
+    # Gate 1 fix (b): c1 starts global, a checkpoint localizes it to psp b; a later psp b candidate then joins
+    g = info("c1", locus=())
+    refined = info("c1", locus=(("psp", "b"),))
+    r = run([det(H, g), Event(3 * H, "checkpoint", "c1", info=refined), det(4 * H, info("c2", start=3 * H))])
+    assert len(r.incidents) == 1 and next(iter(r.incidents.values()))["linked_anomalies"] == ["c1", "c2"]
+    without = run([det(H, g), det(4 * H, info("c2", start=3 * H))])
+    assert len(without.incidents) == 2  # the global member alone does not anchor c2

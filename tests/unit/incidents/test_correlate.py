@@ -68,3 +68,13 @@ def test_campaign_and_outage_never_merge(method):
     assert g.target is None and set(g.related) == {"i_campaign", "i_outage"}
     # with only one candidate incident the global locus links unambiguously
     assert decide(Member("glob", "authorization_rate", "down", L()), H, 2 * H, [outage], CFG).target == "i_outage"
+
+
+def test_a_global_member_never_anchors_a_specific_candidate():
+    # Gate 1 fix (a): an incident seeded by a global locus must not attract unrelated specific candidates
+    seeded = group("i_global", [Member("glob", "authorization_rate", "down", L())])
+    for locus in (L(customer_country="GB"), L(payment_method_type="sepa_debit"), L(psp="b", customer_country="ES")):
+        m = decide(Member("x", "authorization_rate", "down", locus), H, 2 * H, [seeded], CFG)
+        assert m.target is None and m.related == ("i_global",)
+    # a global candidate still joins a single qualifying incident
+    assert decide(Member("g2", "authorization_rate", "down", L()), H, 2 * H, [seeded], CFG).target == "i_global"

@@ -1,8 +1,10 @@
 """Correlation rules (ADR-041 D-2): does a candidate join an open incident, start a new one, or stand related?
 
 A candidate joins an incident only if time, cohort and metric group all hold against one of its members. Cohort
-nesting compares Stage 4 loci along the approved chains; nesting that relies on a global locus is ambiguous and counts
-only when exactly one incident qualifies. Ties go to the oldest incident. Pure; Jev never creates a relationship.
+nesting compares Stage 4 loci along the approved chains. A **global candidate** may join through nesting only when
+exactly one incident qualifies; a **global member** of an incident never anchors a specific candidate (Gate 1 fix,
+owner OK: otherwise an incident seeded by a global locus attracts unrelated candidates one by one). Ties go to the
+oldest incident. Pure; Jev never creates a relationship.
 """
 
 from __future__ import annotations
@@ -100,6 +102,8 @@ def decide(member: Member, start: int, end: int, open_groups: Iterable[OpenGroup
             if not shared:
                 continue
             ok, via_global = nested(member.locus, m.locus)
+            if via_global and member.locus:  # only the member is global: it cannot anchor a specific candidate
+                ok = False
             ev = {"time": t, "group": sorted(shared), "member": m.candidate_id}
             if ok and not via_global:
                 best = ("specific", dict(ev, cohort="nested"))
