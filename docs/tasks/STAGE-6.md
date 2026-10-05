@@ -136,7 +136,7 @@ explanations, Jev live calls, HELDOUT, new dependencies without an ADR, any writ
 
 # Phase 1 — Implementation (after Gate 0 approval)
 
-`src/anomalyos/incidents/` (correlation, incident object, lifecycle, digest items, impact aggregation, event
+`src/pulseos/incidents/` (correlation, incident object, lifecycle, digest items, impact aggregation, event
 stream, storage); remove `incidents` from the stage guard in the same change. Tests: correlation (merge / no merge /
 related, the campaign + outage negative case, merging two incidents), deterministic replay of an event stream,
 lifecycle (every allowed and forbidden transition, hysteresis, no system or AI terminal transition, actor and reason
