@@ -408,7 +408,7 @@ branches on — and it constrains the design (see ADR-018).
 | 5 Cohorts | **Stage 4** — pooled before/during decomposition, BH-controlled cohorts, concentration rule, new-cohort test, bounded evidence bundle; DEV top-1 exact locus 44 % (61 % equivalence-aware) vs 1–2 % naive (`docs/COHORTS.md`) |
 | 6 Jev | **Stage 5** — first-look JevState v2, question set v1, `JevClient` port with fake / replay / unconfigured HTTP transport, verifier; **Jev itself not evaluated (no access, OQ-1)** (`docs/DECISIONING.md`) |
 | 6b Policy | **Stage 5** — deterministic `policy_v1`, no-Jev `baseline_v2`, failures → DIGEST, append-only `jev_decisions` audit |
-| 7 Incident engine | Not started |
+| 7 Incident engine | **Stage 6** — event-stream engine, deterministic correlation on Stage 4 loci, ADR-028 lifecycle (humans close), re-evaluation checkpoints, one-anchor impact, append-only tables; DEV coverage 83–86 %, 0 campaign + outage merges (`docs/INCIDENTS.md`) |
 | 8 Agent | Not started (deliberately excluded from Stage 0) |
 | 9–10 API, UI | Not started (deliberately excluded from Stage 0) |
 | 11 Evaluation | Not started (ground truth it will score against exists since Stage 1) |

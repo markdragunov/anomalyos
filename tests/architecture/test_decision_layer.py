@@ -1,8 +1,8 @@
-"""INV-004/005/006/015 for the Stage 5 decision layer (ADR-024, ADR-039), checked on the source with ``ast``.
+"""INV-004/005/006/015 for the decision layer and incident engine (ADR-024, ADR-039, ADR-041), checked with ``ast``.
 
 * network I/O only in ``jev/transport.py``; ``policy`` does none (its audit writer receives a client object);
-* no clock reads anywhere in ``jev`` or ``policy`` (time is an explicit input, ADR-039 D-2);
-* neither package imports the simulator or the evaluation layer (ground truth stays out of reach).
+* no clock reads anywhere in ``jev``, ``policy`` or ``incidents`` (time is an explicit input, ADR-039 D-2, ADR-041 D-0);
+* none of them imports the simulator or the evaluation layer (ground truth stays out of reach).
 """
 
 from __future__ import annotations
@@ -51,7 +51,7 @@ class TestDecisionLayer(unittest.TestCase):
 
     def test_no_clock_reads(self) -> None:
         hits = []
-        for pkg in ("jev", "policy"):
+        for pkg in ("jev", "policy", "incidents"):
             for path in _modules(pkg):
                 for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
                     if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) \
@@ -61,7 +61,7 @@ class TestDecisionLayer(unittest.TestCase):
 
     def test_no_simulator_or_evaluation_imports(self) -> None:
         hits = []
-        for pkg in ("jev", "policy"):
+        for pkg in ("jev", "policy", "incidents"):
             for path in _modules(pkg):
                 mods = _imports(ast.parse(path.read_text(encoding="utf-8")))
                 bad = sorted(m for m in mods if any(m == f or m.startswith(f + ".") for f in FORBIDDEN_IMPORTS))

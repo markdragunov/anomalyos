@@ -26,6 +26,79 @@ generated event (it feeds the simulator digests and golden tests). ADR-041…045
 **Consequences.** Local `.env` files must rename `ANOMALYOS_*` to `PULSEOS_*`; reinstall with `pip install -e ".[dev]"`
 so the new console scripts exist. Storage names can be migrated later in one step (new database + reload), with its own ADR.
 
+## ADR-042 — Stage 6 Gate 1: correlation fixes, impact over the anchor episode, hysteresis by recovery · *accepted* (2026-10-06, owner OK on recommendations 1–4)
+
+**Context.** After the ADR-041 amendment, tuning (seeds 1–10) found no campaign + outage merge, but validation (seeds
+11–20) had one per realism: a campaign's volume rise with the PSP scope left in its locus nested with an approval drop
+on that PSP through the shared "fraud" group (seed 15), and a global first-look member whose locus was later refined
+to an unrelated PSP became an entry point for unrelated candidates (seed 11). Duplicates were 0.74–0.89 per covered
+record; lost-revenue estimates were off by a factor of 2.5–3; the tuning rule could not choose the hysteresis.
+
+**Decision.**
+1. `authorization_rate` leaves the "fraud" metric group (a volume rise never joins an approval drop through it); a
+   checkpoint refines a member's locus only if the refined locus still nests with the member it joined through.
+   **These mechanisms were found on validation seeds, so seeds 11–20 are no longer a clean validation for Stage 6
+   correlation;** the next clean check is HELDOUT (Stage 9).
+2. Duplicates are a known Stage 6 limitation (strict chains, Stage 3 scope dimensions in Stage 4 loci); revisited with
+   the deferred scope-dimension task.
+3. Impact is measured over the **anchor's episode**, and a new-cohort anchor is measured on its Stage 3 scope. If the
+   pooled median relative error of lost revenue on tuning seeds stays above 1.0, the lost-revenue estimate is reported
+   `not_provided` (observed revenue stays).
+4. The hysteresis `H` is chosen on seeds 1–10 as the most `RECOVERING` transitions within 6 h of the true recovery,
+   after `G` is chosen by the ADR-041 rule.
+
+**Outcome (rerun, 2026-10-06).** The lost-revenue median relative error on tuning seeds was 1.014 (n = 373) > 1.0,
+so the estimate is reported `not_provided` (`incidents.impact.ESTIMATE_LOST_REVENUE = False`).
+
+**Consequences.** `IncidentConfig.version` = `incidents_v2`.
+
+---
+
+## ADR-041 — Stage 6 design: event-stream engine, correlation, lifecycle, re-evaluation, impact · *accepted* (2026-10-05, owner OK on Gate 0)
+
+**Context.** Stage 6 turns Mode A decisions into incidents (brief `docs/tasks/STAGE-6.md`, design
+`docs/tasks/STAGE-6-DESIGN.md`). Jev is still blocked (OQ-1); nothing here depends on Jev quality.
+
+**Decision** (design D-0 … D-10, owner's answers 1–8).
+- **D-0** The engine is a pure fold over a time-ordered event stream (detected, checkpoint, recovered, recovery check,
+  human action, impact estimated); same events and versions ⇒ same history; no clock reads.
+- **D-1** `IGNORE` creates nothing; `DIGEST` creates a digest item grouped by the correlation rules, or supports an
+  open incident; `INCIDENT` creates or joins an incident; a checkpoint decision may upgrade a digest group to an
+  incident; never an automatic downgrade or closure.
+- **D-2** A candidate joins an open incident only if time (overlap or gap ≤ `G`), cohort (Stage 4 loci nested along
+  the approved chains `psp ⊂ psp×country ⊂ psp×country×platform`, `psp ⊂ psp×card_brand`, `country ⊂ psp×country`,
+  `country ⊂ country×payment_method`, `platform ⊂ platform×app_version`, equal loci) and metric group (engine-owned
+  table) all hold. Nesting that relies on a global locus counts only when exactly one incident qualifies; otherwise
+  the candidate stays separate, `related_to` each. Tie-break: oldest incident. No automatic merge or split of
+  existing incidents (human commands). Every link records why.
+- **D-3** Incident fields with sources and epistemic labels as in the design; Jev-derived fields are `INFERRED` and
+  marked `not_evaluated` while Jev is blocked.
+- **D-4** Lifecycle per ADR-028: system `DETECTED` on creation, `RECOVERING` after all linked signals recovered and
+  `H` elapsed, `RECOVERING → INVESTIGATING` when a signal returns; human commands acknowledge, escalate, resolve,
+  dismiss, merge; only a human reaches `RESOLVED` / `DISMISSED`; no automatic escalation in Stage 6.
+- **D-5** Re-evaluation at `detected_at + 6 h`, `+ 24 h` while open and at `recovered_at` (≤ 3 per candidate): Stage 4
+  on `[window_start, t)` and a new Stage 5 decision; upgrades only.
+- **D-6** Impact anchored on one candidate per incident (the most specific approval / conversion candidate at its
+  latest checkpoint), extended to the incident interval; lost revenue per currency from `revenue_collected_minor`
+  against the Stage 3 lagged same-slot baseline, with an interval from the reference days; `OBSERVED` vs `ESTIMATED`.
+- **D-7** Package `src/pulseos/incidents/`; append-only ClickHouse tables `incident_events`, `incident_links`,
+  `digest_items` (DDL in `pulseos.incidents.storage`); current state = latest `incident_events` row per incident.
+- **D-8** Burst ranking deferred until Jev access and a call budget exist.
+- **D-9** Evaluation protocol of the design (coverage, duplicates, purity, wrong merges with campaign + outage pairs
+  required to be 0, volume, timeliness, recovery, impact); `G` and `H` tuned on DEV seeds 1–10 by the fixed rule
+  (no campaign + outage merge; wrong merges ≤ 5 %; fewest duplicates; smaller values on ties), reported on 11–20.
+- **D-10** Scope as the brief.
+
+**Amendment (owner OK during Phase 2, 2026-10-05).** Tuning found one campaign + outage merge at every `G` / `H`: an
+incident seeded by a candidate with a global first-look locus attracted unrelated candidates one by one, each
+"unambiguous" by the D-2 global rule. Fix: (a) a global locus counts for nesting only on the joining candidate, never
+on an incident member; (b) a checkpoint replaces the member's locus with its latest Stage 4 locus.
+
+**Consequences.** `incidents` leaves the stage guard (`incident` stays). The decision-layer architecture test extends
+to `incidents` (no clock reads, no simulator or evaluation imports). No new dependency.
+
+---
+
 ## ADR-040 — Stage 5 Gate 1: Jev evaluation blocked, JevState v2, baseline_v2 · *accepted* (2026-10-04, owner OK on recommendations 1–3, option A)
 
 **Context.** DEV run on 40 worlds with the fake client (no Jev access, OQ-1): 2,116 first-look decisions, all audited,

@@ -13,7 +13,7 @@ with it in Claude Code. If anything here seems to conflict with `AGENTS.md`, `AG
 | Invariants (never violate silently) | `docs/INVARIANTS.md` |
 | Decisions and their history | `docs/DECISIONS.md` (ADRs; next free number: check the file) |
 | Layers, Mode A / Mode B, stage table | `docs/ARCHITECTURE.md` |
-| Data contract, metrics, detection, cohorts, decisioning | `docs/DATA_MODEL.md`, `docs/METRICS.md`, `docs/DETECTION.md`, `docs/COHORTS.md`, `docs/DECISIONING.md` |
+| Data contract, metrics, detection, cohorts, decisioning, incidents | `docs/DATA_MODEL.md`, `docs/METRICS.md`, `docs/DETECTION.md`, `docs/COHORTS.md`, `docs/DECISIONING.md`, `docs/INCIDENTS.md` |
 | Simulator and ground truth | `docs/SIMULATION.md` |
 | Test levels and switches | `docs/TESTING.md` |
 | Build specs (ADRs win on conflict) | `docs/specs/` |
