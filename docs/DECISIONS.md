@@ -32,9 +32,13 @@ servers, slash commands, agents or scripts: it adds context, not executable code
 3. **Coding time only.** The Skill and any docs it fetches are research for the coding agent (`docs/TOOLS.md`,
    *Research tools*). Fetched web text never becomes runtime input, evidence or explanation text (`INV-008`), and the
    plugin adds no runtime dependency (the allowlist in `test_no_product_implementation.py` is unchanged).
-4. **Version.** Claude Code settings do not pin a plugin version, so 0.5.7 is the reviewed version recorded here, not an
-   enforced one. Before relying on a newer version, re-check that it still adds no hooks, MCP servers, commands or
-   scripts and that its guidance does not contradict point 2; record the new version in this ADR.
+4. **Version.** Claude Code settings do not pin a plugin version, so the reviewed version is enforced by a check
+   instead: `python3 scripts/check_typesafe_plugin.py` compares the installed plugin (version, commit, file list,
+   SHA-256 of every file) with the fingerprint reviewed here and fails on any difference or on any hook, MCP/LSP
+   server, command, agent, script or executable file. Run it after installing or updating plugins. It reads the
+   developer's machine, so it is not part of CI; an architecture test keeps its fingerprint and this ADR in sync.
+   A newer version is accepted by reviewing it (no executable components; guidance does not contradict point 2), then
+   updating `REVIEWED` in the script and the version above in the same commit.
 
 **Amends.** ADR-036 (settings: "no hooks, MCP servers or plugins" → no hooks or MCP servers, one plugin as above) and
 the "no marketplace Skills" clause kept in force by ADR-036 for ADR-003 (→ except this plugin). ADR-004 is unchanged:
@@ -42,7 +46,7 @@ project Skills are still planned, not stubbed.
 
 **Consequences.** Clones are offered the marketplace and plugin when they trust the project; declining it loses nothing
 the contract needs, because the contract lives in this repository. `AGENTS.md`, `docs/SKILLS.md`, `docs/TOOLS.md`,
-`.claude/skills/README.md` and `tests/architecture/test_claude_config.py` change in the same commit. No product code,
+`.claude/skills/README.md`, `scripts/` and `tests/architecture/test_claude_config.py` change with this decision. No product code,
 invariant or dependency changes.
 
 ---

@@ -5,9 +5,12 @@ Stdlib only (no YAML parser): the frontmatter format checked here is the small s
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import re
+import tempfile
 import unittest
+from pathlib import Path
 
 from tests.architecture.paths import ROOT
 from tests.architecture.test_no_product_implementation import FORBIDDEN_PACKAGES
@@ -36,6 +39,14 @@ def frontmatter(text: str) -> tuple[dict[str, list[str]], str]:
 
 def _outside_code(text: str) -> str:
     return re.sub(r"```.*?```", "", text, flags=re.S)
+
+
+def _plugin_check():
+    """Load `scripts/check_typesafe_plugin.py` by path (scripts/ is not a package)."""
+    spec = importlib.util.spec_from_file_location("check_typesafe_plugin", ROOT / "scripts" / "check_typesafe_plugin.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 class TestNoCursorConfiguration(unittest.TestCase):
@@ -137,6 +148,31 @@ class TestSettings(unittest.TestCase):
     def test_allow_rules_are_exact_commands(self) -> None:
         for rule in self.settings["permissions"]["allow"]:
             self.assertRegex(rule, r"^Bash\([^*]+\)$", f"{rule}: allow rules must be exact (no wildcards; ADR-036)")
+
+    def test_plugin_check_matches_the_reviewed_version_in_the_adr(self) -> None:
+        reviewed = _plugin_check().REVIEWED
+        decisions = (ROOT / "docs" / "DECISIONS.md").read_text(encoding="utf-8")
+        adr = decisions.split("## ADR-047", 1)[1].split("\n## ADR-", 1)[0]
+        self.assertIn(f"Version {reviewed['version']}", adr, "update ADR-047 and REVIEWED together")
+        self.assertIn(reviewed["commit"][:7], adr)
+
+    def test_plugin_check_flags_changes_and_executables(self) -> None:
+        check = _plugin_check()
+        record = {"version": check.REVIEWED["version"], "gitCommitSha": check.REVIEWED["commit"]}
+        self.assertEqual(check.compare(check.REVIEWED, record, dict(check.REVIEWED["files"]), []), [])
+        with tempfile.TemporaryDirectory() as tmp:
+            plugin = Path(tmp)
+            (plugin / ".claude-plugin").mkdir()
+            (plugin / ".claude-plugin" / "plugin.json").write_text('{"name": "typesafe", "mcpServers": {}}')
+            (plugin / "hooks").mkdir()
+            (plugin / "hooks" / "hooks.json").write_text("{}")
+            files = check.fingerprint(plugin)
+            problems = check.compare(check.REVIEWED, record, files, check.executable_components(plugin, files))
+        self.assertIn("new file: hooks/hooks.json", problems)
+        self.assertIn("changed file: .claude-plugin/plugin.json", problems)
+        self.assertIn("missing file: skills/typesafe-ai/SKILL.md", problems)
+        self.assertIn("executable component (not allowed by ADR-047): hooks/hooks.json", problems)
+        self.assertIn("executable component (not allowed by ADR-047): .claude-plugin/plugin.json: mcpServers", problems)
 
     def test_force_push_and_dotenv_are_denied(self) -> None:
         deny = self.settings["permissions"]["deny"]
