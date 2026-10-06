@@ -357,3 +357,18 @@ def validate_ground_truth(records: Iterable[Mapping[str, Any]], scenario_ids: It
         if not by_scn.get(sid):
             r.err(f"{sid}: scenario has no ground-truth record")
     return r
+
+
+def validate_side_files(records: Iterable[Mapping[str, Any]], deployments: list[dict], psp_status: list[dict]) -> Report:
+    """sim-1.3.0 (ADR-049 D-3a): every honest id cited by ground truth exists; no side entry names a cause."""
+    r = Report()
+    ids = {d["id"] for d in deployments} | {s["id"] for s in psp_status}
+    for g in records:
+        for i in g.get("side_signals") or []:
+            if i not in ids:
+                r.err(f"{g.get('scenario_id')}:{g.get('record_key')}: side signal {i} missing from the side files")
+    text = json.dumps([deployments, psp_status])
+    for c in RootCause:
+        if c.value in text:
+            r.err(f"cause label {c.value!r} appears in a side file")
+    return r

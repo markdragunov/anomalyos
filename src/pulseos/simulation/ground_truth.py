@@ -33,7 +33,7 @@ from typing import Any, Mapping
 from .ids import short_hash, stable_id
 from .world import iso
 
-GENERATOR_VERSION = "sim-1.2.2"  # 1.1.0: ADR-029/030; 1.1.1: ADR-031; 1.2.0: realism v2, new scenarios, unchanged_metrics (ADR-032/033); 1.2.1/1.2.2: refund_rate not 'unchanged' for approval incidents / the checkout regression
+GENERATOR_VERSION = "sim-1.3.0"  # 1.1.0: ADR-029/030; 1.1.1: ADR-031; 1.2.0: realism v2, new scenarios, unchanged_metrics (ADR-032/033); 1.2.1/1.2.2: refund_rate not 'unchanged' for approval incidents / the checkout regression; 1.3.0: side files deployments / psp_status, side_signals in truth (ADR-049)
 
 
 class RootCause(str, Enum):
@@ -195,6 +195,7 @@ class GroundTruth:
     cause_vocabulary_version: str = CAUSE_VOCABULARY_VERSION
     generator_version: str = GENERATOR_VERSION
     extra: dict[str, Any] = field(default_factory=dict)
+    side_signals: list[str] = field(default_factory=list)  # sim-1.3.0 (ADR-049): honest side-file entry ids
 
     def to_dict(self) -> dict[str, Any]:
         d = {k: getattr(self, k) for k in self.__dataclass_fields__}

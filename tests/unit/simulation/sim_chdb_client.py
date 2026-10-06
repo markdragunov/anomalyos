@@ -48,7 +48,8 @@ class ChdbClient:
             f.write(insert_block)
         cols = list(column_names)
         types = {"ground_truth": chl.TRUTH_COLUMNS, "runs": chl.RUN_COLUMNS, "events": chl.EVENT_COLUMNS,
-                 "events_norm": nz.NORM_COLUMNS, "jev_decisions": _audit_columns(), **_incident_tables()}[table.split(".")[1]]
+                 "events_norm": nz.NORM_COLUMNS, "jev_decisions": _audit_columns(), **_incident_tables(),
+                 "deployments": chl.DEPLOY_COLUMNS, "psp_status": chl.STATUS_COLUMNS}[table.split(".")[1]]
         tmap = {n: t.split(" CODEC")[0] for n, t in types}
         structure = ", ".join(f"`{c}` {tmap[c]}" for c in cols).replace("'", "\\'")
         col_list = ", ".join(f"`{c}`" for c in cols)

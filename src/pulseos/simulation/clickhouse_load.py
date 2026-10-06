@@ -115,6 +115,14 @@ def _cols(cols) -> str:
     return ",\n    ".join(f"`{n}` {t}" for n, t in cols)
 
 
+# sim-1.3.0 side files (ADR-049 D-3a): in the events database, not <db>_truth — they are observable context.
+DEPLOY_COLUMNS = (("run_id", "String"), ("id", "String"), ("service", "LowCardinality(String)"), ("version", "String"),
+                  ("deployed_at", "Int64"))
+STATUS_COLUMNS = (("run_id", "String"), ("id", "String"), ("psp", "LowCardinality(String)"),
+                  ("component", "LowCardinality(String)"), ("level", "LowCardinality(String)"), ("posted_at", "Int64"),
+                  ("resolved_at", "Nullable(Int64)"))
+
+
 def ddl(db: str, truth_db: str) -> list[str]:
     for name in (db, truth_db):
         if not _IDENT.match(name):
@@ -140,6 +148,16 @@ WHERE type IN ('charge.succeeded', 'charge.failed')""",
 ) ENGINE = MergeTree
 PARTITION BY run_id
 ORDER BY (run_id, scenario_id, record_key)""",
+        f"""CREATE TABLE IF NOT EXISTS {db}.deployments (
+    {_cols(DEPLOY_COLUMNS)}
+) ENGINE = MergeTree
+PARTITION BY run_id
+ORDER BY (run_id, deployed_at, id)""",
+        f"""CREATE TABLE IF NOT EXISTS {db}.psp_status (
+    {_cols(STATUS_COLUMNS)}
+) ENGINE = MergeTree
+PARTITION BY run_id
+ORDER BY (run_id, posted_at, id)""",
         f"""CREATE TABLE IF NOT EXISTS {truth_db}.runs (
     {_cols(RUN_COLUMNS)}
 ) ENGINE = MergeTree
@@ -349,7 +367,8 @@ def load_run(client, run_dir: str | Path, database: str, truth_database: str | N
     existing = int(client.command(f"SELECT count() FROM {database}.events WHERE run_id = '{run_id}'"))
     if existing and not replace:
         raise RuntimeError(f"run {run_id} already loaded ({existing} events); pass replace=True to reload")
-    for table in (f"{database}.events", f"{truth_database}.ground_truth", f"{truth_database}.runs"):
+    for table in (f"{database}.events", f"{truth_database}.ground_truth", f"{truth_database}.runs",
+                  f"{database}.deployments", f"{database}.psp_status"):
         client.command(f"ALTER TABLE {table} DROP PARTITION '{run_id}'")  # no-op if absent
 
     buf: list[dict[str, Any]] = []
@@ -366,9 +385,17 @@ def load_run(client, run_dir: str | Path, database: str, truth_database: str | N
     tr = truth_rows(run_dir)
     client.raw_insert(f"{truth_database}.ground_truth", [c for c, _ in TRUTH_COLUMNS], json_each_row(tr), fmt="JSONEachRow")
     client.raw_insert(f"{truth_database}.runs", [c for c, _ in RUN_COLUMNS], json_each_row([rr]), fmt="JSONEachRow")
+    side = {"deployments": 0, "psp_status": 0}
+    for name, cols in (("deployments", DEPLOY_COLUMNS), ("psp_status", STATUS_COLUMNS)):
+        f = run_dir / f"{name}.json"
+        if f.exists():  # runs generated before sim-1.3.0 have no side files
+            rows = [dict(r, run_id=run_id) for r in json.loads(f.read_text())[name]]
+            if rows:
+                client.raw_insert(f"{database}.{name}", [c for c, _ in cols], json_each_row(rows), fmt="JSONEachRow")
+            side[name] = len(rows)
 
     count = int(client.command(f"SELECT count() FROM {database}.events WHERE run_id = '{run_id}'"))
     if count != rr["events"]:
         raise RuntimeError(f"loaded {count} events, manifest says {rr['events']}")
     checks = run_sql_checks(lambda q: client.command(q), database, run_id)
-    return {"run_id": run_id, "events": count, "truth_records": len(tr), "checks": checks}
+    return {"run_id": run_id, "events": count, "truth_records": len(tr), "checks": checks, "side_files": side}

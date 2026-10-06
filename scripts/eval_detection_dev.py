@@ -43,7 +43,7 @@ class _Chdb:
         self.s = session.Session(path)
         self.tmp = tempfile.mkdtemp()
         self.types = {"events": chl.EVENT_COLUMNS, "ground_truth": chl.TRUTH_COLUMNS, "runs": chl.RUN_COLUMNS,
-                      "events_norm": nz.NORM_COLUMNS}
+                      "events_norm": nz.NORM_COLUMNS, "deployments": chl.DEPLOY_COLUMNS, "psp_status": chl.STATUS_COLUMNS}
 
     def command(self, sql: str):
         text = self.s.query(sql, "TabSeparated").bytes().decode().strip()

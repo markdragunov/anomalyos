@@ -201,7 +201,7 @@ def psp_authorization_degradation(w: WorldConfig) -> ScenarioSpec:
     P = params_for(w, "psp_authorization_degradation")
     s, e, psp = P["start"], P["end"], P["psp"]
     others = tuple(x for x in PSPS if x != psp)
-    fx = Effect(f"fx_{psp}_auth", Mechanism.APPROVAL, c(psp=psp), step(s, e), P["magnitude"], PSP_OUTAGE_CODES)
+    fx = Effect(f"fx_{psp}_auth", Mechanism.APPROVAL, c(psp=psp), step(s, e), P["magnitude"], PSP_OUTAGE_CODES, params={"side_signal": True})
     t = TruthSpec(f"{psp}_auth", (fx.effect_id,), RootCause.PSP_DEGRADATION, Route.INCIDENT,
                   Severity.HIGH, s, e, c(psp=psp),
                   f"{psp} authorization endpoint returns intermittent processing errors; all cards and local "
@@ -217,7 +217,7 @@ def country_degradation(w: WorldConfig) -> ScenarioSpec:
     s, e, co = P["start"], P["end"], P["country"]
     other = CARD_COUNTRY_CONTROL[co]
     fx = Effect(f"fx_{co.lower()}_issuers", Mechanism.APPROVAL, c(customer_country=co, payment_method_type="card"), step(s, e),
-                P["magnitude"], (("card_declined", "do_not_honor", .7), ("card_declined", "issuer_not_available", .3)))
+                P["magnitude"], (("card_declined", "do_not_honor", .7), ("card_declined", "issuer_not_available", .3)), params={"side_signal": True})
     controls = [c(customer_country=other, payment_method_type="card")]
     if co == "BR":
         controls.insert(0, c(customer_country="BR", payment_method_type="pix"))
@@ -235,7 +235,7 @@ def payment_method_degradation(w: WorldConfig) -> ScenarioSpec:
     s, e, m = P["start"], P["end"], P["method"]
     fx_id, key = METHOD_IDS[m]
     fx = Effect(fx_id, Mechanism.APPROVAL, c(payment_method_type=m), step(s, e), P["magnitude"],
-                (("payment_method_provider_decline", "generic_decline", .5), ("processing_error", None, .5)))
+                (("payment_method_provider_decline", "generic_decline", .5), ("processing_error", None, .5)), params={"side_signal": True})
     label = {"sepa_debit": "SEPA Direct Debit mandate service", "ideal": "iDEAL scheme", "pix": "Pix switch"}[m]
     controls = (c(payment_method_type="card", psp="psp_beta"),
                 c(payment_method_type="ideal" if m != "ideal" else "sepa_debit"))
@@ -252,7 +252,7 @@ def checkout_regression(w: WorldConfig) -> ScenarioSpec:
     P = params_for(w, "checkout_regression_app_version")
     platform, s, fix, end_fx = P["platform"], P["start"], P["fix"], P["end"]
     fx = Effect(f"fx_{platform}_5140", Mechanism.ABANDON, c(platform=platform, app_version="5.14.0"), step(s, end_fx), P["magnitude"],
-                params={"note": "confirm call never sent by client; PI stays requires_payment_method then is canceled"})
+                params={"side_signal": True, "note": "confirm call never sent by client; PI stays requires_payment_method then is canceled"})
     # Recovery: when the buggy version's share of the platform's customers falls below 5 %.
     rec = fix
     while rec < end_fx and version_share(w.releases(), platform, "5.14.0", w.adoption_mean_hours, rec) >= 0.05:
@@ -277,7 +277,7 @@ def subscription_renewal_failure(w: WorldConfig) -> ScenarioSpec:
     short = PSP_SHORT[psp]
     others = tuple(x for x in PSPS if x != psp)
     fx = Effect(f"fx_renewals_{short}", Mechanism.APPROVAL, c(channel="renewal", psp=psp, payment_method_type="card"),
-                step(s, e), P["magnitude"], (("expired_card", "expired_card", .6), ("card_declined", "do_not_honor", .4)))
+                step(s, e), P["magnitude"], (("expired_card", "expired_card", .6), ("card_declined", "do_not_honor", .4)), params={"side_signal": True})
     t = TruthSpec(f"renewals_{short}", (fx.effect_id,), RootCause.RENEWAL_JOB_FAILURE, Route.INCIDENT,
                   Severity.HIGH, s, e, c(psp=psp, channel="renewal"),
                   f"{psp} network-token/account-updater service lapsed: merchant-initiated renewal charges on "
@@ -293,7 +293,7 @@ def refund_spike(w: WorldConfig) -> ScenarioSpec:
     P = params_for(w, "refund_spike")
     s, e, co = P["start"], P["end"], P["country"]
     fx = Effect(f"fx_{co.lower()}_refunds", Mechanism.REFUND, c(customer_country=co), step(s, e), P["share"],
-                params={"delay_min_s": 1 * HOUR, "delay_max_s": 6 * HOUR, "reason": "requested_by_customer"})
+                params={"side_signal": True, "delay_min_s": 1 * HOUR, "delay_max_s": 6 * HOUR, "reason": "requested_by_customer"})
     t = TruthSpec(f"{co.lower()}_fulfillment_refunds", (fx.effect_id,), RootCause.REFUND_PROCESS_CHANGE, Route.INCIDENT,
                   Severity.MEDIUM, s, e + 6 * HOUR, c(customer_country=co),
                   f"{co} fulfilment partner fails; orders are auto-refunded within hours. Authorization is healthy.",
@@ -306,7 +306,7 @@ def duplicate_charge(w: WorldConfig) -> ScenarioSpec:
     P = params_for(w, "duplicate_charge")
     s, e = P["start"], P["end"]
     fx = Effect("fx_web_dupes", Mechanism.DUPLICATE, c(platform="web"), step(s, e), P["share"],
-                params={"refund_share": 0.6, "refund_delay_min_s": 1 * DAY, "refund_delay_max_s": 3 * DAY})
+                params={"side_signal": True, "refund_share": 0.6, "refund_delay_min_s": 1 * DAY, "refund_delay_max_s": 3 * DAY})
     t = TruthSpec("web_duplicate_charges", (fx.effect_id,), RootCause.DUPLICATE_CHARGING, Route.INCIDENT,
                   Severity.CRITICAL, s, e, c(platform="web"),
                   f"API gateway deploy drops Idempotency-Key on web client retries: ~{_pct(P['share'])}% of successful web "
@@ -325,7 +325,7 @@ def fraud_spike(w: WorldConfig) -> ScenarioSpec:
                 (("card_declined", "fraudulent", .3), ("incorrect_cvc", "incorrect_cvc", .3),
                  ("card_declined", "stolen_card", .1), ("card_declined", "generic_decline", .2),
                  ("card_declined", "highest_risk_level", .1)),
-                params={"success_rate": 0.08, "amount_min": 100, "amount_max": 600, "platform": "web",
+                params={"side_signal": True, "success_rate": 0.08, "amount_min": 100, "amount_max": 600, "platform": "web",
                         "fraud_refund_share": 0.5})
     ctl_country = "GB" if co != "GB" else "US"
     t = TruthSpec(f"{co.lower()}_card_testing", (fx.effect_id,), RootCause.FRAUD_ATTACK, Route.INCIDENT, Severity.HIGH,
@@ -343,7 +343,7 @@ def gradual_degradation(w: WorldConfig) -> ScenarioSpec:
     s, full, co, psp = P["start"], P["full"], P["country"], P["psp"]
     short = PSP_SHORT[psp]
     fx = Effect(f"fx_{co.lower()}_{short}_drift", Mechanism.APPROVAL, c(customer_country=co, psp=psp), ramp(s, full, w.end),
-                P["magnitude"], (("card_declined", "do_not_honor", .5), ("card_declined", "generic_decline", .5)))
+                P["magnitude"], (("card_declined", "do_not_honor", .5), ("card_declined", "generic_decline", .5)), params={"side_signal": True})
     controls = tuple(c(customer_country=cc, psp=pp) for cc, pp in GRADUAL_COHORTS[(co, psp)])
     ramp_days = (full - s) // DAY
     t = TruthSpec(f"{co.lower()}_{short}_drift", (fx.effect_id,), RootCause.PSP_DEGRADATION, Route.INCIDENT,
@@ -393,7 +393,7 @@ def correlated_unrelated(w: WorldConfig) -> ScenarioSpec:
     camp_key, out_key = f"{co.lower()}_campaign", ("ideal_outage" if m == "ideal" else "sepa_outage")
     camp = Effect(f"fx_{co.lower()}_campaign", Mechanism.VOLUME, c(customer_country=co), step(s_camp, e_camp), P["camp_magnitude"])
     out = Effect("fx_ideal" if m == "ideal" else "fx_sepa_outage", Mechanism.APPROVAL, c(payment_method_type=m), step(s_out, e_out),
-                 P["out_magnitude"], (("payment_method_provider_decline", "generic_decline", .6), ("processing_error", None, .4)))
+                 P["out_magnitude"], (("payment_method_provider_decline", "generic_decline", .6), ("processing_error", None, .4)), params={"side_signal": True})
     t1 = TruthSpec(camp_key, (camp.effect_id,), RootCause.NORMAL_VARIATION, Route.SUPPRESS, Severity.NONE,
                    s_camp, e_camp, c(customer_country=co),
                    f"Planned {co} email campaign: {co} checkout volume x{P['camp_magnitude']:g}. Healthy traffic.",
@@ -417,7 +417,7 @@ def recovery_after_degradation(w: WorldConfig) -> ScenarioSpec:
     s, rs, rec, co, psp = P["start"], P["recovery_start"], P["end"], P["country"], P["psp"]
     short = PSP_SHORT[psp]
     fx = Effect(f"fx_{co.lower()}_{short}", Mechanism.APPROVAL, c(customer_country=co, psp=psp), degrade_then_recover(s, rs, rec),
-                P["magnitude"], PSP_OUTAGE_CODES)
+                P["magnitude"], PSP_OUTAGE_CODES, params={"side_signal": True})
     controls = tuple(c(customer_country=cc, psp=pp) for cc, pp in RECOVERY_COHORTS[(co, psp)])
     t = TruthSpec(f"{co.lower()}_{short}_recovery", (fx.effect_id,), RootCause.PSP_DEGRADATION, Route.INCIDENT,
                   Severity.MEDIUM, s, rec, c(customer_country=co, psp=psp),
@@ -435,7 +435,7 @@ def dunning_failure(w: WorldConfig) -> ScenarioSpec:
     short = PSP_SHORT[psp]
     fx = Effect(f"fx_dunning_{short}", Mechanism.APPROVAL, c(channel="renewal", psp=psp, payment_method_type="card"), step(s, e),
                 P["magnitude"], (("card_declined", "do_not_honor", .5), ("card_declined", "insufficient_funds", .5)),
-                params={"attempt_kind": "dunning"})
+                params={"side_signal": True, "attempt_kind": "dunning"})
     others = tuple(x for x in PSPS if x != psp)
     t = TruthSpec(f"dunning_{short}", (fx.effect_id,), RootCause.DUNNING_FAILURE, Route.INCIDENT, Severity.MEDIUM, s, e,
                   c(psp=psp, channel="renewal"),
@@ -449,7 +449,7 @@ def dunning_failure(w: WorldConfig) -> ScenarioSpec:
 def pricing_or_plan_change(w: WorldConfig) -> ScenarioSpec:
     P = params_for(w, "pricing_or_plan_change")
     s, e, co = P["start"], P["end"], P["country"]
-    fx = Effect(f"fx_{co.lower()}_price_change", Mechanism.CHURN, c(customer_country=co, channel="renewal"), step(s, e), P["magnitude"])
+    fx = Effect(f"fx_{co.lower()}_price_change", Mechanism.CHURN, c(customer_country=co, channel="renewal"), step(s, e), P["magnitude"], params={"side_signal": True})
     t = TruthSpec(f"{co.lower()}_price_change", (fx.effect_id,), RootCause.PRICING_OR_PLAN_CHANGE, Route.INCIDENT, Severity.MEDIUM,
                   s, e, c(customer_country=co),
                   f"A price increase announced to {co} subscribers: about {_pct(P['magnitude'])}% more subscriptions are canceled at "
@@ -464,7 +464,7 @@ def data_pipeline_issue(w: WorldConfig) -> ScenarioSpec:
     P = params_for(w, "data_pipeline_issue")
     s, e, psp = P["start"], P["end"], P["psp"]
     fx = Effect(f"fx_{PSP_SHORT[psp]}_webhook_lag", Mechanism.DELAY, c(psp=psp), step(s, e), P["share"],
-                params={"delay_min_s": 1 * HOUR, "delay_max_s": 2 * HOUR})
+                params={"side_signal": True, "delay_min_s": 1 * HOUR, "delay_max_s": 2 * HOUR})
     others = tuple(x for x in PSPS if x != psp)
     t = TruthSpec(f"{PSP_SHORT[psp]}_webhook_lag", (fx.effect_id,), RootCause.DATA_PIPELINE_ISSUE, Route.INCIDENT, Severity.MEDIUM,
                   s, e, c(psp=psp),
@@ -481,9 +481,9 @@ def simultaneous_incidents(w: WorldConfig) -> ScenarioSpec:
     s1, e1, s2, e2 = P["start"], P["end"], P["method_start"], P["method_end"]
     short = PSP_SHORT[psp]
     a = Effect(f"fx_sim_{short}_cards", Mechanism.APPROVAL, c(psp=psp, payment_method_type="card"), step(s1, e1), P["psp_magnitude"],
-               PSP_OUTAGE_CODES)
+               PSP_OUTAGE_CODES, params={"side_signal": True})
     b = Effect(f"fx_sim_{m}", Mechanism.APPROVAL, c(payment_method_type=m), step(s2, e2), P["method_magnitude"],
-               (("payment_method_provider_decline", "generic_decline", .6), ("processing_error", None, .4)))
+               (("payment_method_provider_decline", "generic_decline", .6), ("processing_error", None, .4)), params={"side_signal": True})
     ka, kb = f"sim_{short}_cards", f"sim_{m}"
     t1 = TruthSpec(ka, (a.effect_id,), RootCause.PSP_DEGRADATION, Route.INCIDENT, Severity.HIGH, s1, e1, c(psp=psp),
                    f"{psp} card authorization degrades to ~{_pct(P['psp_magnitude'])}% of normal; at the same time an unrelated "
@@ -504,7 +504,7 @@ def mix_shift_masking(w: WorldConfig) -> ScenarioSpec:
     s, e, co, psp, boost_co = P["start"], P["end"], P["country"], P["psp"], P["boost_country"]
     short = PSP_SHORT[psp]
     drop = Effect(f"fx_masked_{co.lower()}_{short}", Mechanism.APPROVAL, c(customer_country=co, psp=psp), step(s, e), P["magnitude"],
-                  PSP_OUTAGE_CODES)
+                  PSP_OUTAGE_CODES, params={"side_signal": True})
     boost = Effect(f"fx_{boost_co.lower()}_promo", Mechanism.VOLUME, c(customer_country=boost_co), step(s, e), P["boost"])
     k1, k2 = f"masked_{co.lower()}_{short}", f"{boost_co.lower()}_promo"
     t1 = TruthSpec(k1, (drop.effect_id,), RootCause.PSP_DEGRADATION, Route.INCIDENT, Severity.MEDIUM, s, e, c(customer_country=co, psp=psp),

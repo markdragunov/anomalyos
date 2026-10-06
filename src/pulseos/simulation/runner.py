@@ -32,6 +32,8 @@ from .ground_truth import GENERATOR_VERSION, GroundTruth, truth_digest
 from .ids import short_hash
 from .models import API_VERSION, Event
 from .scenarios import build_catalog
+from .side_files import SideFiles
+from .side_files import generate as generate_side_files
 from .world import WorldConfig, iso
 
 EventSink = Callable[[Iterable[Event]], None]
@@ -48,6 +50,7 @@ class RunResult:
     counts_by_type: dict[str, int]
     ground_truth: list[GroundTruth]
     manifest: dict
+    side_files: SideFiles | None = None  # sim-1.3.0 (ADR-049): deployments and PSP status
 
     def summary(self) -> str:
         inc = sum(1 for g in self.ground_truth if g.incident_id)
@@ -108,6 +111,11 @@ def generate(world: WorldConfig, preset: str = "full", out_dir: str | Path | Non
             raw.close()
 
     truth = sim.ground_truth()
+    # sim-1.3.0 (ADR-049 D-3a): side files from the world and the effects; the honest ids go to ground truth only
+    side = generate_side_files(world, specs)
+    truth = [dataclasses.replace(g, side_signals=side.honest_for(g.root_cause["effect_ids"])) for g in truth]
+    side_blob = json.dumps({"deployments": side.deployments, "psp_status": side.psp_status}, sort_keys=True,
+                           separators=(",", ":"))
     counts = dict(sorted(Counter(sim.stats).items()))
     manifest = {
         "run_id": rid,
@@ -123,13 +131,19 @@ def generate(world: WorldConfig, preset: str = "full", out_dir: str | Path | Non
         "events": n,
         "events_sha256": digest.hexdigest(),
         "truth_digest": truth_digest(truth),
+        "side_files_digest": short_hash(side_blob),
         "counts_by_type": counts,
     }
     if out is not None:
         (out / "ground_truth.json").write_text(
             json.dumps({"run_id": rid, "records": [g.to_dict() for g in truth]}, indent=2, sort_keys=True) + "\n")
         (out / "manifest.json").write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
-    return RunResult(rid, world.seed, preset, n, digest.hexdigest(), manifest["truth_digest"], counts, truth, manifest)
+        (out / "deployments.json").write_text(json.dumps({"run_id": rid, "deployments": side.deployments}, indent=1,
+                                                         sort_keys=True) + "\n")
+        (out / "psp_status.json").write_text(json.dumps({"run_id": rid, "psp_status": side.psp_status}, indent=1,
+                                                        sort_keys=True) + "\n")
+    return RunResult(rid, world.seed, preset, n, digest.hexdigest(), manifest["truth_digest"], counts, truth, manifest,
+                     side)
 
 
 def read_events(path: str | Path) -> Iterable[dict]:
