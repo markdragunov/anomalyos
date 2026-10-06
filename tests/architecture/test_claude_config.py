@@ -124,8 +124,15 @@ class TestSettings(unittest.TestCase):
         self.settings = json.loads((CLAUDE / "settings.json").read_text(encoding="utf-8"))
 
     def test_only_minimal_permissions_no_hooks_or_mcp(self) -> None:
-        self.assertEqual(set(self.settings), {"permissions"})
+        self.assertEqual(set(self.settings), {"permissions", "enabledPlugins", "extraKnownMarketplaces"})
         self.assertEqual(set(self.settings["permissions"]), {"allow", "deny"})
+
+    def test_only_the_typesafe_plugin_is_enabled(self) -> None:
+        self.assertEqual(self.settings["enabledPlugins"], {"typesafe@typesafe-ai": True}, "one external plugin (ADR-047)")
+        self.assertEqual(
+            self.settings["extraKnownMarketplaces"],
+            {"typesafe-ai": {"source": {"source": "github", "repo": "typesafe-ai/skills"}}},
+        )
 
     def test_allow_rules_are_exact_commands(self) -> None:
         for rule in self.settings["permissions"]["allow"]:

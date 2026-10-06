@@ -17,5 +17,16 @@
       "Read(./.env)",
       "Read(./**/.env)"
     ]
+  },
+  "enabledPlugins": {
+    "typesafe@typesafe-ai": true
+  },
+  "extraKnownMarketplaces": {
+    "typesafe-ai": {
+      "source": {
+        "source": "github",
+        "repo": "typesafe-ai/skills"
+      }
+    }
   }
 }

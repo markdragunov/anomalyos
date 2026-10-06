@@ -15,7 +15,7 @@ Canonical detail lives in:
 - `docs/DATA_MODEL.md`, `docs/SIMULATION.md`, `docs/TESTING.md` — event envelope and cause vocabulary, the synthetic world, test strategy
 - `docs/specs/` — build specs per stage (target design; ADRs in `docs/DECISIONS.md` win on conflict)
 - `docs/TOOLS.md` — which tools are required, later, or out of scope
-- `docs/SKILLS.md` — future project Skills (do not install marketplace Skills)
+- `docs/SKILLS.md` — future project Skills (no marketplace Skills except the TypeSafe plugin, ADR-047)
 
 ## Non-negotiable rules
 
@@ -79,7 +79,7 @@ Every non-trivial change follows:
 - Product code lives in `src/pulseos/`, one package per layer, created in the stage that implements it. Module docstrings state why / input / output / invariants / failure modes.
 - Configuration only via `pulseos.config.load_settings` (a pure function over an env mapping).
 - Keep `.claude/rules/` focused and path-scoped; link this file instead of copying it into rules or `CLAUDE.md`.
-- Do not install marketplace / external Skills. Future Skills are listed in `docs/SKILLS.md` and must be introduced only when the procedure they encode exists.
+- Do not install marketplace / external Skills. The one exception is the TypeSafe plugin (`typesafe@typesafe-ai`, ADR-047): it documents the Jev API, and this contract wins where they disagree. Future Skills are listed in `docs/SKILLS.md` and must be introduced only when the procedure they encode exists.
 
 ## Testing and evaluation
 
