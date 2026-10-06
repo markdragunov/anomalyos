@@ -6,6 +6,49 @@ Format: short ID, status, context, decision, consequences.
 
 ---
 
+## ADR-049 — Stage 7 design: bounded read-only investigation, side files, template explanation · *accepted* (2026-10-06, owner OK on Gate 0)
+
+**Context.** Stage 7 investigates each incident with a deterministic, read-only, budgeted loop and a cited report
+(brief `docs/tasks/STAGE-7.md`, design `docs/tasks/STAGE-7-DESIGN.md`). Jev is still blocked (OQ-1): every Jev step
+runs on the fake client or is replaced by the deterministic control.
+
+**Decision** (design D-0 … D-10, owner's answers 1–9).
+- **D-0** Every incident is investigated once, at creation (`as_of` = its `detected_at`); evaluation adds a diagnostic
+  pass at `+6 h`. The one Stage 6 change: an engine event `investigation` (`DETECTED → INVESTIGATING`, actor `system`,
+  then `investigation_status` and the report id). Tools read only data visible at `as_of`.
+- **D-1** Stage A narrowing over the anchor's pooled cohort tables: chunk 40, split 4, leaf 10, depth 3, ≤ 4 leaves;
+  importance by the control (summed |contribution|) or a Jev `noul` per chunk.
+- **D-2** Stage B loop in code: a per-cause check library with predicted outcomes; a shortlist of ≤ 5 unrun checks
+  ranked by how well they separate the leading hypotheses, always holding a check that could contradict the leader;
+  choice by the control (top step) or a Jev `choice` with a confidence gate (hand-off below 0.5); no repeated step.
+- **D-3** Ten typed, read-only tools with closed-set arguments, stable evidence ids, timeouts and audit rows; outcome
+  thresholds fixed (`moved` |z| ≥ 2 in the predicted direction, `opposite` |z| ≥ 2 against, `unchanged` |z| < 1,
+  else `ambiguous`; < 30 attempts `insufficient`); no mutation tool (architecture test).
+- **D-3a** Simulator side files `deployments.json` and `psp_status.json` (`sim-1.3.0`) with honest signals, decoys and
+  near-miss decoys, generated from the world, the release train and the scenario effects — never from `TruthSpec` /
+  `GroundTruth`. **Each effect declares `params.side_signal`** (set by the scenario author; `False` for benign shocks,
+  the ambiguous dip, demand and promotion effects), and only such effects get an honest entry. Event digests stay
+  unchanged; ground truth gains `side_signals` (evaluation only); loader tables `<db>.deployments`, `<db>.psp_status`;
+  new top-level package `pulseos.context` with two typed readers. Evaluation runs the control with and without the
+  side-file tools.
+- **D-4** Hypotheses only from the cause vocabulary (≤ 5 with a prior, plus `normal_variation` and `unknown`); the
+  control prior table and update rule of the design; contradicting evidence is never dropped; no causal language.
+- **D-5** Budget defaults (tool calls 12, Jev calls 40, evidence items 60, wall-clock 120 s, 10 s per query, repeats 0)
+  as starting values; nine stop reasons; a model failure stops the run (no fallback to the control within a run).
+- **D-6** Deterministic given incident, evidence, config and choice source; a step clock in tests and evaluation.
+- **D-7** Package `explanation`: an `Explainer` port, a slot-based `TemplateExplainer` (numbers only through evidence
+  slots) and a citation validator that runs before any report is returned.
+- **D-8** Packages `investigation`, `explanation`, `context`; append-only tables `investigation_steps`,
+  `investigation_evidence`, `investigation_reports`; Jev question set `investigation_question_set_v1`.
+- **D-9** Evaluation: prior only / deterministic control / control without side-file tools / fake pipeline; hypotheses
+  top-1 / top-3, contradicting evidence kept, side-file use, narrowing, false-positive incidents, safety, cost; only the
+  budget defaults are tuned (smallest budget within 1 point of the uncapped top-3 on seeds 1–10), reported on 11–20.
+
+**Consequences.** `GENERATOR_VERSION` = `sim-1.3.0`; `investigation`, `explanation` leave the stage guard, `context`
+is a new package; `agent` and `investigation_agent.py` stay forbidden. No new dependency.
+
+---
+
 ## ADR-048 — SessionStart hook runs the TypeSafe plugin check · *accepted* (2026-10-06, owner decision)
 
 **Context.** ADR-047 point 4 replaced a manual re-review with `scripts/check_typesafe_plugin.py`, but someone still has

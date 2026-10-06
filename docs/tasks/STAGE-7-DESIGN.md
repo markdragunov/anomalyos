@@ -1,6 +1,6 @@
 # Stage 7 — design note (Gate 0)
 
-Status: **proposed** for owner review (2026-10-06). Decisions will be recorded from ADR-049 on. Jev is still blocked
+Status: **accepted** (owner OK on 1–9, 2026-10-06; ADR-049). Jev is still blocked
 (OQ-1): every Jev step runs on the fake client or is replaced by the deterministic control, and nothing here depends
 on Jev quality.
 
