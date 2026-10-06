@@ -52,6 +52,13 @@ def make_request(state: JevState, requested_model: str) -> JevRequest:
                       requested_model)
 
 
+def make_generic_request(state: dict[str, Any], questions: tuple[Question, ...], schema_version: str,
+                         question_set_version: str, requested_model: str) -> JevRequest:
+    """A request for another question set over another typed state (Stage 7: ``investigation_question_set_v1``)."""
+    digest = hashlib.sha256(schema_version.encode() + b"\n" + canonical_json(state)).hexdigest()
+    return JevRequest(question_set_version, tuple(questions), state, schema_version, digest, requested_model)
+
+
 @dataclass(frozen=True)
 class JevResponse:
     request_hash: str
