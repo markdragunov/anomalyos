@@ -1,6 +1,8 @@
-# PulseOS
+# PulseOS AI-native Billing & Payments Incident system — Research prototype. 
 
-AI-native Billing & Payments Incident system — Research prototype.
+AI-native Billing & Payments Incident Layer is an emerging architectural framework designed to autonomously detect, triage, and resolve payment exceptions, failures, and financial discrepancies in real time.
+
+By shifting from reactive, human-dependent monitoring dashboards to agentic workflows, this layer sits on top of existing billing engines and payment orchestrators to intercept errors before they impact revenue or customer experience.
 
 PulseOS detects meaningful anomalies in billing and payment systems, decides whether an
 anomaly is a real business incident, isolates the affected cohorts and likely causes,
