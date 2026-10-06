@@ -24,6 +24,9 @@ from pulseos.metrics import compute
 
 DAY = 86_400
 REF_LAGS = (2, 3, 4, 5, 6, 7, 8)
+# ADR-042: the lost-revenue estimate had a pooled median relative error of 1.01 on DEV tuning seeds (> 1.0), so it is
+# reported as not provided; captured revenue stays (observed).
+ESTIMATE_LOST_REVENUE = False
 
 
 def anchor(members: Iterable[CandidateInfo]) -> CandidateInfo | None:
@@ -87,8 +90,11 @@ def estimate(runner, database: str, run_id: str, members: Iterable[CandidateInfo
     rev = revenue(runner, database, run_id, locus, start, end, world_start) if end > start else {}
     return {
         "lost_successful_payments": lost_successes(a, start, end) if a else None,
-        "lost_revenue_minor": {"epistemic": "ESTIMATED",
-                               "per_currency": {c: {"value": v["lost_minor"], "interval": v["interval"]} for c, v in rev.items()}},
+        "lost_revenue_minor": ({"epistemic": "ESTIMATED",
+                                "per_currency": {c: {"value": v["lost_minor"], "interval": v["interval"]} for c, v in rev.items()}}
+                               if ESTIMATE_LOST_REVENUE else
+                               {"epistemic": "ESTIMATED", "status": "not_provided", "per_currency": {},
+                                "reason": "median relative error above 1.0 on DEV tuning seeds (ADR-042)"}),
         "captured_revenue_minor": {"epistemic": "OBSERVED", "per_currency": {c: v["observed_minor"] for c, v in rev.items()}},
         "interval": [start, end], "locus": sorted([list(x) for x in locus]),
         "hours": round((end - start) / 3600, 2),

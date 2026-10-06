@@ -47,6 +47,9 @@ record; lost-revenue estimates were off by a factor of 2.5–3; the tuning rule 
 4. The hysteresis `H` is chosen on seeds 1–10 as the most `RECOVERING` transitions within 6 h of the true recovery,
    after `G` is chosen by the ADR-041 rule.
 
+**Outcome (rerun, 2026-10-06).** The lost-revenue median relative error on tuning seeds was 1.014 (n = 373) > 1.0,
+so the estimate is reported `not_provided` (`incidents.impact.ESTIMATE_LOST_REVENUE = False`).
+
 **Consequences.** `IncidentConfig.version` = `incidents_v2`.
 
 ---

@@ -75,6 +75,7 @@ def test_impact_is_labelled(world):
             if e["reason"] == "impact_estimated"]
     assert imps and all(i["lost_revenue_minor"]["epistemic"] == "ESTIMATED" and
                         i["captured_revenue_minor"]["epistemic"] == "OBSERVED" for i in imps)
+    assert all(i["lost_revenue_minor"].get("status") == "not_provided" for i in imps)  # ADR-042
     assert any(i["lost_successful_payments"] for i in imps)
 
 
