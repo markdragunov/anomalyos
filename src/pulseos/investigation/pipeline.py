@@ -39,7 +39,8 @@ class InvestigationRun:
     events: list[Event] = field(default_factory=list)
 
 
-def views_at_creation(stage6, candidates: Iterable[AnomalyCandidate]) -> list[tools.IncidentView]:
+def views_at_creation(stage6, candidates: Iterable[AnomalyCandidate], offset_s: int = 0) -> list[tools.IncidentView]:
+    """Views at each incident's creation, or ``offset_s`` later (the evaluation's diagnostic pass, ADR-049 D-0)."""
     grain = {c.anomaly_id: c.grain for c in candidates}
     infos_by_time: dict[str, list] = {}
     for e in stage6.events:
@@ -52,8 +53,9 @@ def views_at_creation(stage6, candidates: Iterable[AnomalyCandidate]) -> list[to
     out = []
     created = sorted(first_rows.values(), key=lambda r: (r["event_time"], r["incident_id"]))
     for row in created:
-        snap = json.loads(row["snapshot_json"])
-        as_of = row["event_time"]
+        as_of = row["event_time"] + offset_s
+        rows_then = [r for r in stage6.engine.incident_events if r["incident_id"] == row["incident_id"] and r["event_time"] <= as_of]
+        snap = json.loads(max(rows_then, key=lambda r: r["seq"])["snapshot_json"])
         members = []
         for cid in snap["linked_anomalies"]:
             known = [i for t, i in sorted(infos_by_time.get(cid, []), key=lambda x: x[0]) if t <= as_of]
@@ -80,10 +82,11 @@ def views_at_creation(stage6, candidates: Iterable[AnomalyCandidate]) -> list[to
 
 def run(runner, db: str, run_id: str, stage6, candidates: Iterable[AnomalyCandidate], world_start: int,
         chooser_factory: Callable[[tools.IncidentView], object], cfg: InvestigationConfig = InvestigationConfig(),
-        clock_factory: Callable[[tools.ToolContext], Callable[[], float]] | None = None) -> InvestigationRun:
+        clock_factory: Callable[[tools.ToolContext], Callable[[], float]] | None = None,
+        offset_s: int = 0) -> InvestigationRun:
     out = InvestigationRun()
     explainer = TemplateExplainer()
-    for view in views_at_creation(stage6, list(candidates)):
+    for view in views_at_creation(stage6, list(candidates), offset_s):
         registry = Registry()
         ctx = tools.ToolContext(runner, db, run_id, world_start, view, registry, cfg)
         clock = clock_factory(ctx) if clock_factory else (lambda ctx=ctx: ctx.calls * SECONDS_PER_CALL)

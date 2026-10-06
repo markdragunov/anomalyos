@@ -171,7 +171,7 @@ def get_deployments(ctx: ToolContext, service: str, window: str) -> Evidence:
         raise ToolError("get_deployments: unknown service")
     start, end = _side_window(ctx, window)
     rows = readers.deployments(ctx.runner, ctx.db, ctx.run_id, (service,), start, end, ctx.view.as_of)
-    payload = {"service": service, "window": window, "present": bool(rows),
+    payload = {"service": service, "window": window, "present": bool(rows), "ids": [d.id for d in rows[:10]],
                "deploys": [{"version": d.version, "minutes_before_start": (ctx.view.started_at - d.deployed_at) // 60}
                            for d in rows[:10]]}
     return _evidence(ctx, "get_deployments", (service, window), payload, {"present": "observed", "deploys": "observed"})
@@ -183,6 +183,7 @@ def check_psp_status(ctx: ToolContext, psp: str, window: str) -> Evidence:
     start, end = _side_window(ctx, window)
     rows = readers.psp_status(ctx.runner, ctx.db, ctx.run_id, (psp,), start, end, ctx.view.as_of)
     payload = {"psp": psp, "window": window, "components": sorted({s.component for s in rows}),
+               "ids": [s.id for s in rows[:10]],
                "entries": [{"component": s.component, "level": s.level, "resolved": s.resolved_at is not None}
                            for s in rows[:10]]}
     return _evidence(ctx, "check_psp_status", (psp, window), payload, {"components": "observed", "entries": "observed"})

@@ -29,3 +29,5 @@ class InvestigationConfig:
     max_evidence: int = 60
     max_wall_s: float = 120.0
     query_timeout_s: int = 10
+    # evaluation switch (D-9 system 1b): run without the side-file tools
+    use_side_files: bool = True

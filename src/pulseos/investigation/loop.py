@@ -125,6 +125,8 @@ def investigate(view, ctx: tools.ToolContext, chooser, clock: Callable[[], float
     platform = next((v for d, v in a.locus if d == "platform"), None)
     release = f"mobile_{platform}" if platform in ("ios", "android") else None
     library = checks_mod.build(a.metric, a.direction, dict(a.locus), nar.siblings, causes, release, psps)
+    if not cfg.use_side_files:
+        library = [c for c in library if c.kind not in ("deploy", "status")]
     done: set[tuple] = set()
     # LOOP
     while True:
