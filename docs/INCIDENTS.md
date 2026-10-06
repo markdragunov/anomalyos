@@ -107,9 +107,9 @@ recovery — re-evaluation pays off.
 
 | Limitation | Evidence | Where it is addressed |
 |---|---|---|
-| Duplicates | 0.8–1.0 engine incidents per covered record beyond the first | strict chains and Stage 3 scope dimensions in loci — the deferred scope-dimension task |
+| Duplicates | 0.8–1.0 engine incidents per covered record beyond the first | likely strict chains and Stage 3 scope dimensions in loci (not yet measured per cause) — the deferred scope-dimension task |
 | Lost revenue not provided | median error 1.0–1.3 | a better revenue baseline (seasonality, amounts per cohort) |
-| Lost-payments interval too narrow | covers the truth in 24–42 % | the Stage 4 interval ignores baseline uncertainty |
+| Lost-payments interval too narrow | covers the truth in 24–42 % | the Stage 4 interval covers sampling noise only — not day-to-day baseline variation nor the extension to the episode |
 | Correlation validated on seen seeds | ADR-042 mechanisms found on seeds 11–20 | HELDOUT, Stage 9 |
 | Card testing often split in two | approval drop vs fraud signals in different groups | accepted cost of ADR-042 |
 | Jev not evaluated | OQ-1 | live run when access and a budget exist |
