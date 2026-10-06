@@ -102,16 +102,25 @@ drives the events; the generator never reads `TruthSpec` / `GroundTruth`, causes
 |---|---|---|---|
 | `ABANDON` × platform, app_version | the mobile release already in the train | 1.0 (it exists) | release time |
 | `DUPLICATE` | deploy `api_gateway` | 0.8 | effect start − U(5 min, 2 h) |
-| `APPROVAL` × channel renewal | deploy `renewal_job` | 0.8 | same |
-| `APPROVAL` × channel dunning | deploy `dunning_service` | 0.8 | same |
+| `APPROVAL` × channel renewal with `params.attempt_kind = "dunning"` | deploy `dunning_service` | 0.8 | same |
+| `APPROVAL` × channel renewal (other) | deploy `renewal_job` | 0.8 | same |
 | `REFUND` | deploy `refund_service` | 0.8 | same |
 | `CHURN` | deploy `pricing_service` | 0.8 | same |
 | `APPROVAL` × psp (any other dims except channel; e.g. PSP × country drifts) | status `authorization` degraded / partial outage on that PSP | 0.7 | posted onset + U(20, 90 min); resolved effect end + U(0, 60 min) |
 | `APPROVAL` × a local payment method, no psp | status `local_methods` degraded on the method's PSP (`LOCAL_METHOD_PSP`) | 0.5 | same |
 | `DELAY` × psp | status `webhooks` delayed on that PSP | 0.6 | same |
-| `INJECT`, `VOLUME`, `APPROVAL` × country only | none | — | — |
+| `INJECT`, `VOLUME`, `APPROVAL` × country (with or without `payment_method_type = card`) | none | — | — |
 
-Rules apply in table order, first match wins (renewal and dunning effects also carry a `psp` selector).
+Rules apply in table order, first match wins (renewal and dunning effects also carry a `psp` selector; both use the
+selector `channel = renewal, psp, payment_method_type = card` and differ only by `params.attempt_kind`,
+`simulation/scenarios.py:279` and `:436` — corrected at Gate 0 review).
+
+**Open (Gate 0 review):** mechanism × selector alone also matches non-incident scenarios — `benign_shocks`
+(`scenarios.py:623`, route `suppress`) and `ambiguous_signal` (`:527`, route `watch`, cause `unknown`) are `APPROVAL` ×
+country × psp, so the table would give them an "honest" PSP status with probability 0.7, a side signal that ground truth
+contradicts. Proposal: each `Effect` declares `params.side_signal` (`True` for operational faults, `False` for benign
+shocks, the ambiguous dip, demand and promotion effects), set by the scenario author as part of the causal structure;
+the generator emits an honest entry only when it is `True`, still without reading `TruthSpec` / `GroundTruth`.
 
 Decoys (no effect on events): routine deploys of all services (`api_gateway`, `checkout_web`, `renewal_job`,
 `dunning_service`, `refund_service`, `pricing_service`, `ledger`) at about 0.3 per service per day; one 2 h
@@ -243,6 +252,7 @@ simulator change for the side files (`sim-1.3.0`, event digests unchanged) and t
 4. **D-2 / D-4:** check library with predicted outcomes per cause, control prior table and update rule as proposed?
 5. **D-3a:** side files as specified — honest-signal table and probabilities, decoys and near-miss decoys, `sim-1.3.0`
    with event digests unchanged, `side_signals` in ground truth, package `context`, and the with / without ablation?
+   Plus the Gate 0 review item: `params.side_signal` per effect so benign and ambiguous scenarios get no honest signal?
 6. **D-5:** budget defaults as starting values; model failure stops (no fallback to the control within a run)?
 7. **D-7:** slot-based templates with the citation validator as the only explainer?
 8. **D-8:** packages `investigation` and `explanation`, three append-only tables, question set
