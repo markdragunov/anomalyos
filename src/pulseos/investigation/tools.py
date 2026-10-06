@@ -41,6 +41,7 @@ class IncidentView:
     anchor: CandidateInfo
     grain: str
     earlier_incidents: tuple[dict, ...] = ()  # snapshots of incidents created before as_of
+    stage4_top: tuple[tuple[str, tuple], ...] = ()  # the anchor's Stage 4 top cohorts: (evidence id, dims), k <= 5
 
 
 @dataclass

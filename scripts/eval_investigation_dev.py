@@ -96,8 +96,8 @@ def one_world(args) -> dict:
                                      s6.bundles.get(r.views[i.investigation_id].anchor.candidate_id), cfg, sec)
                             for i in r.investigations]
                 if source == "all":
-                    r, cfg, sec = _investigate(c, res.run_id, s6, cands, w, "control", 12, offset=6 * 3600)
-                    block["control_6h|12"] = [
+                    r, cfg, sec = _investigate(c, res.run_id, s6, cands, w, "control", 9, offset=6 * 3600)
+                    block["control_6h|9"] = [
                         ev.score(i, r.registries[i.investigation_id], r.reports[i.investigation_id],
                                  r.views[i.investigation_id], main.get(i.incident_id),
                                  s6.bundles.get(r.views[i.investigation_id].anchor.candidate_id), cfg, sec)
@@ -143,7 +143,7 @@ def report(results, tuning) -> str:
     for system in ("prior", "control", "control_no_side", "fake", "control_6h"):
         for name, seeds in (("tuning 1–10", TUNING), ("**validation 11–20**", VALIDATION)):
             for realism in sorted({r["realism"] for r in results}):
-                key = "prior" if system == "prior" else (f"{system}|{b}" if system != "control_6h" else "control_6h|12")
+                key = "prior" if system == "prior" else (f"{system}|{b}" if system != "control_6h" else "control_6h|9")
                 rows = [x for r in results if r["seed"] in seeds and r["realism"] == realism for x in r["all"][key]]
                 full = system != "prior"
                 lines.append(

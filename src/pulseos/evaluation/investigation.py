@@ -39,8 +39,11 @@ def _locus_hit(dims, record, metric) -> bool:
 
 
 def prior_only(view) -> list[str]:
-    a = view.anchor
-    hs = initial("prior", prior(a.metric, a.direction, {d for d, _ in a.locus}, a.change_type), 5)
+    pri: dict[str, int] = {}
+    for m in view.members:  # the same member-wide prior as the loop (ADR-050)
+        for cause, w in prior(m.metric, m.direction, {d for d, _ in m.locus}, m.change_type).items():
+            pri[cause] = max(pri.get(cause, 0), w)
+    hs = initial("prior", pri, 5)
     return [h.cause for h in ranking(hs)]
 
 

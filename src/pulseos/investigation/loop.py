@@ -114,11 +114,22 @@ def investigate(view, ctx: tools.ToolContext, chooser, clock: Callable[[], float
             "z": None if item.z is None else round(item.z, 3), "support": item.support},
             {"cohort": "observed", "contribution": "observed", "z": "observed", "support": "observed"}, view.as_of))
     inv.narrowed = [i.evidence_id for i in nar.items]
+    # ADR-050: the anchor's Stage 4 top cohorts always join the narrowed set, so it is never worse than Stage 4
+    known = {i.dims for i in nar.items}
+    for eid, dims in view.stage4_top:
+        if dims not in known and len(ctx.registry) < cfg.max_evidence:
+            ctx.registry.add(tools.Evidence(eid, "stage4_top", (), {"cohort": [list(x) for x in dims]},
+                                            {"cohort": "observed"}, view.as_of))
+            inv.narrowed.append(eid)
     inv.steps.append({"phase": "narrowing", "chooser": chooser.name, "importance_calls": nar.importance_calls,
                       "chunks_seen": nar.chunks_seen, "items": len(nar.items)})
     # HYPOTHESES
     a = view.anchor
-    pri = prior(a.metric, a.direction, {d for d, _ in a.locus}, a.change_type)
+    # ADR-050: priors from every member, not only the anchor (a renewal incident's anchor can be an approval member)
+    pri: dict[str, int] = {}
+    for m in view.members:
+        for cause, w in prior(m.metric, m.direction, {d for d, _ in m.locus}, m.change_type).items():
+            pri[cause] = max(pri.get(cause, 0), w)
     inv.hypotheses = initial(inv.investigation_id, pri, cfg.max_hypotheses)
     causes = [h.cause for h in inv.hypotheses]
     psps = sorted({v for d, v in a.locus if d == "psp"} | {v for d, v in a.scope if d == "psp"})

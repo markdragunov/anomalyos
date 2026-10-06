@@ -8,7 +8,7 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class InvestigationConfig:
-    version: str = "investigation_v1"
+    version: str = "investigation_v2"  # v2: Gate 1 (ADR-050) priors from all members, Stage 4 top-5 in narrowing, budget 9
     # Stage A narrowing (D-1)
     chunk_size: int = 40
     split: int = 4
@@ -24,7 +24,7 @@ class InvestigationConfig:
     z_unchanged: float = 1.0
     min_support: int = 30
     # budgets (D-5)
-    max_tool_calls: int = 12
+    max_tool_calls: int = 9  # chosen on DEV seeds 1-10 (ADR-050)
     max_jev_calls: int = 40
     max_evidence: int = 60
     max_wall_s: float = 120.0

@@ -75,8 +75,10 @@ def views_at_creation(stage6, candidates: Iterable[AnomalyCandidate], offset_s: 
                 metric = next((i.metric for _, i in infos_by_time.get(first_member, [])), "")
                 earlier.append({"incident_id": other["incident_id"], "status": last["status"], "started_at": s["started_at"],
                                 "anchor_metric": metric, "locus_dims": [d for d, _ in s["affected_dimensions"]]})
+        bundle = (getattr(stage6, "bundles", None) or {}).get(anchor.candidate_id) or {}
+        top = tuple((t["evidence_id"], tuple(tuple(x) for x in t["cohort"])) for t in (bundle.get("top_cohorts") or [])[:5])
         out.append(tools.IncidentView(row["incident_id"], as_of, snap["title"], snap["started_at"], tuple(members), anchor,
-                                      grain.get(anchor.candidate_id, "1h"), tuple(earlier)))
+                                      grain.get(anchor.candidate_id, "1h"), tuple(earlier), top))
     return out
 
 

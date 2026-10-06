@@ -93,3 +93,15 @@ def test_a_tool_failure_never_raises(monkeypatch, stubs):
     monkeypatch.setattr(tools, "call", broken)
     inv = loop.investigate(VIEW, _ctx(), ControlChooser(), lambda: 0.0)
     assert inv.stop_reason == "tool_failure" and inv.conclusion == "unknown"
+
+
+def test_priors_come_from_every_member_and_stage4_top_joins_the_narrowed_set(stubs):
+    # ADR-050: a renewal incident anchored on an approval member still carries the renewal prior
+    renewal = CandidateInfo("anom_r", "renewal_success_rate", "down", 0, frozenset({("psp", "b")}), "INCIDENT", "dec_r",
+                            "t", "policy_v1", change_type="rate_change", window_end=H, scope=frozenset({("psp", "b")}))
+    view = tools.IncidentView("inc_2", H, "t", 0, (ANCHOR, renewal), ANCHOR, "1h",
+                              stage4_top=(("evd_s4", (("psp", "b"), ("customer_country", "DE"))),))
+    ctx = tools.ToolContext(None, "db", "run_x", 0, view, Registry(), InvestigationConfig())
+    inv = loop.investigate(view, ctx, ControlChooser(), lambda: 0.0)
+    assert {h.cause: h.prior for h in inv.hypotheses}.get("renewal_job_failure") == 3
+    assert "evd_s4" in inv.narrowed
