@@ -45,8 +45,8 @@ class Explainer(Protocol):
 TEMPLATES = {
     "summary": "Incident {0} started at {1}; first detected at {2}.",
     "locus": "The change is located in {0} (Stage 4 analysis).",
-    "consistent": "Evidence consistent with {cause}: {0} observed {1}, as that cause predicts.",
-    "against": "Evidence against {cause}: {0} — observed {1}.",
+    "consistent": "Evidence consistent with {cause}: {0} in {1} observed {2}, as that cause predicts.",
+    "against": "Evidence against {cause}: {0} in {1} observed {2}.",
     "side_support": "Context consistent with {cause}: {0}.",
     "insufficient": "Insufficient evidence for {cause}.",
     "impact": "Estimated lost successful payments so far: {0}.",
@@ -84,13 +84,15 @@ class TemplateExplainer:
             for eid in h.supporting[:3]:
                 e = registry.get(eid)
                 if e is not None and "outcome" in e.payload:
-                    add("consistent", (Slot(eid, "metric", "observed"), Slot(eid, "outcome", "inferred")), cause=h.cause)
+                    add("consistent", (Slot(eid, "metric", "observed"), Slot(eid, "cohort", "observed"),
+                                       Slot(eid, "outcome", "inferred")), cause=h.cause)
                 elif e is not None and "present" in e.payload:
                     add("side_support", (Slot(eid, "present", "observed"),), cause=h.cause)
                 elif e is not None and "components" in e.payload:
                     add("side_support", (Slot(eid, "components", "observed"),), cause=h.cause)
             for eid in h.contradicting[:3]:  # contradicting evidence is always reported
-                add("against", (Slot(eid, "metric", "observed"), Slot(eid, "outcome", "inferred")), cause=h.cause)
+                add("against", (Slot(eid, "metric", "observed"), Slot(eid, "cohort", "observed"),
+                                Slot(eid, "outcome", "inferred")), cause=h.cause)
             if h.status == "insufficient_evidence" and inc is not None:
                 add("insufficient", (Slot(inc.evidence_id, "incident_id", "observed"),), cause=h.cause)
         imp = registry.get(inv.impact_evidence) if inv.impact_evidence else None

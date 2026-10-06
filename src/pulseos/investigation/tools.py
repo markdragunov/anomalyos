@@ -84,7 +84,8 @@ def _measured(ctx, tool, args, metric, cohort, direction) -> Evidence:
     out = outcome(m.z, direction, ctx.cfg)
     payload = {"metric": metric, "cohort": [list(x) for x in m.cohort], "before": round(m.before, 6),
                "during": round(m.during, 6), "z": None if m.z is None else round(m.z, 3), "outcome": out}
-    labels = {"before": "observed", "during": "observed", "z": "observed", "outcome": "inferred"}
+    labels = {"metric": "observed", "cohort": "observed", "before": "observed", "during": "observed", "z": "observed",
+              "outcome": "inferred"}
     return _evidence(ctx, tool, args, payload, labels)
 
 

@@ -20,8 +20,9 @@ def _reg():
     r.add(Evidence("evd_inc", "get_incident", (), {"incident_id": "inc_1", "started_at": 0, "detected_at": 3600,
                                                    "locus": [["psp", "b"]]},
                    {"incident_id": "observed", "started_at": "observed", "detected_at": "observed", "locus": "inferred"}, 3600))
-    r.add(Evidence("evd_m", "compare_cohorts", (), {"metric": "authorization_rate", "outcome": "moved", "z": -3.1},
-                   {"metric": "observed", "outcome": "inferred", "z": "observed"}, 3600))
+    r.add(Evidence("evd_m", "compare_cohorts", (), {"metric": "authorization_rate", "cohort": [["psp", "a"]],
+                                                    "outcome": "moved", "z": -3.1},
+                   {"metric": "observed", "cohort": "observed", "outcome": "inferred", "z": "observed"}, 3600))
     r.add(Evidence("evd_imp", "calculate_impact", (), {"lost_successful_payments": 42.0},
                    {"lost_successful_payments": "estimated"}, 3600))
     return r
