@@ -1,7 +1,7 @@
 # Task: Stage 7 — Investigation agent, Mode B: bounded, read-only, cited (spec 08)
 
 Prepared: 2026-10-06  
-Status: **Draft for owner review**  
+Status: **Approved** by the owner (2026-10-06). Stage 7 decisions start at ADR-049  
 Branch: `stage-7-investigation` (from `main` after PR #12)
 
 ## Read first
