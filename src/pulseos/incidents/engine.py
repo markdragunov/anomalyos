@@ -18,7 +18,8 @@ from pulseos.incidents import correlate, lifecycle
 from pulseos.incidents.config import IncidentConfig
 from pulseos.jev.buckets import METRIC_FAMILY
 
-KIND_ORDER = {"detected": 0, "checkpoint": 1, "recovered": 2, "recovery_check": 3, "human": 4, "impact": 5}
+KIND_ORDER = {"detected": 0, "checkpoint": 1, "recovered": 2, "recovery_check": 3, "human": 4, "impact": 5,
+              "investigation": 6}  # Stage 7 (ADR-049 D-0): Mode B start / finish
 
 
 def _h(*parts: object) -> str:
@@ -77,6 +78,8 @@ class _Group:
     promoted_to: str | None = None
     fields: dict[str, Any] = field(default_factory=dict)
     seq: int = 0
+    investigation_status: str = "not_started"
+    extra_evidence: list[str] = field(default_factory=list)  # investigation report ids
 
 
 @dataclass
@@ -149,8 +152,9 @@ class Engine:
             "epistemic": {"started_at": "OBSERVED", "affected_dimensions": "INFERRED", "category": "INFERRED",
                           "severity": "INFERRED", "confidence": "INFERRED", "estimated_impact": "ESTIMATED"},
             "linked_anomalies": sorted(g.members),
-            "evidence_ids": sorted({e for i in infos for e in i.evidence_ids} | {i.decision_id for i in infos}),
-            "investigation_status": "not_started",
+            "evidence_ids": sorted({e for i in infos for e in i.evidence_ids} | {i.decision_id for i in infos}
+                                   | set(g.extra_evidence)),
+            "investigation_status": g.investigation_status,
             "route_source": first.route_source, "policy_version": first.policy_version,
         })
 
@@ -269,6 +273,21 @@ class Engine:
             self._recovery_check(ev.candidate_id, ev.time)
         elif ev.kind == "human":
             self._human(ev)
+        elif ev.kind == "investigation":
+            g = self.groups[ev.incident_id]
+            if ev.command == "start":
+                g.investigation_status = "running"
+                if g.status == "DETECTED":  # the transition ADR-028 reserved for "Mode B started"
+                    self._transition(g, "INVESTIGATING", "system", "investigation_started", ev.time)
+                else:
+                    self._row(g, ev.time, "system", "investigation_started")
+            elif ev.command == "finish":
+                g.investigation_status = ev.reason  # completed | handed_off | budget_exhausted | failed
+                if ev.target_id:
+                    g.extra_evidence.append(ev.target_id)
+                self._row(g, ev.time, "system", "investigation_finished")
+            else:
+                raise ValueError(f"unknown investigation command {ev.command!r}")
         elif ev.kind == "impact":
             g = self.groups[ev.incident_id]
             g.fields["estimated_impact"] = ev.impact
