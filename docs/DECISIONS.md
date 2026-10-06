@@ -6,6 +6,27 @@ Format: short ID, status, context, decision, consequences.
 
 ---
 
+## ADR-050 — Stage 7 Gate 1: priors from all members, Stage 4 top-5 in narrowing, budget 9 · *accepted* (2026-10-06, owner OK on recommendations 1–4)
+
+**Context.** DEV evaluation (40 worlds, sim-1.3.0): the deterministic control beat prior-only (validation top-1 52–53 %
+vs 42–45 %, top-3 86 % vs 68–70 %) with full safety; side files added about 5 points of top-1 with 2 % decoy support.
+Weak spots: renewal failures (top-1 0 %) because hypotheses took priors only from the anchor, which the Stage 6 impact
+rule picks among approval / conversion members; narrowing found the root-cause locus less often than the Stage 4 top-5
+(29–31 % vs 35–36 %). The budget rule chose 9 tool calls.
+
+**Decision.**
+1. Hypothesis priors are the maximum over **all** members of the incident (metric, direction, locus, Stage 4 label);
+   the anchor for checks is unchanged. The prior-only system in evaluation uses the same member-wide prior.
+2. The anchor's Stage 4 top cohorts (k ≤ 5) always join the narrowed set.
+3. Default tool-call budget 9 (chosen on seeds 1–10).
+4. Simultaneous incidents, gradual drift and PSP degradation (truth in top-3, often not the leader) are known
+   limitations, rooted in Stage 6 correlation and first-look loci.
+**Seeds 11–20 have now been seen for Stage 7**; the next clean check is HELDOUT (Stage 9).
+
+**Consequences.** `InvestigationConfig.version` = `investigation_v2`.
+
+---
+
 ## ADR-049 — Stage 7 design: bounded read-only investigation, side files, template explanation · *accepted* (2026-10-06, owner OK on Gate 0)
 
 **Context.** Stage 7 investigates each incident with a deterministic, read-only, budgeted loop and a cited report
