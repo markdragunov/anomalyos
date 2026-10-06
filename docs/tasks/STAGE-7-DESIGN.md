@@ -81,6 +81,8 @@ if a caller needs it).
 | `calculate_impact` | — | Stage 6 `impact.estimate` (lost revenue stays not provided, ADR-042) |
 | `read_evidence` | evidence id ∈ the investigation's registry | the stored evidence object |
 | `search_similar_incidents` | — | ≤ 5 earlier incidents of the run (created before `as_of`) sharing a metric group and a locus dimension: status, category, interval |
+| `get_deployments` | service ∈ the services relevant to the incident's metric families (D-3a table), window ∈ {`onset ± 2 h`, `onset − 24 h … as_of`} | ≤ 10 deploys with `deployed_at ≤ as_of`: service, version, time relative to the incident start (bucket); outcome `present` / `absent` |
+| `check_psp_status` | psp ∈ the PSPs in the incident's locus, top cohorts or controls | status entries with `posted_at ≤ as_of` overlapping `[start − 6 h, as_of]`: component, level, posted / resolved (only if `≤ as_of`); outcome `present` / `absent` |
 
 Outcome thresholds, fixed now: `moved` if |z| ≥ 2 in the predicted direction, `opposite` if |z| ≥ 2 against it,
 `unchanged` if |z| < 1, else `ambiguous` (counts neither way); fewer than 30 attempts in either period →
@@ -89,11 +91,51 @@ list (`refund`, `retry`, `capture`, `cancel`, `disable`, `page`, `notify`, `writ
 `resolve`) or a tool that takes a string outside its closed set. **Timeouts:** the investigation runner gets a
 ClickHouse client created with `max_execution_time` (default 10 s); no change to `metrics.compute`.
 
-**Owner decision — side files (ADR-033).** Recommend **keeping `get_deployments` and `check_psp_status` unregistered**
-in Stage 7 and doing the side files as their own simulator task with a design gate. Reason: how informative they are
-is set by the decoy / honest-signal mix we choose, so they would partly measure the simulator, not the loop; and they
-need a simulator change, ClickHouse tables and typed readers. The alternative (add them now, digests unchanged) is
-feasible but widens the stage.
+## D-3a. Side files `deployments.json` and `psp_status.json` (owner decision 2026-10-06: built in Stage 7, ADR-033)
+
+**Simulator (`simulation/side_files.py`, `sim-1.3.0`).** Generated after the event stream from the world, the release
+train (`world.releases()`) and the scenario **effects** (mechanism × selector) — the same causal structure that
+drives the events; the generator never reads `TruthSpec` / `GroundTruth`, causes or titles. Randomness only from
+`derive_seed(seed, "side", …)`; no wall clock. Entries carry no scenario id, record key, cause label or truth text.
+
+| Effect (mechanism × selector) | Honest signal | Probability | Timing |
+|---|---|---|---|
+| `ABANDON` × platform, app_version | the mobile release already in the train | 1.0 (it exists) | release time |
+| `DUPLICATE` | deploy `api_gateway` | 0.8 | effect start − U(5 min, 2 h) |
+| `APPROVAL` × channel renewal | deploy `renewal_job` | 0.8 | same |
+| `APPROVAL` × channel dunning | deploy `dunning_service` | 0.8 | same |
+| `REFUND` | deploy `refund_service` | 0.8 | same |
+| `CHURN` | deploy `pricing_service` | 0.8 | same |
+| `APPROVAL` × psp (any other dims except channel; e.g. PSP × country drifts) | status `authorization` degraded / partial outage on that PSP | 0.7 | posted onset + U(20, 90 min); resolved effect end + U(0, 60 min) |
+| `APPROVAL` × a local payment method, no psp | status `local_methods` degraded on the method's PSP (`LOCAL_METHOD_PSP`) | 0.5 | same |
+| `DELAY` × psp | status `webhooks` delayed on that PSP | 0.6 | same |
+| `INJECT`, `VOLUME`, `APPROVAL` × country only | none | — | — |
+
+Rules apply in table order, first match wins (renewal and dunning effects also carry a `psp` selector).
+
+Decoys (no effect on events): routine deploys of all services (`api_gateway`, `checkout_web`, `renewal_job`,
+`dunning_service`, `refund_service`, `pricing_service`, `ledger`) at about 0.3 per service per day; one 2 h
+maintenance window per PSP per week at night (`maintenance`); one minor `degraded performance` entry per PSP about
+every 10 days, 30–120 min long. **Near-miss decoys:** for each effect without an honest signal of its kind, with
+probability 0.3 an unrelated routine deploy within 2 h before its start, and with 0.2 a minor status entry on a random
+PSP overlapping its onset — so "something happened near the onset" is not a clue on its own.
+
+**Digests and versions.** `GENERATOR_VERSION = sim-1.3.0`; `events_sha256` stays equal to sim-1.2.2 (the run id is not
+in event lines); the run id changes (it hashes the generator version), so DEV worlds are regenerated. Ground truth
+gains `side_signals` per record (ids of the honest entries, evaluation only), so `truth_digest` changes; the golden
+test pins a third digest over both side files. Validator: every honest id exists; no side entry text names a cause.
+
+**Storage and readers.** The loader writes `<db>.deployments` and `<db>.psp_status` (the events database, not
+`<db>_truth`; partitioned by `run_id`). A new package `src/pulseos/context/` holds two typed readers with static SQL and
+bound parameters (`deployments(runner, db, run_id, services, start, end, as_of)`, `psp_status(runner, db, run_id, psps,
+start, end, as_of)`), applying the as-of rules above — a top-level package, so it goes into the ADR.
+
+**Checks.** A relevant deploy or status entry `present` supports the matching cause; `absent` is `ambiguous` (signals
+are missing on purpose, and status pages post late), never a contradiction. A present entry in a service or PSP that
+does not match a hypothesis neither supports nor contradicts it.
+
+**Guard against measuring the simulator.** Evaluation runs the control twice — with and without the two side-file
+tools — and reports the difference per cause, so the share of conclusions that rest on side files is visible.
 
 ## D-4. Hypotheses (brief 0.5)
 
@@ -152,7 +194,8 @@ fixed amount) so they are reproducible; real runs record measured durations for 
 ## D-8. Storage and packages (brief 0.8)
 
 Packages `src/pulseos/investigation/` (narrowing, state, checks, shortlist, loop, tools, hypotheses, budgets,
-storage) and `src/pulseos/explanation/` (port, templates, validator); both leave the stage guard. `agent` and
+storage), `src/pulseos/explanation/` (port, templates, validator) and `src/pulseos/context/` (the two side-file
+readers, D-3a); `investigation` and `explanation` leave the stage guard, `context` is a new package in the ADR. `agent` and
 `investigation_agent.py` stay forbidden. The `jev` package gains a second question set
 (`investigation_question_set_v1`) and a generic request builder; question set v1 and `jev_state_v2` are unchanged.
 Append-only ClickHouse tables, DDL in the ADR:
@@ -170,9 +213,12 @@ investigate), `baseline_v2` incidents reported separately. Each engine incident'
 (`evaluation.incidents._main`).
 
 - **Systems:** (0) **prior only** — the control prior with no tools (what Stages 4–6 already know);
-  (1) **deterministic control** — the reference; (2) **fake pipeline** — a pipeline check only. Jev: "blocked".
+  (1) **deterministic control** — the reference; (1b) **control without side-file tools** — shows how much rests on
+  `deployments` / `psp_status` (D-3a); (2) **fake pipeline** — a pipeline check only. Jev: "blocked".
 - **Hypotheses:** true cause (`record.true_cause`) at top-1 / top-3 of the final ranking; share of investigations
   where the truth is not the leader but has its contradicting evidence recorded.
+- **Side files:** share of investigations whose record has `side_signals` that cite one of them; share that cite a
+  decoy as support for the leading hypothesis.
 - **Narrowing:** root-cause locus or an affected cohort (ADR-038 equivalence, `evaluation.cohorts.equivalent_exact`)
   present in the narrowed set; compared with Stage 4 `top_cohorts` (k = 5).
 - **False-positive incidents** (main record none or `normal_variation`): share concluded `normal_variation` or
@@ -186,7 +232,8 @@ investigate), `baseline_v2` incidents reported separately. Each engine incident'
 ## D-10. Scope
 
 As the brief: no generative explanation, UI, API, notifications, writes to billing state, incident closure, Jev live
-calls, HELDOUT, new dependencies, free text from data in any state.
+calls, HELDOUT, new dependencies, free text from data in any state. In scope since the owner's decision on D-3a: the
+simulator change for the side files (`sim-1.3.0`, event digests unchanged) and their loader tables and readers.
 
 ## Open questions for the owner
 
@@ -194,7 +241,8 @@ calls, HELDOUT, new dependencies, free text from data in any state.
 2. **D-0:** the one Stage 6 change — a new engine event `investigation` with `DETECTED → INVESTIGATING`?
 3. **D-1:** narrowing over the anchor's pooled cohort tables, chunk 40 / split 4 / leaf 10 / depth 3 / 4 leaves?
 4. **D-2 / D-4:** check library with predicted outcomes per cause, control prior table and update rule as proposed?
-5. **D-3:** keep `get_deployments` and `check_psp_status` unregistered; side files as a separate simulator task?
+5. **D-3a:** side files as specified — honest-signal table and probabilities, decoys and near-miss decoys, `sim-1.3.0`
+   with event digests unchanged, `side_signals` in ground truth, package `context`, and the with / without ablation?
 6. **D-5:** budget defaults as starting values; model failure stops (no fallback to the control within a run)?
 7. **D-7:** slot-based templates with the citation validator as the only explainer?
 8. **D-8:** packages `investigation` and `explanation`, three append-only tables, question set
