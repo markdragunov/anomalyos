@@ -18,7 +18,7 @@ PRIOR_TABLE: dict[tuple[str, str], tuple[dict[str, str], tuple[str, ...]]] = {
                                       "customer_country": "issuer_or_country_degradation",
                                       "card_brand": "issuer_or_country_degradation"},
                                      ("psp_degradation", "payment_method_degradation", "issuer_or_country_degradation",
-                                      "fraud_attack", "data_pipeline_issue")),
+                                      "fraud_attack", "data_pipeline_issue", "renewal_job_failure", "dunning_failure")),
     ("checkout_conversion_rate", "down"): ({"platform": "checkout_regression", "app_version": "checkout_regression"},
                                            ("checkout_regression", "psp_degradation", "data_pipeline_issue")),
     ("renewal_success_rate", "down"): ({"psp": "renewal_job_failure"}, ("renewal_job_failure", "dunning_failure",

@@ -179,7 +179,7 @@ def investigate(view, ctx: tools.ToolContext, chooser, clock: Callable[[], float
             if failures >= 2:
                 return stop("tool_failure", str(err))
             continue
-        if pick.kind in ("deploy", "status"):
+        if pick.kind in ("deploy", "status"):  # side checks; sibling, channel and related checks carry an outcome
             p = e.payload
             observed = frozenset({f"present:{pick.args[0]}"} if p.get("present") else set()) if pick.kind == "deploy" \
                 else frozenset(f"present:{c}" for c in p.get("components", []))

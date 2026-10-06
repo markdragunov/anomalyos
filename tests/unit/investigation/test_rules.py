@@ -72,3 +72,16 @@ def test_shortlist_keeps_a_disconfirming_check_and_skips_done_ones():
     sl = checks.shortlist(side + [metric], set(), hs, 3)
     assert len(sl) == 3 and any(checks.disconfirming(c, ranking(hs)[0]) for c in sl)
     assert metric not in checks.shortlist(side + [metric], {metric.key}, hs, 3)
+
+
+def test_channel_split_check_separates_renewal_from_payment_causes():
+    p = prior("authorization_rate", "down", {"psp"}, "rate_change")
+    assert p["renewal_job_failure"] == 1 and p["dunning_failure"] == 1
+    causes = [h.cause for h in initial("inv_x", p, 7)]
+    lib = checks.build("authorization_rate", "down", {"psp": "b"}, {}, causes, None, [])
+    ch = next(c for c in lib if c.kind == "channel")
+    assert dict(ch.args[1]) == {"psp": "b", "channel": "checkout"} and ch.tool == "get_metric_history"
+    assert ch.predicted("renewal_job_failure") == "unchanged" and ch.predicted("psp_degradation") == "moved"
+    assert checks.disconfirming(ch, next(h for h in initial("inv_x", p, 7) if h.cause == "psp_degradation"))
+    assert not any(c.kind == "channel" for c in checks.build("checkout_conversion_rate", "down", {"platform": "web"}, {},
+                                                               causes, None, []))

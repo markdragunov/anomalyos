@@ -54,7 +54,11 @@ SERVICE_OF = {"renewal_job_failure": "renewal_job", "dunning_failure": "dunning_
               "duplicate_charging": "api_gateway"}
 STATUS_OF = {"psp_degradation": "authorization", "payment_method_degradation": "local_methods",
              "data_pipeline_issue": "webhooks"}
-KIND_ORDER = {"sibling": 0, "related": 1, "status": 2, "deploy": 3}
+KIND_ORDER = {"sibling": 0, "channel": 0, "related": 1, "status": 2, "deploy": 3}
+# ADR-050 follow-up: approval on the checkout channel separates renewal-side causes from payment-side ones
+CHANNEL_SPLIT = {"renewal_job_failure": U, "dunning_failure": U, "normal_variation": U, "psp_degradation": M,
+                 "issuer_or_country_degradation": M, "payment_method_degradation": M, "fraud_attack": M,
+                 "data_pipeline_issue": M}
 
 
 @dataclass(frozen=True)
@@ -95,6 +99,11 @@ def build(metric: str, direction: str, locus: dict[str, str], siblings: dict[str
                     preds.append((c, M))
             args = (metric, loc, sib, direction)
             out.append(Check(_id("sibling", *args), "sibling", "compare_cohorts", args, tuple(preds)))
+    if metric == "authorization_rate" and "channel" not in locus:
+        preds = tuple((c, p) for c, p in sorted(CHANNEL_SPLIT.items()) if c in causes)
+        if any(p == U for _, p in preds) and any(p == M for _, p in preds):
+            args = (metric, tuple(sorted({**locus, "channel": "checkout"}.items())), direction)
+            out.append(Check(_id("channel", *args), "channel", "get_metric_history", args, preds))
     for rel, (rdir, table) in sorted(RELATED.get((metric, direction), {}).items()):
         preds = tuple((c, p) for c, p in sorted(table.items()) if c in causes)
         if preds:
@@ -118,7 +127,7 @@ def build(metric: str, direction: str, locus: dict[str, str], siblings: dict[str
 
 
 def disconfirming(check: Check, leader: Hypothesis) -> bool:
-    return check.kind in ("sibling", "related") and check.predicted(leader.cause) in (M, U)
+    return check.kind in ("sibling", "channel", "related") and check.predicted(leader.cause) in (M, U)
 
 
 def shortlist(checks: list[Check], done: set[tuple], hyps: list[Hypothesis], size: int) -> list[Check]:

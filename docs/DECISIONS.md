@@ -23,7 +23,13 @@ rule picks among approval / conversion members; narrowing found the root-cause l
    limitations, rooted in Stage 6 correlation and first-look loci.
 **Seeds 11–20 have now been seen for Stage 7**; the next clean check is HELDOUT (Stage 9).
 
-**Consequences.** `InvestigationConfig.version` = `investigation_v2`.
+**Follow-up (owner OK after the rerun).** Renewal failures stayed at top-1 0 %: most such incidents hold only approval
+candidates (the renewal-metric candidate forms its own incident in Stage 6), so member-wide priors cannot help. Added:
+a **channel split** check — approval on the same locus with `channel = checkout` (renewal-side causes predict
+`unchanged`, payment-side causes `moved`) — and `renewal_job_failure` / `dunning_failure` at prior 1 in the
+approval-drop family.
+
+**Consequences.** `InvestigationConfig.version` = `investigation_v3`.
 
 ---
 

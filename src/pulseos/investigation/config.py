@@ -8,7 +8,7 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class InvestigationConfig:
-    version: str = "investigation_v2"  # v2: Gate 1 (ADR-050) priors from all members, Stage 4 top-5 in narrowing, budget 9
+    version: str = "investigation_v3"  # v2: Gate 1 (ADR-050) member-wide priors, Stage 4 top-5, budget 9; v3: channel split
     # Stage A narrowing (D-1)
     chunk_size: int = 40
     split: int = 4
