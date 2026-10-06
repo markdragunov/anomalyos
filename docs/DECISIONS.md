@@ -6,6 +6,44 @@ Format: short ID, status, context, decision, consequences.
 
 ---
 
+## ADR-048 — SessionStart hook runs the TypeSafe plugin check · *accepted* (2026-10-06, owner decision)
+
+**Context.** ADR-047 point 4 replaced a manual re-review with `scripts/check_typesafe_plugin.py`, but someone still has
+to remember to run it after `claude plugin update`. Claude Code can run a command when a session starts. ADR-036 allows
+no hooks in `.claude/settings.json`.
+
+**Verified behaviour (docs, 2026-10-06).** A `SessionStart` hook cannot block the session on any exit code. With exit 0,
+stdout becomes agent context, and JSON output is honoured: `systemMessage` is shown to the user and seen by the agent,
+`hookSpecificOutput.additionalContext` is added to the agent's context. Project hooks are snapshotted at startup and run
+only after the user trusts the workspace. Matchers: `startup`, `resume`, `clear`, `compact`, `fork`.
+
+**Decision.**
+1. **One hook.** `.claude/settings.json` holds exactly one hook: `SessionStart`, matcher `startup|resume`, command
+   `python3 "${CLAUDE_PROJECT_DIR}/scripts/check_typesafe_plugin.py" --hook`, timeout 10 s. `clear` and `compact` are
+   left out because plugins do not change within a session. The architecture test pins the whole `hooks` value; any
+   other hook needs its own ADR.
+2. **Hook mode.** With `--hook` the script prints nothing when the plugin matches the reviewed fingerprint or is not
+   installed, so a pass costs no context. On any difference or read error it prints a JSON warning (always exit 0):
+   `systemMessage` with the differences, and `additionalContext` telling the agent not to use the
+   `typesafe:typesafe-ai` Skill in this session until the owner reviews the new version.
+3. **Read-only.** The hook only reads `~/.claude` (or `$CLAUDE_CONFIG_DIR`) and the plugin files: stdlib, no network,
+   no writes. It never disables, updates or reinstalls the plugin; that stays a human decision (in the spirit of
+   `AGENTS.md` rule 14).
+
+**Limits.** The hook warns but cannot stop the session, and the plugin is already loaded by the time the warning
+arrives: the protection is the user seeing it and the agent being told not to use the Skill. A user who has not
+trusted the workspace gets no check. The manual run (`python3 scripts/check_typesafe_plugin.py`, exit 1 on a
+difference) stays the way to inspect details.
+
+**Amends.** ADR-036 (settings: no hooks → this one hook). ADR-047 point 4 (the check also runs automatically).
+
+**Consequences.** Everyone who trusts the repository runs the script at session start, so changes to the script or the
+hook go through review like any other code. `.claude/settings.json`, `scripts/check_typesafe_plugin.py`,
+`scripts/README.md` and `tests/architecture/test_claude_config.py` change with this decision. No product code,
+invariant or dependency changes.
+
+---
+
 ## ADR-047 — TypeSafe plugin as the one allowed external Skill · *accepted* (2026-10-06, owner decision)
 
 **Context.** Jev is TypeSafe's System One model (ADR-018, ADR-024); the Stage 5 client, question sets and replay are
@@ -273,7 +311,7 @@ like composition. `volume_only` on `refund_count` candidates is misleading (refu
 
 ---
 
-## ADR-036 — Claude Code as the primary coding agent · *accepted* (2026-10-03, owner spec "Claude Code Engineering Harness Optimization"); plugins amended by ADR-047
+## ADR-036 — Claude Code as the primary coding agent · *accepted* (2026-10-03, owner spec "Claude Code Engineering Harness Optimization"); plugins and hooks amended by ADR-047, ADR-048
 
 **Context.** Claude Code is the only coding agent used, but the coding harness still carried Cursor configuration
 (`.cursor/rules/*.mdc`, `.cursor/skills/` planned paths, Cursor references in `AGENTS.md`), and parts of the `.mdc`

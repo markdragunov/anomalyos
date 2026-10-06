@@ -6,9 +6,11 @@ servers or scripts into the coding agent. This script replaces "re-review by han
 Input: the local Claude Code plugin registry (`$CLAUDE_CONFIG_DIR` or `~/.claude`, `plugins/installed_plugins.json`)
 and the plugin files it points to.
 Output: a report on stdout; exit 0 if the installed plugin is exactly the reviewed one (or is not installed, which
-ADR-047 allows), 1 on any difference. `--fingerprint` prints the installed fingerprint for updating `REVIEWED`
-after a new review.
-Invariants: read-only; stdlib only; no network. Not part of CI: it inspects the developer's machine, not the repo.
+ADR-047 allows), 1 on any difference. `--hook` (the SessionStart hook, ADR-048) prints nothing on a pass and a
+JSON warning on a difference, always exiting 0. `--fingerprint` prints the installed fingerprint for updating
+`REVIEWED` after a new review.
+Invariants: read-only; stdlib only; no network; never disables or changes the plugin itself. Not part of CI: it
+inspects the developer's machine, not the repo.
 Failure modes: an unreadable registry or plugin directory is reported as a difference, never as a pass.
 """
 
@@ -86,8 +88,10 @@ def compare(reviewed: dict, record: dict, files: dict[str, str], executables: li
 
 def installed_record(config_dir: Path) -> dict | None:
     """The registry entry for this project (project scope) or, failing that, the user-scope install."""
-    registry = json.loads((config_dir / "plugins" / "installed_plugins.json").read_text(encoding="utf-8"))
-    entries = registry.get("plugins", {}).get(PLUGIN_ID, [])
+    registry_path = config_dir / "plugins" / "installed_plugins.json"
+    if not registry_path.exists():
+        return None
+    entries = json.loads(registry_path.read_text(encoding="utf-8")).get("plugins", {}).get(PLUGIN_ID, [])
     for scope_matches in (lambda e: e.get("projectPath") == str(ROOT), lambda e: e.get("scope") == "user"):
         for entry in entries:
             if scope_matches(entry):
@@ -95,32 +99,60 @@ def installed_record(config_dir: Path) -> dict | None:
     return None
 
 
-def main(argv: list[str]) -> int:
-    config_dir = Path(os.environ.get("CLAUDE_CONFIG_DIR") or Path.home() / ".claude")
+def inspect(config_dir: Path) -> tuple[list[str], str]:
+    """Return (problems, message when there are none). Read errors are problems, never a pass."""
     try:
         record = installed_record(config_dir)
+        if record is None:
+            return [], f"{PLUGIN_ID} is not installed for this project; nothing to check (optional, ADR-047)"
+        plugin_dir = Path(record.get("installPath", ""))
+        if not plugin_dir.is_dir():
+            return [f"install path {plugin_dir} does not exist"], ""
+        files = fingerprint(plugin_dir)
+        problems = compare(REVIEWED, record, files, executable_components(plugin_dir, files))
     except (OSError, ValueError) as exc:
-        print(f"cannot read the plugin registry in {config_dir}: {exc}", file=sys.stderr)
-        return 1
-    if record is None:
-        print(f"{PLUGIN_ID} is not installed for this project; nothing to check (optional, ADR-047)")
-        return 0
-    plugin_dir = Path(record.get("installPath", ""))
-    if not plugin_dir.is_dir():
-        print(f"{PLUGIN_ID}: install path {plugin_dir} does not exist", file=sys.stderr)
-        return 1
-    files = fingerprint(plugin_dir)
+        return [f"cannot read the plugin in {config_dir}: {exc}"], ""
+    return problems, f"{PLUGIN_ID} {REVIEWED['version']} matches the reviewed fingerprint ({len(files)} files, no executables)"
+
+
+def hook_output(problems: list[str]) -> str:
+    """SessionStart hook JSON (ADR-048): a warning the user and the agent both see; it cannot block the session."""
+    summary = f"{PLUGIN_ID} differs from the version reviewed in ADR-047: " + "; ".join(problems)
+    return json.dumps({
+        "systemMessage": f"{summary}. Run python3 scripts/check_typesafe_plugin.py for details.",
+        "hookSpecificOutput": {
+            "hookEventName": "SessionStart",
+            "additionalContext": (
+                f"{summary}. Do not use the typesafe:typesafe-ai Skill in this session until the owner reviews the new "
+                "version (ADR-047, point 4); the repo contract and ADRs remain the only guidance for Jev."
+            ),
+        },
+    })
+
+
+def main(argv: list[str]) -> int:
+    config_dir = Path(os.environ.get("CLAUDE_CONFIG_DIR") or Path.home() / ".claude")
     if "--fingerprint" in argv:
+        record = installed_record(config_dir)
+        if record is None:
+            print(f"{PLUGIN_ID} is not installed", file=sys.stderr)
+            return 1
+        files = fingerprint(Path(record["installPath"]))
         print(json.dumps({"version": record.get("version"), "commit": record.get("gitCommitSha"), "files": files}, indent=4))
         return 0
-    problems = compare(REVIEWED, record, files, executable_components(plugin_dir, files))
+    problems, ok_message = inspect(config_dir)
+    if "--hook" in argv:
+        # Silent when nothing is wrong: hook stdout becomes agent context, so a pass must cost nothing.
+        if problems:
+            print(hook_output(problems))
+        return 0
     if problems:
         print(f"{PLUGIN_ID} differs from the version reviewed in ADR-047 ({REVIEWED['version']}):")
         print("\n".join(f"  - {p}" for p in problems))
         print("Review the new content, then update REVIEWED here and the version in ADR-047 together "
               "(`--fingerprint` prints the installed values). Until then: claude plugin disable typesafe@typesafe-ai")
         return 1
-    print(f"{PLUGIN_ID} {REVIEWED['version']} matches the reviewed fingerprint ({len(files)} files, no executables)")
+    print(ok_message)
     return 0
 
 

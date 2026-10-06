@@ -28,5 +28,19 @@
         "repo": "typesafe-ai/skills"
       }
     }
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PROJECT_DIR}/scripts/check_typesafe_plugin.py\" --hook",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
   }
 }

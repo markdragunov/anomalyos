@@ -134,9 +134,23 @@ class TestSettings(unittest.TestCase):
     def setUp(self) -> None:
         self.settings = json.loads((CLAUDE / "settings.json").read_text(encoding="utf-8"))
 
-    def test_only_minimal_permissions_no_hooks_or_mcp(self) -> None:
-        self.assertEqual(set(self.settings), {"permissions", "enabledPlugins", "extraKnownMarketplaces"})
+    def test_only_minimal_permissions_and_adr_approved_extras(self) -> None:
+        self.assertEqual(set(self.settings), {"permissions", "enabledPlugins", "extraKnownMarketplaces", "hooks"})
         self.assertEqual(set(self.settings["permissions"]), {"allow", "deny"})
+        self.assertNotIn("mcpServers", self.settings)
+
+    def test_the_only_hook_is_the_read_only_plugin_check(self) -> None:
+        command = 'python3 "${CLAUDE_PROJECT_DIR}/scripts/check_typesafe_plugin.py" --hook'
+        expected = {"SessionStart": [
+            {"matcher": "startup|resume", "hooks": [{"type": "command", "command": command, "timeout": 10}]},
+        ]}
+        self.assertEqual(self.settings["hooks"], expected, "one SessionStart hook (ADR-048); any other hook needs an ADR")
+
+    def test_plugin_check_hook_mode_warns_the_user_and_the_agent(self) -> None:
+        payload = json.loads(_plugin_check().hook_output(["changed file: skills/typesafe-ai/SKILL.md"]))
+        self.assertIn("changed file: skills/typesafe-ai/SKILL.md", payload["systemMessage"])
+        self.assertEqual(payload["hookSpecificOutput"]["hookEventName"], "SessionStart")
+        self.assertIn("Do not use the typesafe:typesafe-ai Skill", payload["hookSpecificOutput"]["additionalContext"])
 
     def test_only_the_typesafe_plugin_is_enabled(self) -> None:
         self.assertEqual(self.settings["enabledPlugins"], {"typesafe@typesafe-ai": True}, "one external plugin (ADR-047)")
