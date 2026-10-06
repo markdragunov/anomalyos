@@ -16,6 +16,7 @@ Classification of coding-agent and runtime tooling. **Claude Code is the primary
 | **Vector DB / RAG MCP** | **Not needed** | Memory is git docs + future structured incident records (ADR-005). Embeddings would blur observed vs retrieved-as-if-observed. |
 | **Production mutation tools** (refund, retry, disable rail) | **Not needed** (V2) | Violates `INV-007` and `INV-012`. Investigation is read-only. |
 | **Marketplace / generic agent Skill packs** | **Not used** | The contract is `AGENTS.md` + this repo; project Skills follow `.claude/skills/README.md`. External Skills are not reproducible for clones and are easy to over-permission. |
+| **TypeSafe plugin** (`typesafe@typesafe-ai`) | **Allowed exception** | Vendor guidance for the Jev / System One API (ADR-018). One Skill, no hooks, MCP servers or scripts; enabled in `.claude/settings.json` (ADR-047). Coding-time research only; repo contract and ADRs win over its suggestions. |
 | **MCP integrations** | **Only on concrete need** | None configured for this repository. Each needs a job, a trust boundary and an ADR; never a generic SQL or warehouse MCP. |
 | **Slack/email send from the coding agent** | **Not needed** | Out of band for engineering. Runtime notifications, if any, will be explicit product components with audit, not chat plugins. |
 

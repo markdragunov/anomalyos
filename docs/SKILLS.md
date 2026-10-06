@@ -3,7 +3,9 @@
 A Skill is a reproducible **procedure** (how to run something that exists), not a set of constraints: constraints live
 in `AGENTS.md` and `.claude/rules/`. Conventions are in `.claude/skills/README.md`.
 
-Do **not** install marketplace or external Skills. Do **not** add empty or placeholder Skills: Claude Code lists every
+Do **not** install marketplace or external Skills. The one exception is TypeSafe's own plugin, `typesafe@typesafe-ai`,
+enabled in `.claude/settings.json` (ADR-047): it covers the TypeSafe API; how PulseOS uses Jev stays in this repo's
+contract and ADRs, which win on conflict. Do **not** add empty or placeholder Skills: Claude Code lists every
 Skill it finds, so a stub costs context and promises a procedure that does not exist (ADR-004). An architecture test
 fails on a Skill directory without a complete `SKILL.md`.
 

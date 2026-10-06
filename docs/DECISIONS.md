@@ -6,6 +6,89 @@ Format: short ID, status, context, decision, consequences.
 
 ---
 
+## ADR-048 — SessionStart hook runs the TypeSafe plugin check · *accepted* (2026-10-06, owner decision)
+
+**Context.** ADR-047 point 4 replaced a manual re-review with `scripts/check_typesafe_plugin.py`, but someone still has
+to remember to run it after `claude plugin update`. Claude Code can run a command when a session starts. ADR-036 allows
+no hooks in `.claude/settings.json`.
+
+**Verified behaviour (docs, 2026-10-06).** A `SessionStart` hook cannot block the session on any exit code. With exit 0,
+stdout becomes agent context, and JSON output is honoured: `systemMessage` is shown to the user and seen by the agent,
+`hookSpecificOutput.additionalContext` is added to the agent's context. Project hooks are snapshotted at startup and run
+only after the user trusts the workspace. Matchers: `startup`, `resume`, `clear`, `compact`, `fork`.
+
+**Decision.**
+1. **One hook.** `.claude/settings.json` holds exactly one hook: `SessionStart`, matcher `startup|resume`, command
+   `python3 "${CLAUDE_PROJECT_DIR}/scripts/check_typesafe_plugin.py" --hook`, timeout 10 s. `clear` and `compact` are
+   left out because plugins do not change within a session. The architecture test pins the whole `hooks` value; any
+   other hook needs its own ADR.
+2. **Hook mode.** With `--hook` the script prints nothing when the plugin matches the reviewed fingerprint or is not
+   installed, so a pass costs no context. On any difference or read error it prints a JSON warning (always exit 0):
+   `systemMessage` with the differences, and `additionalContext` telling the agent not to use the
+   `typesafe:typesafe-ai` Skill in this session until the owner reviews the new version.
+3. **Read-only.** The hook only reads `~/.claude` (or `$CLAUDE_CONFIG_DIR`) and the plugin files: stdlib, no network,
+   no writes. It never disables, updates or reinstalls the plugin; that stays a human decision (in the spirit of
+   `AGENTS.md` rule 14).
+
+**Limits.** The hook warns but cannot stop the session, and the plugin is already loaded by the time the warning
+arrives: the protection is the user seeing it and the agent being told not to use the Skill. A user who has not
+trusted the workspace gets no check. The manual run (`python3 scripts/check_typesafe_plugin.py`, exit 1 on a
+difference) stays the way to inspect details.
+
+**Amends.** ADR-036 (settings: no hooks → this one hook). ADR-047 point 4 (the check also runs automatically).
+
+**Consequences.** Everyone who trusts the repository runs the script at session start, so changes to the script or the
+hook go through review like any other code. `.claude/settings.json`, `scripts/check_typesafe_plugin.py`,
+`scripts/README.md` and `tests/architecture/test_claude_config.py` change with this decision. No product code,
+invariant or dependency changes.
+
+---
+
+## ADR-047 — TypeSafe plugin as the one allowed external Skill · *accepted* (2026-10-06, owner decision)
+
+**Context.** Jev is TypeSafe's System One model (ADR-018, ADR-024); the Stage 5 client, question sets and replay are
+built against its API. TypeSafe publishes an official Claude Code plugin, `typesafe@typesafe-ai` (marketplace
+`typesafe-ai` = GitHub `typesafe-ai/skills`, MIT), that teaches its API: primitives, state, confidence, SDKs, and links
+to the live docs at `docs.typesafe.ai`. The owner enabled it at project scope. That conflicts with the rule "no
+marketplace / external Skills" (`AGENTS.md`, `docs/SKILLS.md`, `docs/TOOLS.md`, ADR-003 and ADR-036) and with ADR-036's
+"no hooks, MCP servers or plugins" in `.claude/settings.json`, and an architecture test failed on the new keys.
+
+**Reviewed content (2026-10-06).** Version 0.5.7, marketplace commit `65a39f3`. The plugin holds a single Skill,
+`typesafe-ai` (`skills/typesafe-ai/SKILL.md`, about 150 lines of guidance), plus README and LICENSE. No hooks, MCP
+servers, slash commands, agents or scripts: it adds context, not executable code or permissions.
+
+**Decision.**
+1. **One named exception.** `.claude/settings.json` may enable exactly `typesafe@typesafe-ai` from exactly the
+   `typesafe-ai` marketplace (`typesafe-ai/skills`). The general rule stays: no other marketplace, plugin or external
+   Skill without its own ADR. The architecture test pins both entries.
+2. **Precedence.** The vendor's live docs are authoritative for the **TypeSafe API contract** (endpoints, SDK types,
+   primitives, limits, model versions). How **PulseOS uses Jev** is decided by this repository: `AGENTS.md` rule 19,
+   ADR-018, ADR-024, ADR-039, ADR-040 and `docs/DECISIONING.md` win over the Skill's suggestions. In particular,
+   patterns it offers (open-ended extraction, escalation to a reasoning model, evidence retrieval, generated text) apply
+   only within the contract: closed cause vocabulary, no arithmetic / counting / date comparison in Jev, no Jev
+   explanations, no tool calls, low confidence routes to a human.
+3. **Coding time only.** The Skill and any docs it fetches are research for the coding agent (`docs/TOOLS.md`,
+   *Research tools*). Fetched web text never becomes runtime input, evidence or explanation text (`INV-008`), and the
+   plugin adds no runtime dependency (the allowlist in `test_no_product_implementation.py` is unchanged).
+4. **Version.** Claude Code settings do not pin a plugin version, so the reviewed version is enforced by a check
+   instead: `python3 scripts/check_typesafe_plugin.py` compares the installed plugin (version, commit, file list,
+   SHA-256 of every file) with the fingerprint reviewed here and fails on any difference or on any hook, MCP/LSP
+   server, command, agent, script or executable file. Run it after installing or updating plugins. It reads the
+   developer's machine, so it is not part of CI; an architecture test keeps its fingerprint and this ADR in sync.
+   A newer version is accepted by reviewing it (no executable components; guidance does not contradict point 2), then
+   updating `REVIEWED` in the script and the version above in the same commit.
+
+**Amends.** ADR-036 (settings: "no hooks, MCP servers or plugins" → no hooks or MCP servers, one plugin as above) and
+the "no marketplace Skills" clause kept in force by ADR-036 for ADR-003 (→ except this plugin). ADR-004 is unchanged:
+project Skills are still planned, not stubbed.
+
+**Consequences.** Clones are offered the marketplace and plugin when they trust the project; declining it loses nothing
+the contract needs, because the contract lives in this repository. `AGENTS.md`, `docs/SKILLS.md`, `docs/TOOLS.md`,
+`.claude/skills/README.md`, `scripts/` and `tests/architecture/test_claude_config.py` change with this decision. No product code,
+invariant or dependency changes.
+
+---
+
 ## ADR-046 — Product renamed AnomalyOS → PulseOS; storage names kept · *accepted* (2026-10-05, owner decision)
 
 **Context.** The owner renamed the product and the GitHub repository (`markdragunov/anomalyos` → `markdragunov/pulseos`).
@@ -228,7 +311,7 @@ like composition. `volume_only` on `refund_count` candidates is misleading (refu
 
 ---
 
-## ADR-036 — Claude Code as the primary coding agent · *accepted* (2026-10-03, owner spec "Claude Code Engineering Harness Optimization")
+## ADR-036 — Claude Code as the primary coding agent · *accepted* (2026-10-03, owner spec "Claude Code Engineering Harness Optimization"); plugins and hooks amended by ADR-047, ADR-048
 
 **Context.** Claude Code is the only coding agent used, but the coding harness still carried Cursor configuration
 (`.cursor/rules/*.mdc`, `.cursor/skills/` planned paths, Cursor references in `AGENTS.md`), and parts of the `.mdc`
