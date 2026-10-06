@@ -146,8 +146,9 @@ scenario kind; "Jev evaluation: blocked" stated.
 
 # Phase 3 — Documentation and PR
 
-`docs/INVESTIGATION.md`, ADRs for Gate 0 / Gate 1 (Stage 7 starts at ADR-043; ADR-046 is taken), stage tables, PR
-`stage-7-investigation` → `main`, not merged.
+`docs/INVESTIGATION.md`, ADRs for Gate 0 / Gate 1 (Stage 7 starts at ADR-049, owner decision 2026-10-06: ADR-043 …
+ADR-045 stay reserved by Stage 6, ADR-046 … ADR-048 are taken), stage tables, PR `stage-7-investigation` → `main`,
+not merged.
 
 ---
 
