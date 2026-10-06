@@ -12,6 +12,7 @@ Conventions:
 - Optional material next to it: `scripts/`, `references/`, `assets/`.
 - Every step references current project documents and commands (`AGENTS.md`, `docs/`, `scripts/`); no copied
   contract text.
-- No empty or placeholder Skills; no marketplace or external Skills. An architecture test enforces this.
+- No empty or placeholder Skills; no marketplace or external Skills except the TypeSafe plugin (ADR-047). Architecture
+  tests enforce both.
 
 There are no Skills yet.
