@@ -63,7 +63,7 @@ def test_digest_supports_an_open_incident_without_paging():
 
 
 def test_recovery_after_hysteresis_and_signal_return():
-    cfg = IncidentConfig(hysteresis_s=2 * H)
+    cfg = IncidentConfig(gap_s=H, hysteresis_s=2 * H)  # times below are built around a 1 h gap
     base = [det(H, info("c1")), Event(5 * H, "recovered", "c1"), Event(6 * H, "recovery_check", "c1")]
     assert next(iter(run(base, cfg).incidents.values()))["status"] == "DETECTED"  # 1 h < hysteresis
     r = run(base + [Event(7 * H, "recovery_check", "c1")], cfg)

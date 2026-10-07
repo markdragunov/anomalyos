@@ -8,7 +8,7 @@ from pulseos.incidents.config import IncidentConfig
 from pulseos.incidents.correlate import Member, OpenGroup, decide, groups, groups_compatible, nested
 
 H = 3600
-CFG = IncidentConfig()
+CFG = IncidentConfig(gap_s=H)  # the time scenarios below are built around a 1 h gap
 
 
 def L(**kw):
@@ -81,3 +81,8 @@ def test_a_global_member_never_anchors_a_specific_candidate():
         assert m.target is None and m.related == ("i_global",)
     # a global candidate still joins a single qualifying incident
     assert decide(Member("g2", "authorization_rate", "down", L()), H, 2 * H, [seeded], CFG).target == "i_global"
+
+
+def test_defaults_are_the_stage6_choice():
+    """ADR-042 chose G = 6 h and H = 0 on seeds 1-10; the default must not drift from it again (ADR-051)."""
+    assert (IncidentConfig().gap_s, IncidentConfig().hysteresis_s) == (6 * H, 0)

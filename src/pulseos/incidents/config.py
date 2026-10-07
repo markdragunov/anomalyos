@@ -38,8 +38,8 @@ IMPACT_METRICS = ("authorization_rate", "checkout_conversion_rate")
 
 @dataclass(frozen=True)
 class IncidentConfig:
-    version: str = "incidents_v2"  # v2: Gate 1 fixes (ADR-042)
-    gap_s: int = 1 * HOUR  # D-2 rule 1 (tuned over 0, 1, 3, 6 h)
-    hysteresis_s: int = 1 * HOUR  # D-4 quiet time before RECOVERING (tuned over 0, 1, 3 h)
+    version: str = "incidents_v3"  # v2: Gate 1 fixes (ADR-042); v3: defaults = the Gate 1 choice (ADR-051)
+    gap_s: int = 6 * HOUR  # D-2 rule 1, chosen on seeds 1-10 over 0, 1, 3, 6 h (ADR-042)
+    hysteresis_s: int = 0  # D-4 quiet time before RECOVERING, chosen over 0, 1, 3 h (ADR-042)
     checkpoints_s: tuple[int, ...] = (6 * HOUR, 24 * HOUR)  # D-5, after detected_at, while the episode is open
     max_checkpoints: int = 3  # including the one at recovery
