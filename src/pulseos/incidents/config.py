@@ -50,11 +50,11 @@ IMPACT_METRICS = ("authorization_rate", "checkout_conversion_rate")
 
 @dataclass(frozen=True)
 class IncidentConfig:
-    version: str = "incidents_v3"  # v2: Gate 1 fixes (ADR-042); v3: defaults = the Gate 1 choice (ADR-051)
+    version: str = "incidents_v4"  # v2: ADR-042; v3: G / H defaults (ADR-051); v4: pair nesting (ADR-052 selection)
     gap_s: int = 6 * HOUR  # D-2 rule 1, chosen on seeds 1-10 over 0, 1, 3, 6 h (ADR-042)
     hysteresis_s: int = 0  # D-4 quiet time before RECOVERING, chosen over 0, 1, 3 h (ADR-042)
     checkpoints_s: tuple[int, ...] = (6 * HOUR, 24 * HOUR)  # D-5, after detected_at, while the episode is open
     max_checkpoints: int = 3  # including the one at recovery
-    nesting: str = "chains"  # NESTING_MODES (ADR-052 option B)
+    nesting: str = "pairs"  # NESTING_MODES; "pairs" chosen on seeds 1-10 by the ADR-052 rule
     parent_locus: bool = False  # ADR-052 option A: correlation may also use the candidate's parent locus
     renewal_with_approval: bool = False  # ADR-052 option C

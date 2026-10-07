@@ -118,3 +118,8 @@ def test_renewal_with_approval_adr052_option_c():
     assert groups("authorization_rate", "up", cfg) == {"payments"}  # only the approval drop joins subscriptions
     assert not groups_compatible(groups("attempt_volume", "up", cfg), groups("authorization_rate", "down", cfg))
 
+
+
+def test_defaults_are_the_adr052_selection():
+    cfg = IncidentConfig()
+    assert (cfg.nesting, cfg.parent_locus, cfg.renewal_with_approval) == ("pairs", False, False)
