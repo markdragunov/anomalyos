@@ -6,6 +6,32 @@ Format: short ID, status, context, decision, consequences.
 
 ---
 
+## ADR-051 — Duplicate incidents, Gate 0: diagnosis, task scope, incident config defaults · *accepted* (2026-10-07, owner OK on recommendations 1–5)
+
+**Context.** The deferred task assumed Stage 3 scope dimensions in Stage 4 loci drive the 0.8–1.0 duplicate incidents
+per covered record (ADR-042). Phase 0 classified every duplicate on tuning seeds 1–10 (v1 / v2, `G` = 6 h) by the first
+correlation rule that kept it out of its record's earlier incident (`evaluation/duplicates.py`,
+`scripts/diagnose_duplicates_dev.py`; the count reproduces the Stage 6 metric exactly, 136 / 125):
+different cohorts 34 / 38 % (of them 23 / 29 duplicates: a candidate on a country series against an incident located
+on `{psp}` — a PSP outage seen through a country), no approved chain 26 / 22 % (`{app_version}` vs
+`{platform, app_version}`; conversion `{platform, psp}` vs `{psp}`), metric groups 15 / 16 % (card testing 10 / 10 by
+design, renewal 9 / 8), time 7 / 10 %, strict scope inheritance 7 / 3 %. It also found that `IncidentConfig` still
+defaulted to `G` = 1 h, `H` = 1 h although ADR-042 chose 6 h / 0: only `scripts/eval_incidents_dev.py` applied the
+choice, so the product pipeline and the Stage 7 evaluation ran on 1 h / 1 h (duplicates 1.01 / 0.99 vs 0.99 / 0.98).
+
+**Decision.**
+1. The task is renamed "duplicate incidents"; the branch keeps its published name `scope-dimensions`.
+2. The Gate 1 design covers three options, each measured alone and then combined: **A** a parent-level locus for
+   correlation, **B** nesting beyond the fixed chains, **C** renewal and dunning drops grouped with approval drops.
+   The card-testing split (ADR-042) and `G` stay as they are.
+3. `IncidentConfig` defaults become the ADR-042 choice (`G` = 6 h, `H` = 0), version `incidents_v3`; a test pins them.
+   Stage 7 numbers recorded before this (ADR-050) were produced with 1 h / 1 h.
+
+**Consequences.** Seeds 1–10 are used for the diagnosis and the option choice; seeds 11–20 are already seen for
+Stages 6–7; HELDOUT stays untouched.
+
+---
+
 ## ADR-050 — Stage 7 Gate 1: priors from all members, Stage 4 top-5 in narrowing, budget 9 · *accepted* (2026-10-06, owner OK on recommendations 1–4)
 
 **Context.** DEV evaluation (40 worlds, sim-1.3.0): the deterministic control beat prior-only (validation top-1 52–53 %

@@ -1,8 +1,10 @@
-# Task: Scope dimensions in loci — fewer duplicate incidents (deferred from Stage 4 / Stage 6)
+# Task: Duplicate incidents — why they exist and which fixes hold (deferred from Stage 4 / Stage 6)
 
 Prepared: 2026-10-07  
-Status: **Approved** by the owner (2026-10-07; option C stays an option for Gate 1). Decisions start at ADR-051  
-Branch: `scope-dimensions` (from `main` after PR #14)
+Status: **Approved** by the owner (2026-10-07). Gate 0 passed (ADR-051): renamed from "scope dimensions in loci" —
+the diagnosis found scope dimensions a minor cause; options A, B and C go to the Gate 1 design. Decisions start at
+ADR-051  
+Branch: `scope-dimensions` (kept: already published; from `main` after PR #14)
 
 ## Read first
 
@@ -16,6 +18,10 @@ failed / skipped, with reasons) · measurements · open questions · whether the
 ---
 
 ## Purpose
+
+> **After Gate 0 (ADR-051):** duplicates come mostly from loci on different dimensions (a PSP outage seen on a country
+> series, 34–38 %), missing nesting chains (22–26 %), metric groups (15–16 %) and time (7–10 %); strict scope
+> inheritance explains 3–7 %. The original purpose below is kept as written.
 
 Stage 4 searches for the locus **inside** the Stage 3 scope, so every locus keeps the scope's dimensions: a
 `sepa_debit` failure detected on the `psp_beta` series gets the locus `psp_beta × sepa_debit`, not `sepa_debit`. Stage 6
