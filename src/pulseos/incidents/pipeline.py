@@ -37,6 +37,7 @@ class PipelineResult:
     decisions: list[DecisionRecord]
     events: list[Event]
     infos: dict[str, CandidateInfo]
+    bundles: dict = None  # first-look Stage 4 bundles by candidate id (Stage 7 evaluation compares narrowing with them)
 
 
 def _route(record: DecisionRecord, source: str) -> str:
@@ -119,4 +120,4 @@ def run(runner, database: str, run_id: str, candidates: Iterable[AnomalyCandidat
             imp = impact_mod.estimate(runner, database, run_id, members, episode_end, world_start)
             engine.apply(Event(inc["last_updated_at"], "impact", incident_id=iid, impact=imp))
         result = engine.result()
-    return PipelineResult(result, decisions, events, infos)
+    return PipelineResult(result, decisions, events, infos, {d.record.candidate_id: d.bundle for d in first})

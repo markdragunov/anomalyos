@@ -13,7 +13,7 @@ from pathlib import Path
 
 from .runner import generate
 from .scenarios import PRESETS
-from .validate import EventValidator, validate_ground_truth
+from .validate import EventValidator, validate_ground_truth, validate_side_files
 from .world import WorldConfig
 
 
@@ -26,14 +26,16 @@ def _validate_dir(d: Path) -> int:
     manifest = json.loads((d / "manifest.json").read_text())
     gt = json.loads((d / "ground_truth.json").read_text())["records"]
     grep = validate_ground_truth(gt, [s["scenario_id"] for s in manifest["scenarios"]])
+    side = validate_side_files(gt, json.loads((d / "deployments.json").read_text())["deployments"],
+                               json.loads((d / "psp_status.json").read_text())["psp_status"])
     print(f"events: {rep.events:,} checked · objects {rep.objects} · errors {rep.error_count}")
-    print(f"ground truth: {len(gt)} records · errors {grep.error_count}")
-    for e in (rep.errors + grep.errors)[:50]:
+    print(f"ground truth: {len(gt)} records · errors {grep.error_count} · side files errors {side.error_count}")
+    for e in (rep.errors + grep.errors + side.errors)[:50]:
         print("  ✗", e)
     if rep.events != manifest["events"]:
         print(f"  ✗ manifest says {manifest['events']} events")
         return 1
-    return 0 if rep.ok and grep.ok else 1
+    return 0 if rep.ok and grep.ok and side.ok else 1
 
 
 def main(argv: list[str] | None = None) -> int:

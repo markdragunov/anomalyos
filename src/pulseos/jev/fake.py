@@ -49,6 +49,14 @@ class FakeJevClient:
 
 def _break(answers: list, defect: str, model: str) -> tuple[list, str]:
     a = [(qid, json.loads(json.dumps(p))) for qid, p in answers]
+    nouls = [p for _, p in a if "p" in p]
+    choices = [p for _, p in a if "probs" in p]
+    # a request may hold only one primitive (Stage 7 question sets): fall back to a defect that applies
+    if defect in ("invalid_option", "inconsistent_choice") and not choices:
+        defect = "unknown_question"
+    if defect == "out_of_range" and not nouls:
+        choices[0]["confidence"] = 1.7
+        return a, model
     if defect == "missing_question":
         a = a[1:]
     elif defect == "duplicate_question":

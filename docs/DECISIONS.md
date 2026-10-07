@@ -6,6 +6,90 @@ Format: short ID, status, context, decision, consequences.
 
 ---
 
+## ADR-050 — Stage 7 Gate 1: priors from all members, Stage 4 top-5 in narrowing, budget 9 · *accepted* (2026-10-06, owner OK on recommendations 1–4)
+
+**Context.** DEV evaluation (40 worlds, sim-1.3.0): the deterministic control beat prior-only (validation top-1 52–53 %
+vs 42–45 %, top-3 86 % vs 68–70 %) with full safety; side files added about 5 points of top-1 with 2 % decoy support.
+Weak spots: renewal failures (top-1 0 %) because hypotheses took priors only from the anchor, which the Stage 6 impact
+rule picks among approval / conversion members; narrowing found the root-cause locus less often than the Stage 4 top-5
+(29–31 % vs 35–36 %). The budget rule chose 9 tool calls.
+
+**Decision.**
+1. Hypothesis priors are the maximum over **all** members of the incident (metric, direction, locus, Stage 4 label);
+   the anchor for checks is unchanged. The prior-only system in evaluation uses the same member-wide prior.
+2. The anchor's Stage 4 top cohorts (k ≤ 5) always join the narrowed set.
+3. Default tool-call budget 9 (chosen on seeds 1–10).
+4. Simultaneous incidents, gradual drift and PSP degradation (truth in top-3, often not the leader) are known
+   limitations, rooted in Stage 6 correlation and first-look loci.
+**Seeds 11–20 have now been seen for Stage 7**; the next clean check is HELDOUT (Stage 9).
+
+**Follow-up (owner OK after the rerun).** Renewal failures stayed at top-1 0 %: most such incidents hold only approval
+candidates (the renewal-metric candidate forms its own incident in Stage 6), so member-wide priors cannot help. Added:
+a **channel split** check — approval on the same locus with `channel = checkout` (renewal-side causes predict
+`unchanged`, payment-side causes `moved`) — and `renewal_job_failure` / `dunning_failure` at prior 1 in the
+approval-drop family.
+
+The first rerun of that change regressed (validation control top-3 85 % → 70–72 %, renewal still 0 %): with at
+most 5 hypotheses and an alphabetical tie-break, `renewal_job_failure` was always cut and `dunning_failure` displaced
+payment-side causes and took 3rd place on ties. Fix (owner OK): equal priors and equal scores are ordered by **family
+order** in `PRIOR_TABLE` (renewal causes last), and `max_hypotheses` = 7, so the whole approval-drop family fits. The
+channel split also drops the client dimensions (`platform`, `app_version`) from the locus: renewal traffic carries
+`platform = server`, so "same locus on checkout" was an empty cohort and the check failed as a tool error in the
+traced renewal incidents.
+
+**Result (`investigation_v4`, owner OK 2026-10-07).** Validation control top-1 55 %, top-3 87–88 %; renewal failures
+10 % / 45 %. The family-order tie-break also lifted the prior-only ranking to 56 % / 86 %, so the checks now add
+little to top-1; their value is top-3 and false-positive handling (72–78 % vs 10–11 %). The owner kept the renewal
+causes at prior 1 (no revert) and accepted "checks rarely change the leader" and renewal top-1 as known limitations
+(`docs/INVESTIGATION.md`).
+
+**Consequences.** `InvestigationConfig.version` = `investigation_v4` (v3 was the regressed run).
+
+---
+
+## ADR-049 — Stage 7 design: bounded read-only investigation, side files, template explanation · *accepted* (2026-10-06, owner OK on Gate 0)
+
+**Context.** Stage 7 investigates each incident with a deterministic, read-only, budgeted loop and a cited report
+(brief `docs/tasks/STAGE-7.md`, design `docs/tasks/STAGE-7-DESIGN.md`). Jev is still blocked (OQ-1): every Jev step
+runs on the fake client or is replaced by the deterministic control.
+
+**Decision** (design D-0 … D-10, owner's answers 1–9).
+- **D-0** Every incident is investigated once, at creation (`as_of` = its `detected_at`); evaluation adds a diagnostic
+  pass at `+6 h`. The one Stage 6 change: an engine event `investigation` (`DETECTED → INVESTIGATING`, actor `system`,
+  then `investigation_status` and the report id). Tools read only data visible at `as_of`.
+- **D-1** Stage A narrowing over the anchor's pooled cohort tables: chunk 40, split 4, leaf 10, depth 3, ≤ 4 leaves;
+  importance by the control (summed |contribution|) or a Jev `noul` per chunk.
+- **D-2** Stage B loop in code: a per-cause check library with predicted outcomes; a shortlist of ≤ 5 unrun checks
+  ranked by how well they separate the leading hypotheses, always holding a check that could contradict the leader;
+  choice by the control (top step) or a Jev `choice` with a confidence gate (hand-off below 0.5); no repeated step.
+- **D-3** Ten typed, read-only tools with closed-set arguments, stable evidence ids, timeouts and audit rows; outcome
+  thresholds fixed (`moved` |z| ≥ 2 in the predicted direction, `opposite` |z| ≥ 2 against, `unchanged` |z| < 1,
+  else `ambiguous`; < 30 attempts `insufficient`); no mutation tool (architecture test).
+- **D-3a** Simulator side files `deployments.json` and `psp_status.json` (`sim-1.3.0`) with honest signals, decoys and
+  near-miss decoys, generated from the world, the release train and the scenario effects — never from `TruthSpec` /
+  `GroundTruth`. **Each effect declares `params.side_signal`** (set by the scenario author; `False` for benign shocks,
+  the ambiguous dip, demand and promotion effects), and only such effects get an honest entry. Event digests stay
+  unchanged; ground truth gains `side_signals` (evaluation only); loader tables `<db>.deployments`, `<db>.psp_status`;
+  new top-level package `pulseos.context` with two typed readers. Evaluation runs the control with and without the
+  side-file tools.
+- **D-4** Hypotheses only from the cause vocabulary (≤ 5 with a prior, plus `normal_variation` and `unknown`); the
+  control prior table and update rule of the design; contradicting evidence is never dropped; no causal language.
+- **D-5** Budget defaults (tool calls 12, Jev calls 40, evidence items 60, wall-clock 120 s, 10 s per query, repeats 0)
+  as starting values; nine stop reasons; a model failure stops the run (no fallback to the control within a run).
+- **D-6** Deterministic given incident, evidence, config and choice source; a step clock in tests and evaluation.
+- **D-7** Package `explanation`: an `Explainer` port, a slot-based `TemplateExplainer` (numbers only through evidence
+  slots) and a citation validator that runs before any report is returned.
+- **D-8** Packages `investigation`, `explanation`, `context`; append-only tables `investigation_steps`,
+  `investigation_evidence`, `investigation_reports`; Jev question set `investigation_question_set_v1`.
+- **D-9** Evaluation: prior only / deterministic control / control without side-file tools / fake pipeline; hypotheses
+  top-1 / top-3, contradicting evidence kept, side-file use, narrowing, false-positive incidents, safety, cost; only the
+  budget defaults are tuned (smallest budget within 1 point of the uncapped top-3 on seeds 1–10), reported on 11–20.
+
+**Consequences.** `GENERATOR_VERSION` = `sim-1.3.0`; `investigation`, `explanation` leave the stage guard, `context`
+is a new package; `agent` and `investigation_agent.py` stay forbidden. No new dependency.
+
+---
+
 ## ADR-048 — SessionStart hook runs the TypeSafe plugin check · *accepted* (2026-10-06, owner decision)
 
 **Context.** ADR-047 point 4 replaced a manual re-review with `scripts/check_typesafe_plugin.py`, but someone still has

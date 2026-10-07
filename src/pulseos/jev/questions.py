@@ -34,3 +34,21 @@ QUESTIONS_V1 = (
              "Is the evidence ambiguous enough that a person should review it before anyone is paged?"),
 )
 QUESTION_IDS = tuple(q.id for q in QUESTIONS_V1)
+
+
+# Stage 7 (ADR-049 D-8): the investigation question set. Options and question ids are built per request from the
+# typed investigation state (chunk and step ids); the wording references the state paths it judges.
+INVESTIGATION_QUESTION_SET_VERSION = "investigation_question_set_v1"
+
+
+def chunk_question(i: int) -> Question:
+    return Question(f"chunk_{i}", "noul", f"Does the group of cohorts `chunks[{i}]` hold most of the change?")
+
+
+def step_question(options: tuple[str, ...]) -> Question:
+    return Question("next_step", "choice", "Which next check in `shortlist` best separates the leading explanations, "
+                    "or should the investigation stop?", tuple(options) + ("stop",))
+
+
+def hypothesis_question(cause: str) -> Question:
+    return Question(f"supports_{cause}", "noul", f"Is the evidence in `evidence` consistent with the cause `{cause}`?")

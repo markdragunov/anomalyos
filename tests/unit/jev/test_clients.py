@@ -86,3 +86,19 @@ def test_request_is_small_and_hash_ignores_nothing_relevant():
     assert req.size_bytes < 4096
     other, _ = _req(score_at_detection=3.0)
     assert other.request_hash != req.request_hash and json.dumps(req.state)
+
+
+def test_fake_defects_apply_to_single_primitive_requests():
+    # Stage 7 sends requests with only nouls (chunks, hypotheses) or only one choice (next step)
+    from pulseos.jev.client import make_generic_request
+    from pulseos.jev.questions import chunk_question, step_question
+    from pulseos.jev.verifier import verify
+    seen = set()
+    for i in range(300):
+        for qs in ([chunk_question(0), chunk_question(1)], [step_question((f"chk_{i}", "chk_b"))]):
+            req = make_generic_request({"x": f"v{i}"}, tuple(qs), "s1", "q1", "fake-jev-0")
+            out = FakeJevClient(error_share=0.0, malformed_share=1.0).ask(req, CTX)  # always malformed
+            v = verify(req, out, {"x": ("evd",)}, CTX, "fake-jev-0")
+            assert not v.ok
+            seen |= set(v.reasons)
+    assert {"out_of_range", "unknown_question", "missing_question"} <= seen
