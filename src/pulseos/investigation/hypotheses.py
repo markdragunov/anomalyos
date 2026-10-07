@@ -12,7 +12,8 @@ from dataclasses import dataclass, field
 
 from pulseos.jev.questions import CAUSES_V1
 
-# (metric, direction) -> (cause by locus dimension, causes of the same family)
+# (metric, direction) -> (cause by locus dimension, causes of the same family). Family order is the tie-break among
+# equal priors and equal scores (ADR-050 follow-up), so the most common causes of a family come first.
 PRIOR_TABLE: dict[tuple[str, str], tuple[dict[str, str], tuple[str, ...]]] = {
     ("authorization_rate", "down"): ({"psp": "psp_degradation", "payment_method_type": "payment_method_degradation",
                                       "customer_country": "issuer_or_country_degradation",
@@ -65,6 +66,7 @@ class Hypothesis:
     confidence: float | None = None
     status: str = "open"
     next_question: str | None = None
+    order: int = 0  # position in the merged prior (family order); tie-break after score and prior
 
     @property
     def score(self) -> int:
@@ -81,13 +83,15 @@ class Hypothesis:
 
 
 def initial(investigation_id: str, priors: dict[str, int], max_hypotheses: int) -> list[Hypothesis]:
+    """``priors`` keeps family order (``prior`` builds it so; a member-wide merge keeps first-seen order)."""
+    pos = {c: i for i, c in enumerate(priors)}
     ranked = sorted((c for c, w in priors.items() if w > 0 and c not in ("normal_variation", "unknown")),
-                    key=lambda c: (-priors[c], c))[:max_hypotheses]
+                    key=lambda c: (-priors[c], pos[c]))[:max_hypotheses]
     causes = ranked + ["normal_variation", "unknown"]
     assert set(causes) <= set(CAUSES_V1)
-    return [Hypothesis("hyp_" + hashlib.sha256(f"{investigation_id}|{c}".encode()).hexdigest()[:12], c, priors.get(c, 0))
-            for c in causes]
+    return [Hypothesis("hyp_" + hashlib.sha256(f"{investigation_id}|{c}".encode()).hexdigest()[:12], c, priors.get(c, 0),
+                       order=i) for i, c in enumerate(causes)]
 
 
 def ranking(hyps: list[Hypothesis]) -> list[Hypothesis]:
-    return sorted(hyps, key=lambda h: (-h.score, -h.prior, h.cause))
+    return sorted(hyps, key=lambda h: (-h.score, -h.prior, h.order, h.cause))

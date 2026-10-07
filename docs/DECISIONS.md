@@ -29,7 +29,14 @@ a **channel split** check — approval on the same locus with `channel = checkou
 `unchanged`, payment-side causes `moved`) — and `renewal_job_failure` / `dunning_failure` at prior 1 in the
 approval-drop family.
 
-**Consequences.** `InvestigationConfig.version` = `investigation_v3`.
+The first rerun of that change regressed (validation control top-3 85 % → 70–72 %, renewal still 0 %): with at
+most 5 hypotheses and an alphabetical tie-break, `renewal_job_failure` was always cut and `dunning_failure` displaced
+payment-side causes and took 3rd place on ties. Fix (owner OK): equal priors and equal scores are ordered by **family
+order** in `PRIOR_TABLE` (renewal causes last), and `max_hypotheses` = 7, so the whole approval-drop family fits. The channel split also drops the client dimensions
+(`platform`, `app_version`) from the locus: renewal traffic carries `platform = server`, so "same locus on checkout"
+was an empty cohort and the check failed as a tool error in the traced renewal incidents.
+
+**Consequences.** `InvestigationConfig.version` = `investigation_v4` (v3 was the regressed run).
 
 ---
 

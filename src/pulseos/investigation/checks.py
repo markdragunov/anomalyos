@@ -59,6 +59,7 @@ KIND_ORDER = {"sibling": 0, "channel": 0, "related": 1, "status": 2, "deploy": 3
 CHANNEL_SPLIT = {"renewal_job_failure": U, "dunning_failure": U, "normal_variation": U, "psp_degradation": M,
                  "issuer_or_country_degradation": M, "payment_method_degradation": M, "fraud_attack": M,
                  "data_pipeline_issue": M}
+CLIENT_DIMS = ("platform", "app_version")  # describe the checkout client; renewal traffic has platform "server"
 
 
 @dataclass(frozen=True)
@@ -102,7 +103,9 @@ def build(metric: str, direction: str, locus: dict[str, str], siblings: dict[str
     if metric == "authorization_rate" and "channel" not in locus:
         preds = tuple((c, p) for c, p in sorted(CHANNEL_SPLIT.items()) if c in causes)
         if any(p == U for _, p in preds) and any(p == M for _, p in preds):
-            args = (metric, tuple(sorted({**locus, "channel": "checkout"}.items())), direction)
+            # payment-side dims of the locus on checkout traffic; client dims would empty the cohort for server traffic
+            pay = {d: v for d, v in locus.items() if d not in CLIENT_DIMS}
+            args = (metric, tuple(sorted({**pay, "channel": "checkout"}.items())), direction)
             out.append(Check(_id("channel", *args), "channel", "get_metric_history", args, preds))
     for rel, (rdir, table) in sorted(RELATED.get((metric, direction), {}).items()):
         preds = tuple((c, p) for c, p in sorted(table.items()) if c in causes)

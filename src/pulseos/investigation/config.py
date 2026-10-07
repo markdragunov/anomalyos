@@ -8,7 +8,8 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class InvestigationConfig:
-    version: str = "investigation_v3"  # v2: Gate 1 (ADR-050) member-wide priors, Stage 4 top-5, budget 9; v3: channel split
+    version: str = "investigation_v4"  # v2: ADR-050 member-wide priors, Stage 4 top-5, budget 9; v3: channel split;
+    # v4: family-order tie-break, 7 hypotheses
     # Stage A narrowing (D-1)
     chunk_size: int = 40
     split: int = 4
@@ -18,7 +19,7 @@ class InvestigationConfig:
     # Stage B loop (D-2)
     shortlist_size: int = 5
     choice_confidence_min: float = 0.5
-    max_hypotheses: int = 5
+    max_hypotheses: int = 7  # the whole approval-drop family fits (ADR-050 follow-up)
     # outcome thresholds (D-3)
     z_moved: float = 2.0
     z_unchanged: float = 1.0

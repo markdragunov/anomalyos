@@ -85,3 +85,21 @@ def test_channel_split_check_separates_renewal_from_payment_causes():
     assert checks.disconfirming(ch, next(h for h in initial("inv_x", p, 7) if h.cause == "psp_degradation"))
     assert not any(c.kind == "channel" for c in checks.build("checkout_conversion_rate", "down", {"platform": "web"}, {},
                                                                causes, None, []))
+
+
+def test_family_order_breaks_ties_and_keeps_payment_causes_ahead_of_renewal_ones():
+    p = prior("authorization_rate", "down", {"customer_country"}, "rate_change")
+    order = [h.cause for h in ranking(initial("inv_x", p, 7))]
+    assert order[:4] == ["issuer_or_country_degradation", "psp_degradation", "payment_method_degradation",
+                         "fraud_attack"]
+    assert {"renewal_job_failure", "dunning_failure"} <= set(order)  # the whole family fits at 7
+    assert order.index("renewal_job_failure") > order.index("data_pipeline_issue")
+
+
+def test_channel_split_drops_client_dims_so_server_traffic_has_a_checkout_cohort():
+    p = prior("authorization_rate", "down", {"customer_country", "platform"}, "rate_change")
+    causes = [h.cause for h in initial("inv_x", p, 7)]
+    lib = checks.build("authorization_rate", "down", {"customer_country": "DE", "platform": "server"}, {}, causes,
+                       None, [])
+    ch = next(c for c in lib if c.kind == "channel")
+    assert dict(ch.args[1]) == {"customer_country": "DE", "channel": "checkout"}

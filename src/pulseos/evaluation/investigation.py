@@ -21,6 +21,7 @@ from __future__ import annotations
 from typing import Any, Mapping
 
 from pulseos.evaluation.cohorts import equivalent_exact
+from pulseos.investigation.config import InvestigationConfig
 from pulseos.investigation.hypotheses import initial, prior, ranking
 from pulseos.investigation.tools import REGISTRY
 
@@ -43,7 +44,7 @@ def prior_only(view) -> list[str]:
     for m in view.members:  # the same member-wide prior as the loop (ADR-050)
         for cause, w in prior(m.metric, m.direction, {d for d, _ in m.locus}, m.change_type).items():
             pri[cause] = max(pri.get(cause, 0), w)
-    hs = initial("prior", pri, 5)
+    hs = initial("prior", pri, InvestigationConfig().max_hypotheses)
     return [h.cause for h in ranking(hs)]
 
 
