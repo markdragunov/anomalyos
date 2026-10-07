@@ -18,8 +18,8 @@ pulseos-sim load --in data/run_42 [--replace]                  # → ClickHouse 
 ```
 
 Output directory: `events.jsonl.gz` (one event envelope per line, stream order) ·
-`ground_truth.json` · `manifest.json` (config, scenario spec hashes, `events_sha256`,
-`truth_digest`, counts by type). Exit codes: `0` ok · `1` validation/check failure ·
+`ground_truth.json` · `deployments.json` and `psp_status.json` (side files, sim-1.3.0, §14) · `manifest.json`
+(config, scenario spec hashes, `events_sha256`, `truth_digest`, `side_files_digest`, counts by type). Exit codes: `0` ok · `1` validation/check failure ·
 `2` usage/config · `3` ClickHouse error.
 
 ## 2. Module map
@@ -137,7 +137,7 @@ One record per truth (a scenario can hold several), in `ground_truth.json` and i
 {cause, locus, mechanism, effect_ids}, expected_route, severity, affected_cohorts,
 control_cohorts, expected_metric_effect {primary_metric, direction, parameters, measured},
 expected_impact, expected_detection_window, expected_recovery, unrelated_to, scenario_seed,
-spec_hash, generator_version`.
+spec_hash, generator_version, side_signals` (honest side-file entry ids, sim-1.3.0, §14).
 
 * `true_cause` uses the DATA_MODEL cause vocabulary v1 verbatim (test-enforced);
   `true_cause == root_cause.cause`. Harmless signals (seasonality, campaign, tiny-cohort noise,
@@ -159,7 +159,8 @@ empty. Country is always named: `customer_country` and `issuer_country`.
 
 > **Raw layer (ADR-022 A).** This table is the *raw* layer. The normalized DATA_MODEL envelope
 > lives in `<db>.events_norm` (`pulseos normalize`, ADR-025); metrics read only that layer.
-`<db>_truth.ground_truth`, `<db>_truth.runs`. Reload = drop partition + insert.
+`<db>_truth.ground_truth`, `<db>_truth.runs`. Side files load into `<db>.deployments` and `<db>.psp_status`
+(Int64 epoch seconds, `PARTITION BY run_id`). Reload = drop partition + insert.
 
 ```sql
 SELECT toStartOfHour(created) h, psp, avg(ok) approval, count() n
@@ -232,3 +233,32 @@ records (modest approval dips that are not incidents, route `suppress`). Default
 Every record lists `affected_metrics` (must move) and `unchanged_metrics` (must not move: negative evidence for a
 diagnosis). An event of the `data_pipeline_issue` scenario may carry `delivered_at` (raw envelope, last key); the
 normalized layer uses it as `ingested_at`. All other events have no such key.
+
+## 14. Side files: deployments and PSP status (sim-1.3.0, ADR-049 D-3a)
+
+Data sources for the investigation agent's `get_deployments` and `check_psp_status` tools (`docs/INVESTIGATION.md`),
+built to behave like real change logs and status pages: sometimes revealing, often noisy.
+
+* `deployments.json`: `{id, service, version, deployed_at}` for services `api_gateway`, `checkout_web`,
+  `renewal_job`, `dunning_service`, `refund_service`, `pricing_service`, `ledger` and the mobile releases
+  (`mobile_ios`, `mobile_android`).
+* `psp_status.json`: `{id, psp, component, level, posted_at, resolved_at}`; components `authorization`,
+  `local_methods`, `webhooks`, `maintenance`, `performance`.
+* **Honest entries** only for fault effects whose author set `params["side_signal"] = True` (17 effects), with a
+  probability: duplicate charging → an `api_gateway` deploy (0.8); renewal / dunning approval effects → a
+  `renewal_job` / `dunning_service` deploy (0.8, keyed on `params.attempt_kind`); refund → `refund_service` (0.8);
+  churn → `pricing_service` (0.8); PSP approval → `authorization` status `degraded` / `partial_outage` (0.7);
+  local-method approval → `local_methods` on the method's PSP (0.5); delay → `webhooks` `delayed` (0.6); a checkout
+  regression on an app version → its mobile release. Deploys land 5 min – 2 h before the effect; status entries are
+  posted 20–90 min after it starts.
+* **Noise, always present:** routine deploys (about 0.3 per service per day), weekly night maintenance per PSP, a
+  minor `performance` degradation about every 10 days per PSP, and near-miss decoys around effects without an honest
+  entry (a deploy of another service, 0.3; a `performance` entry on a random PSP, 0.2). Benign and ambiguous
+  scenarios get no honest entry.
+* **Isolation:** the generator reads only effects (mechanism, selector, profile, params), never `TruthSpec`, causes,
+  routes or titles; entries carry no scenario id or cause label (the validator checks); randomness only from
+  `derive_seed(seed, "side", …)`. The event stream is untouched — `events_sha256` is unchanged from sim-1.2.2. Ground
+  truth lists the honest ids per record as `side_signals`, for evaluation only (INV-015).
+* Readers: `pulseos.context.readers.deployments` / `psp_status` — static SQL, bound parameters, closed service and
+  PSP sets, rows visible only by `as_of` (a status resolution after `as_of` reads as unresolved).
+

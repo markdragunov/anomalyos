@@ -53,13 +53,13 @@ System: `DETECTED` on creation; `RECOVERING` when every linked signal has recove
 `RECOVERING → INVESTIGATING` when a signal returns within `G`. A later signal opens a new incident. Human commands:
 acknowledge, escalate, resolve, dismiss, merge (actor and reason required). Only a `human` actor reaches `RESOLVED`
 or `DISMISSED`; the transition function rejects anything else. No automatic escalation in Stage 6. `DETECTED →
-INVESTIGATING` (Mode B started) arrives with Stage 7.
+INVESTIGATING` (Mode B started) comes from the Stage 7 `investigation` event (actor `system`, `docs/INVESTIGATION.md`).
 
 ## Incident object and impact (`incidents.impact`)
 
 Fields per spec 07 with epistemic labels: `started_at` OBSERVED; `affected_dimensions`, `category`, `severity`,
 `confidence`, `hypotheses` INFERRED (and `jev_status = not_evaluated`); `estimated_impact` ESTIMATED / OBSERVED;
-`investigation_status = not_started`. Impact uses **one anchor** (the most specific approval / conversion member) over
+`investigation_status` (`not_started` until Stage 7 sets `completed`, `handed_off`, `budget_exhausted` or `failed`). Impact uses **one anchor** (the most specific approval / conversion member) over
 **its episode**; a new-cohort anchor is measured on its Stage 3 scope:
 
 - lost successful payments: the anchor's Stage 4 estimate extended to its episode (ESTIMATED, with an interval);
@@ -113,4 +113,4 @@ recovery — re-evaluation pays off.
 | Correlation validated on seen seeds | ADR-042 mechanisms found on seeds 11–20 | HELDOUT, Stage 9 |
 | Card testing often split in two | approval drop vs fraud signals in different groups | accepted cost of ADR-042 |
 | Jev not evaluated | OQ-1 | live run when access and a budget exist |
-| No automatic escalation; Mode B transitions absent | ADR-041 D-4 | Stage 7 |
+| No automatic escalation | ADR-041 D-4 | later control plane (Mode B transitions exist since Stage 7) |

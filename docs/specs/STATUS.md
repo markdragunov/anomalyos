@@ -15,7 +15,7 @@ one against both and is replaced by this table. Where a spec conflicts with `doc
 | `05_COHORT_INTELLIGENCE` | Stage 4 | Stage 4 | `stage-4-cohorts` | **Built** (ADR-037, ADR-038; `docs/COHORTS.md`). The daily cohort sweep exists but is off in Mode A. |
 | `06_JEV_INTELLIGENCE` | Stage 5 | Stage 5 | `stage-5-jev` | **Built, Jev evaluation blocked** (ADR-039, ADR-040; `docs/DECISIONING.md`): Mode A pipeline, verifier, policy and audit on a fake client and replay; the live run waits for provider access (OQ-1). |
 | `07_INCIDENT_ENGINE` | Stage 6 | Stage 6 | `stage-6-incidents` | **Built** (ADR-041, ADR-042; `docs/INCIDENTS.md`). Evaluated route-agnostically and with `baseline_v2` while Jev is blocked; burst ranking deferred. |
-| `08_INVESTIGATION_AGENT` | Stage 7 | Stage 7 | not started | Pending. Aligned to ADR-019 option 3; three tools have no data source yet. |
+| `08_INVESTIGATION_AGENT` | Stage 7 | Stage 7 | `stage-7-investigation` | **Built, Jev chooser not evaluated** (ADR-049, ADR-050; `docs/INVESTIGATION.md`): deterministic loop, ten read-only tools, template explainer with citation validator; deployments and PSP status come from simulator side files (sim-1.3.0). The live Jev run waits for OQ-1. |
 | `09_INCIDENT_UI` | Stage 8 | Stage 8 | not started | Pending. No API contract spec yet; a second stack (Next.js) needs an ADR. |
 | `10_EVALUATION_BENCHMARK` | Stage 9 | Stage 9 | not started | Pending; depends on the simulator delta (randomised calendar, `oracle_detectable_at`). |
 | `11_FINAL_REVIEW` | Final | Final | n/a | After all stages. |
