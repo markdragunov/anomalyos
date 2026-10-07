@@ -32,9 +32,16 @@ approval-drop family.
 The first rerun of that change regressed (validation control top-3 85 % → 70–72 %, renewal still 0 %): with at
 most 5 hypotheses and an alphabetical tie-break, `renewal_job_failure` was always cut and `dunning_failure` displaced
 payment-side causes and took 3rd place on ties. Fix (owner OK): equal priors and equal scores are ordered by **family
-order** in `PRIOR_TABLE` (renewal causes last), and `max_hypotheses` = 7, so the whole approval-drop family fits. The channel split also drops the client dimensions
-(`platform`, `app_version`) from the locus: renewal traffic carries `platform = server`, so "same locus on checkout"
-was an empty cohort and the check failed as a tool error in the traced renewal incidents.
+order** in `PRIOR_TABLE` (renewal causes last), and `max_hypotheses` = 7, so the whole approval-drop family fits. The
+channel split also drops the client dimensions (`platform`, `app_version`) from the locus: renewal traffic carries
+`platform = server`, so "same locus on checkout" was an empty cohort and the check failed as a tool error in the
+traced renewal incidents.
+
+**Result (`investigation_v4`, owner OK 2026-10-07).** Validation control top-1 55 %, top-3 87–88 %; renewal failures
+10 % / 45 %. The family-order tie-break also lifted the prior-only ranking to 56 % / 86 %, so the checks now add
+little to top-1; their value is top-3 and false-positive handling (72–78 % vs 10–11 %). The owner kept the renewal
+causes at prior 1 (no revert) and accepted "checks rarely change the leader" and renewal top-1 as known limitations
+(`docs/INVESTIGATION.md`).
 
 **Consequences.** `InvestigationConfig.version` = `investigation_v4` (v3 was the regressed run).
 
