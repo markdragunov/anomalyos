@@ -6,6 +6,31 @@ Format: short ID, status, context, decision, consequences.
 
 ---
 
+## ADR-052 — Duplicate incidents, Gate 1: options A, B, C as config switches; selection rule · *accepted* (2026-10-07, owner OK on the design)
+
+**Context.** ADR-051 sent three options to design. The design is `docs/tasks/SCOPE-DIMENSIONS-DESIGN.md` (D-0 … D-7).
+
+**Decision.**
+1. **A — parent locus for correlation.** For a candidate with a non-global scope `S`, the Stage 4 analysis of the
+   same change with a global scope yields `P`; `P` is kept if it is a sub-cohort sharing no dimension with `S` and the
+   cohort `S ∪ P` moves in the candidate's direction with |z| ≥ 2 (`cohorts.parent`). Only correlation reads it; the
+   Stage 4 locus, bundle and evidence ids, Stage 5 and Stage 7 are unchanged; a join through it records
+   `"cohort": "parent"`.
+2. **B — nesting beyond the fixed chains:** `chains_plus` (five edges the diagnosis found) or `pairs` (any pair
+   containment); conflicting values never nest. This amends ADR-041 D-2.
+3. **C — `authorization_rate` down also belongs to `subscriptions`,** so renewal / dunning drops can join approval
+   drops when time and cohort hold. This amends ADR-041 D-2 / ADR-042; the card-testing split stays.
+4. Each option is an `IncidentConfig` switch (`parent_locus`, `nesting`, `renewal_with_approval`); the selection rule
+   is fixed before results: on seeds 1–10 an option passes if duplicates per covered record fall, the wrong-merge rate
+   rises by at most 1 point, campaign + outage merges stay 0 and coverage falls by at most 1 point; the B variant with
+   fewer duplicates wins (B-chains within 0.02); passing options are combined, dropping the smallest gain until the
+   combination passes. The result becomes the default (`incidents_v4`).
+
+**Consequences.** `scripts/eval_duplicates_dev.py` refolds one pipeline run per world under all twelve combinations;
+validation on seeds 11–20 (already seen) adds the Stage 7 control; HELDOUT stays untouched.
+
+---
+
 ## ADR-051 — Duplicate incidents, Gate 0: diagnosis, task scope, incident config defaults · *accepted* (2026-10-07, owner OK on recommendations 1–5)
 
 **Context.** The deferred task assumed Stage 3 scope dimensions in Stage 4 loci drive the 0.8–1.0 duplicate incidents

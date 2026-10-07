@@ -1,7 +1,7 @@
 # Design: duplicate incidents — options A, B, C (Gate 1)
 
-Prepared: 2026-10-07 · Brief: `docs/tasks/SCOPE-DIMENSIONS.md` · Gate 0: ADR-051 · Status: **proposed**, waiting for
-the owner at ⛔ Gate 1. Accepted decisions will be recorded as ADR-052.
+Prepared: 2026-10-07 · Brief: `docs/tasks/SCOPE-DIMENSIONS.md` · Gate 0: ADR-051 · Status: **approved** by the owner
+at Gate 1 (2026-10-07, thresholds as proposed); recorded as ADR-052.
 
 Inputs from Gate 0 (tuning seeds 1–10, v1 / v2, `G` = 6 h): 136 / 125 duplicates; different cohorts 34 / 38 % (23 / 29
 of them a country-series candidate against an incident located on `{psp}`), no approved chain 26 / 22 %, metric

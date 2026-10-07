@@ -63,10 +63,12 @@ def one_world(args) -> dict:
             out = {"seed": seed, "realism": realism,
                    "loci": dup.first_look_loci(pr.events, full, records, w.end)}
             for name, (gap, hyst) in CONFIGS.items():
-                eng = dup.RecordingEngine(IncidentConfig(gap_s=gap, hysteresis_s=hyst))
+                cfg = IncidentConfig(gap_s=gap, hysteresis_s=hyst, nesting="chains", parent_locus=False,
+                                     renewal_with_approval=False)  # the Gate 0 baseline rules
+                eng = dup.RecordingEngine(cfg)
                 r = eng.run(with_hysteresis(pr.events, hyst))
                 sc = score_incidents(r.incidents, r.incident_events, r.digest_groups, full, records, w.start, w.end)
-                rows = dup.classify(eng, sc["incidents"], records, gap)
+                rows = dup.classify(eng, sc["incidents"], records, cfg)
                 out[name] = {"duplicates": rows, "scored_duplicates": sc["counts"]["duplicates"],
                              "covered": sc["counts"]["covered"], "incidents": sc["summary"]["incidents"],
                              "wrong_merges": sc["counts"]["wrong_merges"],

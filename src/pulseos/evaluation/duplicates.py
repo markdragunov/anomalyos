@@ -27,6 +27,7 @@ from typing import Any, Iterable, Mapping
 from pulseos.evaluation.cohorts import _canonical, localization
 from pulseos.evaluation.decisions import status
 from pulseos.incidents import correlate
+from pulseos.incidents.config import IncidentConfig
 from pulseos.incidents.engine import CandidateInfo, Engine
 
 REASONS = ("not_open", "time", "group", "global", "chain", "scope", "disjoint", "joinable")
@@ -63,10 +64,16 @@ def _strip(locus: frozenset, scope: frozenset) -> frozenset:
     return frozenset(x for x in locus if x[0] not in dims)
 
 
-def member_outcome(c: CandidateInfo, m_locus: frozenset, m_scope: frozenset) -> str:
-    """How close one candidate came to joining through one member that shares a metric group."""
-    ok, via_global = correlate.nested(c.locus, m_locus)
+def member_outcome(c: CandidateInfo, m_locus: frozenset, m_scope: frozenset, cfg: IncidentConfig,
+                   m_parent: frozenset = frozenset()) -> str:
+    """How close one candidate came to joining through one member that shares a metric group, under ``cfg``'s
+    nesting mode and parent-locus switch (ADR-052)."""
+    ok, via_global = correlate.nested(c.locus, m_locus, cfg.nesting)
     if ok and not via_global:
+        return "joinable"
+    if cfg.parent_locus and correlate.nested_via_parent(
+            correlate.Member(c.candidate_id, c.metric, c.direction, c.locus, c.parent_locus),
+            correlate.Member("m", "", "", m_locus, m_parent), cfg.nesting):
         return "joinable"
     if ok:
         return "global"
@@ -84,28 +91,30 @@ def disjoint_kind(a: frozenset, b: frozenset) -> str:
 
 
 def closest(c: CandidateInfo, earlier: correlate.OpenGroup | None, scopes: Mapping[str, frozenset], t: int,
-            gap_s: int) -> tuple[str, correlate.Member | None]:
+            cfg: IncidentConfig) -> tuple[str, correlate.Member | None]:
     """The reason and the member of the earlier incident that came closest (None before the cohort rules)."""
     if earlier is None:
         return "not_open", None
-    if correlate._time(c.start, t, earlier, gap_s) is None:
+    if correlate._time(c.start, t, earlier, cfg.gap_s) is None:
         return "time", None
-    mine = correlate.groups(c.metric, c.direction)
-    shared = [m for m in earlier.members if correlate.groups_compatible(mine, correlate.groups(m.metric, m.direction))]
+    mine = correlate.groups(c.metric, c.direction, cfg)
+    shared = [m for m in earlier.members
+              if correlate.groups_compatible(mine, correlate.groups(m.metric, m.direction, cfg))]
     if not shared:
         return "group", None
-    ranked = sorted(((_CLOSENESS.index(member_outcome(c, m.locus, scopes.get(m.candidate_id, frozenset()))), m.candidate_id, m)
-                     for m in shared), key=lambda x: x[:2])
+    ranked = sorted(((_CLOSENESS.index(member_outcome(c, m.locus, scopes.get(m.candidate_id, frozenset()), cfg,
+                                                      m.parent)), m.candidate_id, m) for m in shared),
+                    key=lambda x: x[:2])
     return _CLOSENESS[ranked[0][0]], ranked[0][2]
 
 
 def reason(c: CandidateInfo, earlier: correlate.OpenGroup | None, scopes: Mapping[str, frozenset], t: int,
-           gap_s: int) -> str:
-    return closest(c, earlier, scopes, t, gap_s)[0]
+           cfg: IncidentConfig) -> str:
+    return closest(c, earlier, scopes, t, cfg)[0]
 
 
 def classify(engine: RecordingEngine, rows: Iterable[Mapping[str, Any]], records: Iterable[Mapping[str, Any]],
-             gap_s: int) -> list[dict[str, Any]]:
+             cfg: IncidentConfig) -> list[dict[str, Any]]:
     """One row per duplicate; the seed closest to joining decides the reason (a promotion seeds several).
     ``counted`` marks the duplicates the Stage 6 metric counts (incident records with ``oracle_detectable_at``)."""
     by_key = {r["record_key"]: r for r in records}
@@ -121,7 +130,7 @@ def classify(engine: RecordingEngine, rows: Iterable[Mapping[str, Any]], records
         rec = engine.created[iid]
         earlier = next((g for g in rec["open"] if g.group_id == first[key]), None)
         found = sorted(((_SEED_ORDER.index(r), i, s, m) for i, s in enumerate(rec["seeds"])
-                        for r, m in [closest(s, earlier, scopes, rec["time"], gap_s)]), key=lambda x: x[:2])
+                        for r, m in [closest(s, earlier, scopes, rec["time"], cfg)]), key=lambda x: x[:2])
         best = _SEED_ORDER[found[0][0]] if found else "not_open"
         seed = found[0][2] if found else None
         member = found[0][3] if found else None

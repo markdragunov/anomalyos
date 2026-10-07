@@ -4,7 +4,9 @@ A candidate joins an incident only if time, cohort and metric group all hold aga
 nesting compares Stage 4 loci along the approved chains. A **global candidate** may join through nesting only when
 exactly one incident qualifies; a **global member** of an incident never anchors a specific candidate (Gate 1 fix,
 owner OK: otherwise an incident seeded by a global locus attracts unrelated candidates one by one). Ties go to the
-oldest incident. Pure; Jev never creates a relationship.
+oldest incident. Pure; Jev never creates a relationship. ADR-052 switches (``IncidentConfig``): the nesting mode
+(chains, chains plus the diagnosed edges, or any pair containment), parent loci (option A) and approval drops in the
+subscriptions group (option C).
 """
 
 from __future__ import annotations
@@ -12,7 +14,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Iterable
 
-from pulseos.incidents.config import CHAIN_EDGES, METRIC_GROUPS, IncidentConfig
+from pulseos.incidents.config import (CHAIN_EDGES, CHAIN_EDGES_PLUS, METRIC_GROUPS, RENEWAL_WITH_APPROVAL,
+                                     IncidentConfig)
 
 Locus = frozenset  # of (dimension, value)
 
@@ -31,9 +34,12 @@ def _closure(edges) -> frozenset[tuple[frozenset[str], frozenset[str]]]:
 
 
 CHAINS = _closure(CHAIN_EDGES)
+CHAINS_PLUS = _closure(CHAIN_EDGES_PLUS)
 
 
-def groups(metric: str, direction: str) -> frozenset[str]:
+def groups(metric: str, direction: str, cfg: IncidentConfig | None = None) -> frozenset[str]:
+    if cfg is not None and cfg.renewal_with_approval and (metric, direction) == ("authorization_rate", "down"):
+        return RENEWAL_WITH_APPROVAL
     return METRIC_GROUPS.get((metric, direction)) or METRIC_GROUPS.get((metric, None)) or frozenset()
 
 
@@ -44,8 +50,9 @@ def groups_compatible(a: frozenset[str], b: frozenset[str]) -> frozenset[str]:
     return a & b
 
 
-def nested(a: Locus, b: Locus) -> tuple[bool, bool]:
-    """(nested?, relies on a global locus?)."""
+def nested(a: Locus, b: Locus, mode: str = "chains") -> tuple[bool, bool]:
+    """(nested?, relies on a global locus?). ``mode``: the approved chains, the chains plus the ADR-052 edges, or any
+    pair containment (``pairs``); conflicting values never nest."""
     if not a or not b:
         return True, True
     if a == b:
@@ -53,7 +60,16 @@ def nested(a: Locus, b: Locus) -> tuple[bool, bool]:
     small, large = (a, b) if len(a) < len(b) else (b, a)
     if not small < large:
         return False, False
-    return (frozenset(d for d, _ in small), frozenset(d for d, _ in large)) in CHAINS, False
+    if mode == "pairs":
+        return True, False
+    chains = CHAINS_PLUS if mode == "chains_plus" else CHAINS
+    return (frozenset(d for d, _ in small), frozenset(d for d, _ in large)) in chains, False
+
+
+def nested_via_parent(a: "Member", b: "Member", mode: str) -> bool:
+    """Option A (ADR-052): a specific nesting that needs at least one parent locus."""
+    pairs = [(a.locus, b.parent), (a.parent, b.locus), (a.parent, b.parent)]
+    return any(x and y and nested(x, y, mode) == (True, False) for x, y in pairs)
 
 
 @dataclass(frozen=True)
@@ -62,6 +78,7 @@ class Member:
     metric: str
     direction: str
     locus: Locus
+    parent: Locus = frozenset()  # ADR-052 option A: the parent locus, used only when the config enables it
 
 
 @dataclass(frozen=True)
@@ -91,22 +108,25 @@ def _time(c_start: int, c_end: int, g: OpenGroup, gap: int) -> str | None:
 
 def decide(member: Member, start: int, end: int, open_groups: Iterable[OpenGroup], cfg: IncidentConfig) -> Match:
     specific, global_only, related = [], [], []
-    mine = groups(member.metric, member.direction)
+    mine = groups(member.metric, member.direction, cfg)
     for g in sorted(open_groups, key=lambda g: g.order):
         t = _time(start, end, g, cfg.gap_s)
         if t is None:
             continue
         best = None
         for m in g.members:
-            shared = groups_compatible(mine, groups(m.metric, m.direction))
+            shared = groups_compatible(mine, groups(m.metric, m.direction, cfg))
             if not shared:
                 continue
-            ok, via_global = nested(member.locus, m.locus)
+            ok, via_global = nested(member.locus, m.locus, cfg.nesting)
             if via_global and member.locus:  # only the member is global: it cannot anchor a specific candidate
                 ok = False
             ev = {"time": t, "group": sorted(shared), "member": m.candidate_id}
             if ok and not via_global:
                 best = ("specific", dict(ev, cohort="nested"))
+                break
+            if cfg.parent_locus and nested_via_parent(member, m, cfg.nesting):
+                best = ("specific", dict(ev, cohort="parent"))
                 break
             if ok and best is None:
                 best = ("global", dict(ev, cohort="global"))
