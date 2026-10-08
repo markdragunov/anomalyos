@@ -122,4 +122,4 @@ def test_renewal_with_approval_adr052_option_c():
 
 def test_defaults_are_the_adr052_selection():
     cfg = IncidentConfig()
-    assert (cfg.nesting, cfg.parent_locus, cfg.renewal_with_approval) == ("pairs", False, False)
+    assert (cfg.nesting, cfg.parent_locus, cfg.renewal_with_approval) == ("chains_plus", False, False)

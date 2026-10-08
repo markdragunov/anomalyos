@@ -29,6 +29,18 @@ Format: short ID, status, context, decision, consequences.
 **Consequences.** `scripts/eval_duplicates_dev.py` refolds one pipeline run per world under all twelve combinations;
 validation on seeds 11–20 (already seen) adds the Stage 7 control; HELDOUT stays untouched.
 
+**Gate 2 (owner OK 2026-10-08): B-chains, not the rule's pick.** The rule chose B-pairs on seeds 1–10 (duplicates per
+covered record 0.981 → 0.673, wrong merges 3.2 → 3.9 %; A failed with a campaign + outage merge; C passed alone but
+B-pairs + C reached 5.6 % wrong merges). On seeds 11–20 B-pairs merged one campaign with an outage (seed 16 v1: a
+`late_arrival_share` member on `{psp_beta}`, compatible with every group, anchored both a campaign volume rise and a
+`{sepa_debit, psp_beta}` outage that only pair nesting allowed); every variant with A merged 3–5. The owner chose
+**B-chains** (`nesting = chains_plus`): seeds 1–10 0.981 → 0.748 (wrong merges 3.6 %), seeds 11–20 0.843 → 0.676
+(3.3 %), no campaign + outage merge. This choice used the validation seeds, so seeds 11–20 are no longer a clean
+validation for correlation; HELDOUT (Stage 9) is. A and C stay off (C with B-chains: 4.3 % wrong merges on seeds
+11–20, above the threshold); renewal failures remain a known limitation. Follow-up, not done here: an ingestion-group
+member should not anchor candidates of other groups (as the ADR-041 rule for global members), which may make pair
+nesting safe.
+
 ---
 
 ## ADR-051 — Duplicate incidents, Gate 0: diagnosis, task scope, incident config defaults · *accepted* (2026-10-07, owner OK on recommendations 1–5)
