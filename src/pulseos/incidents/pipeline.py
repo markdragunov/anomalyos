@@ -14,10 +14,11 @@ Nothing reads ground truth; ClickHouse only through Stage 4 and ``metrics.comput
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, replace
+from dataclasses import asdict, dataclass, replace
 from typing import Iterable
 
 from pulseos.cohorts import CohortConfig, analyze_candidates
+from pulseos.cohorts.parent import parent_locus
 from pulseos.detection.candidates import AnomalyCandidate, as_of_view, concurrent_at
 from pulseos.incidents import impact as impact_mod
 from pulseos.incidents.config import IncidentConfig
@@ -51,7 +52,8 @@ def _route(record: DecisionRecord, source: str) -> str:
     return baseline.route(JevState(**{k: tuple(v) if isinstance(v, list) else v for k, v in s.items()}))[0]
 
 
-def _info(c: AnomalyCandidate, view: AnomalyCandidate, analysis, bundle, record: DecisionRecord, source: str) -> CandidateInfo:
+def _info(c: AnomalyCandidate, view: AnomalyCandidate, analysis, bundle, record: DecisionRecord, source: str,
+          parent=None) -> CandidateInfo:
     locus = analysis.locus if analysis is not None and analysis.locus is not None else view.scope
     answers = json.loads(record.answers_json) if record.verified else {}
     cats = answers.get("category", {}).get("probs", {})
@@ -62,7 +64,8 @@ def _info(c: AnomalyCandidate, view: AnomalyCandidate, analysis, bundle, record:
         policy_version=record.policy_version, verified=record.verified, incident_p=record.incident_p,
         severity_level=record.severity_level, categories=tuple(sorted(cats, key=lambda k: (-cats[k], k))[:3]),
         evidence_ids=tuple(record.evidence_ids), impact=(bundle or {}).get("impact"), window_end=view.window_end,
-        scope=frozenset(tuple(x) for x in view.scope), change_type=analysis.label if analysis is not None else "")
+        scope=frozenset(tuple(x) for x in view.scope), change_type=analysis.label if analysis is not None else "",
+        parent_locus=frozenset(parent[0]) if parent else frozenset())
 
 
 def checkpoint_times(c: AnomalyCandidate, world_end: int, cfg: IncidentConfig) -> list[int]:
@@ -76,16 +79,23 @@ def checkpoint_times(c: AnomalyCandidate, world_end: int, cfg: IncidentConfig) -
 def run(runner, database: str, run_id: str, candidates: Iterable[AnomalyCandidate], world_start: int, world_end: int,
         client: JevClient, pinned_model: str, source: str = "policy", cfg: IncidentConfig = IncidentConfig(),
         policy_cfg: PolicyConfig = PolicyConfig(), cohort_cfg: CohortConfig = CohortConfig(),
-        estimate_impact: bool = True) -> PipelineResult:
+        estimate_impact: bool = True, parent_loci: bool | None = None) -> PipelineResult:
+    """``parent_loci``: compute ADR-052 parent loci (default: when ``cfg.parent_locus``); evaluation forces it on to
+    refold one event stream under every option."""
     if source not in ROUTE_SOURCES:
         raise ValueError(f"unknown route source {source!r}")
+    with_parent = cfg.parent_locus if parent_loci is None else parent_loci
+
+    def parent_of(view: AnomalyCandidate):
+        return parent_locus(runner, database, run_id, asdict(view), world_start, cohort_cfg) if with_parent else None
+
     full = mode_a.decidable(candidates)
     first = mode_a.run(runner, database, run_id, full, world_start, client, pinned_model, policy_cfg, cohort_cfg)
     by_id = {c.anomaly_id: c for c in full}
     events, decisions, infos = [], [], {}
     for d in first:
         c = by_id[d.record.candidate_id]
-        info = _info(c, d.candidate, d.analysis, d.bundle, d.record, source)
+        info = _info(c, d.candidate, d.analysis, d.bundle, d.record, source, parent_of(d.candidate))
         infos[c.anomaly_id] = info
         decisions.append(d.record)
         events.append(Event(c.detected_at, "detected", c.anomaly_id, info=info))
@@ -106,7 +116,7 @@ def run(runner, database: str, run_id: str, candidates: Iterable[AnomalyCandidat
         a, b = stage4.get((c.anomaly_id, t), (None, None))
         ctx = DecisionContext(as_of=t, evaluated_at=t)
         record = decide(v, b, concurrent_at(replace(c, detected_at=t), full), client, ctx, pinned_model, policy_cfg)
-        info = _info(c, v, a, b, record, source)
+        info = _info(c, v, a, b, record, source, parent_of(v))
         infos[c.anomaly_id] = info
         decisions.append(record)
         events.append(Event(t, "checkpoint", c.anomaly_id, info=info))

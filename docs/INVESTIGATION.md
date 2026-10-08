@@ -146,6 +146,14 @@ defects, not a model.
 History (validation, control v1 top-1 / top-3): ADR-049 52 / 86 % · ADR-050 51 / 85 % · `investigation_v3` 48 / 70 %
 (regressed: alphabetical tie-break with 5 hypotheses) · `investigation_v4` 55 / 88 %.
 
+**Incident configuration.** The table above ran on the `IncidentConfig` defaults of the time (`G` = 1 h, `H` = 1 h, the
+original chains; ADR-051 found the default differed from the ADR-042 choice). On `incidents_v4` (`G` = 6 h, `H` = 0,
+`nesting = chains_plus`, ADR-052) there are ~10 % fewer incidents to investigate; validation (v1 / v2): control
+55 / 55 % top-1, 88 / 85 % top-3; prior 57 / 58 %, 85 / 85 %; false-positive incidents → not a cause 83 / 73 %; narrowed
+set hits the locus 42 / 40 % (Stage 4 top-5: 39 / 37 %); a decoy supports the leader 0 %; safety 100 %. Tuning
+(v1 / v2): control 53 / 51 % top-1, 84 / 86 % top-3 (3 points lower top-1 than before; not analysed). Renewal
+failures (validation v1): 11 / 50 % (n = 28). The incident sets differ, so before / after is approximate.
+
 Control by scenario kind (validation, v1, top-1 / top-3): dunning failure, duplicate charge, refund spike 100 / 100 %;
 checkout regression 84 / 95 %; correlated unrelated anomalies 81 / 100 %; country degradation 78 / 100 %; fraud-like
 spike 71 / 79 %; recovery after degradation 67 / 100 %; pricing change 60 / 100 %; mix-shift masking 60 / 100 %;
@@ -157,9 +165,9 @@ simultaneous incidents 36 / 97 %; **subscription renewal failure 10 / 45 %**; am
 | Limitation | Evidence | Where it is addressed |
 |---|---|---|
 | Checks rarely change the leader: top-1 equals the prior's | control 55 % vs prior 56 % top-1; the gain is top-3 (+ 1–2 points) and false-positive handling (72–78 % vs 10–11 %) | owner decision (Gate 1): kept as a limitation; richer checks or Jev choices later |
-| Renewal failures rarely lead | top-1 10 %, top-3 45 %; the renewal-metric candidate usually forms its own Stage 6 incident, so approval-only incidents give the renewal cause prior 1; when the channel split shows `unchanged`, `normal_variation` often stays ahead | a cross-incident view (Stage 6 scope-dimension task) |
+| Renewal failures rarely lead | top-1 10–11 %, top-3 45–50 %; the renewal-metric candidate usually forms its own Stage 6 incident (different **metric group**, not a scope-dimension effect), so approval-only incidents give the renewal cause prior 1; when the channel split shows `unchanged`, `normal_variation` often stays ahead | grouping renewal with approval drops was tried and left off (wrong merges above the threshold, ADR-052); a cross-incident view for Stage 7 |
 | Weak kinds | ambiguous signal 0 / 20 %, PSP degradation 40 % top-1, data pipeline 44 %, payment method 47 % | more discriminating checks |
 | Side files add little to top-1 | control 55 % vs 54–55 % without them; honest signals cited in 16–17 % | richer side sources (real change logs) |
-| Tuned on seen seeds | ADR-050 changes found with seeds 11–20 visible | HELDOUT, Stage 9 |
+| Tuned on seen seeds | ADR-050 changes found with seeds 11–20 visible; the ADR-052 incident choice used them too | HELDOUT, Stage 9 |
 | Jev not evaluated | OQ-1; the fake is a pipeline check | live run when access and a budget exist |
 | No LLM explanation | template explainer only (ADR-049 D-7) | an LLM explainer behind the same port and validator |

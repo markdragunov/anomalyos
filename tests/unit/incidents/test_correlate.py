@@ -8,7 +8,7 @@ from pulseos.incidents.config import IncidentConfig
 from pulseos.incidents.correlate import Member, OpenGroup, decide, groups, groups_compatible, nested
 
 H = 3600
-CFG = IncidentConfig()
+CFG = IncidentConfig(gap_s=H)  # the time scenarios below are built around a 1 h gap
 
 
 def L(**kw):
@@ -81,3 +81,45 @@ def test_a_global_member_never_anchors_a_specific_candidate():
         assert m.target is None and m.related == ("i_global",)
     # a global candidate still joins a single qualifying incident
     assert decide(Member("g2", "authorization_rate", "down", L()), H, 2 * H, [seeded], CFG).target == "i_global"
+
+
+def test_defaults_are_the_stage6_choice():
+    """ADR-042 chose G = 6 h and H = 0 on seeds 1-10; the default must not drift from it again (ADR-051)."""
+    assert (IncidentConfig().gap_s, IncidentConfig().hysteresis_s) == (6 * H, 0)
+
+
+def test_nesting_modes_of_adr052_option_b():
+    pm = (L(psp="b"), L(psp="b", platform="web"))
+    assert nested(*pm)[0] is False and nested(*pm, mode="chains_plus") == (True, False)
+    assert nested(L(app_version="5.1"), L(platform="ios", app_version="5.1"), mode="chains_plus") == (True, False)
+    sepa = (L(psp="b"), L(psp="b", payment_method_type="sepa_debit"))
+    assert nested(*sepa, mode="chains_plus")[0] is False and nested(*sepa, mode="pairs") == (True, False)
+    # conflicting values never nest, in any mode
+    for mode in ("chains", "chains_plus", "pairs"):
+        assert nested(L(psp="b"), L(psp="g", platform="web"), mode=mode)[0] is False
+
+
+def test_parent_locus_joins_only_when_enabled_adr052_option_a():
+    psp_incident = group("i1", [Member("m1", "authorization_rate", "down", L(psp="b"))])
+    de = Member("c1", "authorization_rate", "down", L(customer_country="DE"), parent=L(psp="b"))
+    assert decide(de, H, 2 * H, [psp_incident], IncidentConfig()).target is None
+    m = decide(de, H, 2 * H, [psp_incident], IncidentConfig(parent_locus=True))
+    assert m.target == "i1" and m.evidence["cohort"] == "parent"
+    other = Member("c2", "authorization_rate", "down", L(customer_country="DE"), parent=L(psp="g"))
+    assert decide(other, H, 2 * H, [psp_incident], IncidentConfig(parent_locus=True)).target is None
+
+
+def test_renewal_with_approval_adr052_option_c():
+    cfg = IncidentConfig(renewal_with_approval=True)
+    approval = group("i1", [Member("m1", "authorization_rate", "down", L(psp="b"))])
+    renewal = Member("c1", "renewal_success_rate", "down", L(psp="b"))
+    assert decide(renewal, H, 2 * H, [approval], IncidentConfig()).target is None
+    assert decide(renewal, H, 2 * H, [approval], cfg).target == "i1"
+    assert groups("authorization_rate", "up", cfg) == {"payments"}  # only the approval drop joins subscriptions
+    assert not groups_compatible(groups("attempt_volume", "up", cfg), groups("authorization_rate", "down", cfg))
+
+
+
+def test_defaults_are_the_adr052_selection():
+    cfg = IncidentConfig()
+    assert (cfg.nesting, cfg.parent_locus, cfg.renewal_with_approval) == ("chains_plus", False, False)

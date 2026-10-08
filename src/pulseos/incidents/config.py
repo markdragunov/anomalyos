@@ -17,6 +17,16 @@ CHAIN_EDGES: tuple[tuple[frozenset[str], frozenset[str]], ...] = tuple(
         (("customer_country",), ("customer_country", "payment_method_type")),
         (("platform",), ("platform", "app_version")),
     ))
+# Option B-chains (ADR-052): edges the duplicate diagnosis found at least twice (ADR-051)
+CHAIN_EDGES_PLUS: tuple[tuple[frozenset[str], frozenset[str]], ...] = CHAIN_EDGES + tuple(
+    (frozenset(a), frozenset(b)) for a, b in (
+        (("app_version",), ("platform", "app_version")),
+        (("psp",), ("psp", "platform")),
+        (("psp", "platform"), ("psp", "customer_country", "platform")),
+        (("customer_country",), ("customer_country", "platform")),
+        (("psp", "customer_country"), ("psp", "customer_country", "card_brand")),
+    ))
+NESTING_MODES = ("chains", "chains_plus", "pairs")  # ADR-041 chains · B-chains · B-pairs (ADR-052)
 
 # Metric groups (D-2), keyed by (metric, direction); None = either direction. "ingestion" is compatible with all.
 METRIC_GROUPS: dict[tuple[str, str | None], frozenset[str]] = {
@@ -33,13 +43,18 @@ METRIC_GROUPS: dict[tuple[str, str | None], frozenset[str]] = {
     ("subscription_cancellation_rate", None): frozenset({"cancellations"}),
     ("late_arrival_share", None): frozenset({"ingestion"}),
 }
+# Option C (ADR-052): an approval drop also belongs to "subscriptions", so renewal / dunning drops can join it
+RENEWAL_WITH_APPROVAL = frozenset({"payments", "subscriptions"})
 IMPACT_METRICS = ("authorization_rate", "checkout_conversion_rate")
 
 
 @dataclass(frozen=True)
 class IncidentConfig:
-    version: str = "incidents_v2"  # v2: Gate 1 fixes (ADR-042)
-    gap_s: int = 1 * HOUR  # D-2 rule 1 (tuned over 0, 1, 3, 6 h)
-    hysteresis_s: int = 1 * HOUR  # D-4 quiet time before RECOVERING (tuned over 0, 1, 3 h)
+    version: str = "incidents_v4"  # v2: ADR-042; v3: G / H defaults (ADR-051); v4: chains plus diagnosed edges (ADR-052)
+    gap_s: int = 6 * HOUR  # D-2 rule 1, chosen on seeds 1-10 over 0, 1, 3, 6 h (ADR-042)
+    hysteresis_s: int = 0  # D-4 quiet time before RECOVERING, chosen over 0, 1, 3 h (ADR-042)
     checkpoints_s: tuple[int, ...] = (6 * HOUR, 24 * HOUR)  # D-5, after detected_at, while the episode is open
     max_checkpoints: int = 3  # including the one at recovery
+    nesting: str = "chains_plus"  # NESTING_MODES; owner choice at Gate 2 (ADR-052): "pairs" merged a campaign + outage
+    parent_locus: bool = False  # ADR-052 option A: correlation may also use the candidate's parent locus
+    renewal_with_approval: bool = False  # ADR-052 option C

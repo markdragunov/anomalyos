@@ -47,6 +47,7 @@ class CandidateInfo:
     window_end: int = 0  # end of the as-of window the analysis used
     scope: frozenset = frozenset()  # the Stage 3 scope (impact of a new cohort is measured on it, ADR-042)
     change_type: str = ""  # the Stage 4 label of this analysis
+    parent_locus: frozenset = frozenset()  # ADR-052 option A: Stage 4 locus with a global scope, for correlation only
 
 
 @dataclass(frozen=True)
@@ -119,7 +120,7 @@ class Engine:
         return out
 
     def _member(self, info: CandidateInfo) -> correlate.Member:
-        return correlate.Member(info.candidate_id, info.metric, info.direction, info.locus)
+        return correlate.Member(info.candidate_id, info.metric, info.direction, info.locus, info.parent_locus)
 
     def _link(self, g: _Group, info: CandidateInfo, t: int, kind: str, evidence: dict) -> None:
         g.members[info.candidate_id] = self._member(info)
@@ -196,7 +197,7 @@ class Engine:
             refined = self._member(info)
             # ... but a refined locus must still nest with the member it joined through, or it would become a new
             # entry point for unrelated candidates (ADR-042); otherwise the member keeps its locus
-            if anchor is None or correlate.nested(refined.locus, anchor.locus) == (True, False):
+            if anchor is None or correlate.nested(refined.locus, anchor.locus, self.cfg.nesting) == (True, False):
                 home.members[cid] = refined
         if home is not None and home.kind == "incident":
             if info.verified:

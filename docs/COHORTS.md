@@ -83,7 +83,7 @@ equivalence-aware.
 
 | Limitation | Evidence (run 3, v1) | Where it is addressed |
 |---|---|---|
-| Locus keeps dimensions of the Stage 3 scope (sepa_debit found inside `psp_beta`) | payment-method degradation 19/20 over-specific | Not decided; candidate for a parent-level search |
+| Locus keeps dimensions of the Stage 3 scope (sepa_debit found inside `psp_beta`) | payment-method degradation 19/20 over-specific | Kept: strict scope inheritance explains only 3–7 % of duplicate incidents (ADR-051); a parent-level locus for correlation (`cohorts.parent`) merged campaigns with outages and is off (ADR-052) |
 | First candidate may belong to a neighbouring incident | simultaneous incidents 18/40 wrong; gradual drift 10/20 | Stage 6 (incident grouping); "any candidate exact" 55 % |
 | Card testing: injected traffic is mostly composition | 1/19 exact, 9 coarse (`psp_alpha`), 9 over-specific (`… × web`, the injected cohort) | Ground truth names psp × country only; accepted for now |
 | `channel` is not a cohort dimension | renewal failure 8/20 equivalence-aware | Renewal metrics imply it; checkout-side candidates do not |
