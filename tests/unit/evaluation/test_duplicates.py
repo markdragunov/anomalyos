@@ -46,3 +46,10 @@ def test_disjoint_kind_separates_conflicting_values_from_other_dimensions():
     from pulseos.evaluation.duplicates import disjoint_kind
     assert disjoint_kind(frozenset({("psp", "psp_alpha")}), frozenset({("psp", "psp_beta")})) == "conflict"
     assert disjoint_kind(frozenset({("customer_country", "DE")}), frozenset({("psp", "psp_beta")})) == "other_dims"
+
+
+def test_reason_ingestion_when_only_ingestion_members_could_anchor():
+    late = Member("m1", "late_arrival_share", "up", frozenset({("psp", "psp_beta")}))
+    c = _c(locus=(("psp", "psp_beta"), ("customer_country", "DE")))
+    assert reason(c, _g(late), {}, 10 * H, IncidentConfig(gap_s=6 * H, ingestion_anchors_others=False)) == "ingestion"
+    assert reason(c, _g(late), {}, 10 * H, IncidentConfig(gap_s=6 * H, ingestion_anchors_others=True)) == "joinable"

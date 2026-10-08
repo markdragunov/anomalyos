@@ -58,3 +58,4 @@ class IncidentConfig:
     nesting: str = "chains_plus"  # NESTING_MODES; owner choice at Gate 2 (ADR-052): "pairs" merged a campaign + outage
     parent_locus: bool = False  # ADR-052 option A: correlation may also use the candidate's parent locus
     renewal_with_approval: bool = False  # ADR-052 option C
+    ingestion_anchors_others: bool = True  # ADR-053: False = an ingestion-only member anchors only ingestion candidates

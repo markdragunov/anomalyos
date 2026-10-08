@@ -6,7 +6,8 @@ exactly one incident qualifies; a **global member** of an incident never anchors
 owner OK: otherwise an incident seeded by a global locus attracts unrelated candidates one by one). Ties go to the
 oldest incident. Pure; Jev never creates a relationship. ADR-052 switches (``IncidentConfig``): the nesting mode
 (chains, chains plus the diagnosed edges, or any pair containment), parent loci (option A) and approval drops in the
-subscriptions group (option C).
+subscriptions group (option C); ADR-053 switch: an ingestion-only member may be kept from anchoring candidates of
+other groups, so late data cannot act as a hub between unrelated events.
 """
 
 from __future__ import annotations
@@ -115,7 +116,10 @@ def decide(member: Member, start: int, end: int, open_groups: Iterable[OpenGroup
             continue
         best = None
         for m in g.members:
-            shared = groups_compatible(mine, groups(m.metric, m.direction, cfg))
+            theirs = groups(m.metric, m.direction, cfg)
+            if not cfg.ingestion_anchors_others and theirs == {"ingestion"} and "ingestion" not in mine:
+                continue  # ADR-053: late data is not a hub for other groups
+            shared = groups_compatible(mine, theirs)
             if not shared:
                 continue
             ok, via_global = nested(member.locus, m.locus, cfg.nesting)

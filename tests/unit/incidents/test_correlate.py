@@ -123,3 +123,29 @@ def test_renewal_with_approval_adr052_option_c():
 def test_defaults_are_the_adr052_selection():
     cfg = IncidentConfig()
     assert (cfg.nesting, cfg.parent_locus, cfg.renewal_with_approval) == ("chains_plus", False, False)
+
+
+def test_ingestion_member_does_not_anchor_other_groups_adr053():
+    rule = IncidentConfig(ingestion_anchors_others=False)
+    late = Member("m1", "late_arrival_share", "up", L(psp="b"))
+    approval = Member("c1", "authorization_rate", "down", L(psp="b", customer_country="DE"))
+    assert decide(approval, H, 2 * H, [group("i1", [late])], IncidentConfig(ingestion_anchors_others=True)).target == "i1"
+    assert decide(approval, H, 2 * H, [group("i1", [late])], rule).target is None
+    # an ingestion candidate still joins any incident, and ingestion still anchors ingestion
+    inc = group("i1", [Member("m2", "authorization_rate", "down", L(psp="b"))])
+    assert decide(Member("c2", "late_arrival_share", "up", L(psp="b")), H, 2 * H, [inc], rule).target == "i1"
+    assert decide(Member("c3", "late_arrival_share", "up", L(psp="b")), H, 2 * H, [group("i1", [late])],
+                  rule).target == "i1"
+    # another member of the incident can still anchor the candidate
+    both = group("i1", [late, Member("m3", "authorization_rate", "down", L(psp="b"))])
+    assert decide(approval, H, 2 * H, [both], rule).target == "i1"
+
+
+def test_seed16_hub_in_miniature_does_not_merge_campaign_and_outage_adr053():
+    """Pair nesting let an ingestion member on psp_beta anchor both a campaign rise and a sepa outage (ADR-052)."""
+    cfg = IncidentConfig(nesting="pairs", ingestion_anchors_others=False)
+    hub = group("i1", [Member("m1", "late_arrival_share", "up", L(psp="b"))])
+    campaign = Member("c1", "attempt_volume", "up", L(customer_country="DE", platform="web", psp="b"))
+    outage = Member("c2", "authorization_rate", "down", L(payment_method_type="sepa_debit", psp="b"))
+    assert decide(campaign, H, 2 * H, [hub], cfg).target is None
+    assert decide(outage, H, 2 * H, [hub], cfg).target is None

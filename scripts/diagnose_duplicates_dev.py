@@ -64,7 +64,7 @@ def one_world(args) -> dict:
                    "loci": dup.first_look_loci(pr.events, full, records, w.end)}
             for name, (gap, hyst) in CONFIGS.items():
                 cfg = IncidentConfig(gap_s=gap, hysteresis_s=hyst, nesting="chains", parent_locus=False,
-                                     renewal_with_approval=False)  # the Gate 0 baseline rules
+                                     renewal_with_approval=False, ingestion_anchors_others=True)  # Gate 0 rules
                 eng = dup.RecordingEngine(cfg)
                 r = eng.run(with_hysteresis(pr.events, hyst))
                 sc = score_incidents(r.incidents, r.incident_events, r.digest_groups, full, records, w.start, w.end)
