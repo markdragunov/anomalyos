@@ -153,6 +153,9 @@ original chains; ADR-051 found the default differed from the ADR-042 choice). On
 set hits the locus 42 / 40 % (Stage 4 top-5: 39 / 37 %); a decoy supports the leader 0 %; safety 100 %. Tuning
 (v1 / v2): control 53 / 51 % top-1, 84 / 86 % top-3 (3 points lower top-1 than before; not analysed). Renewal
 failures (validation v1): 11 / 50 % (n = 28). The incident sets differ, so before / after is approximate.
+On `incidents_v5` (pair nesting with the ingestion rule, ADR-053): validation control 55 / 55 % top-1, 87 / 85 % top-3;
+tuning 54 / 51 %, 85 / 88 %; data-pipeline incidents 54 / 85 % (validation v1, was 43 / 79 %); renewal failures
+11 / 50 %; safety 100 %.
 
 Control by scenario kind (validation, v1, top-1 / top-3): dunning failure, duplicate charge, refund spike 100 / 100 %;
 checkout regression 84 / 95 %; correlated unrelated anomalies 81 / 100 %; country degradation 78 / 100 %; fraud-like

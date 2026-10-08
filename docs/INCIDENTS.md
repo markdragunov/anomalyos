@@ -30,28 +30,29 @@ A checkpoint keeps the first-look `score_at_detection` (the episode's running ma
 supporting evidence for an open incident it correlates with. `INCIDENT`: creates an incident or joins one. A later
 `INCIDENT` decision promotes a digest group to an incident; nothing is downgraded or closed automatically.
 
-## Correlation (`incidents.correlate`, ADR-041 D-2, ADR-042, ADR-052)
+## Correlation (`incidents.correlate`, ADR-041 D-2, ADR-042, ADR-052, ADR-053)
 
 A candidate joins an open incident only if **all** hold against one of its members:
 
 1. **Time:** intervals overlap or the gap is ≤ `G` (6 h; `IncidentConfig` defaults to the ADR-042 choice `G` = 6 h,
    `H` = 0 since ADR-051 — before that only the Stage 6 evaluation script applied it).
-2. **Cohort:** Stage 4 loci are nested along the approved chains `psp ⊂ psp×country ⊂ psp×country×platform`,
-   `psp ⊂ psp×card_brand`, `country ⊂ psp×country`, `country ⊂ country×payment_method`, `platform ⊂ platform×app_version`,
-   and since ADR-052 (`nesting = chains_plus`) `app_version ⊂ platform×app_version`, `psp ⊂ psp×platform ⊂
-   psp×country×platform`, `country ⊂ country×platform`, `psp×country ⊂ psp×country×card_brand` (transitive closure;
-   equal loci always; conflicting values never nest). A **global candidate** joins only when exactly one incident qualifies; a **global member**
+2. **Cohort:** since ADR-053 (`nesting = pairs`) two specific loci nest when one's (dimension, value) pairs contain
+   the other's, whatever the dimensions; conflicting values never nest. The narrower modes stay available: the
+   original chains (`chains`: `psp ⊂ psp×country ⊂ psp×country×platform`, `psp ⊂ psp×card_brand`, `country ⊂
+   psp×country`, `country ⊂ country×payment_method`, `platform ⊂ platform×app_version`) and `chains_plus` (ADR-052
+   adds `app_version ⊂ platform×app_version`, `psp ⊂ psp×platform ⊂ psp×country×platform`, `country ⊂
+   country×platform`, `psp×country ⊂ psp×country×card_brand`). A **global candidate** joins only when exactly one incident qualifies; a **global member**
    never anchors a specific candidate. A checkpoint refines a member's locus only if it still nests with the member it
    joined through.
 3. **Metric group:** payments (`authorization_rate`, `checkout_conversion_rate`, `attempt_volume` down) · fraud
    (`fraud_flag_rate`, `attempt_volume` up) · subscriptions · refunds and duplicates · cancellations · ingestion
-   (compatible with every group).
+   (compatible with every group). Since ADR-053 an ingestion-only member (`late_arrival_share`) anchors only ingestion
+   candidates: late data still joins any incident, but cannot connect unrelated events.
 
 Otherwise a new incident, `related_to` the incidents that matched only time and group. Ties: the oldest incident.
 Merging and splitting existing incidents are human commands. Every link records why.
 
-Switches evaluated and left **off** (ADR-052): `nesting = pairs` (any pair containment — merged a campaign with an
-outage through an ingestion member), `parent_locus` (a Stage 4 locus on a global scope for scoped candidates,
+Switches evaluated and left **off** (ADR-052): `parent_locus` (a Stage 4 locus on a global scope for scoped candidates,
 `cohorts.parent` — 3–5 campaign + outage merges) and `renewal_with_approval` (approval drops in the subscriptions
 group — wrong merges above the threshold).
 
@@ -120,6 +121,18 @@ inheritance 3–7 %. Route-agnostic results, before → after (v1 / v2):
 | Campaign + outage merges | 0 → **0** | 0 → **0** |
 | Coverage · purity | unchanged · 73 / 75 % → 73 / 74 % | unchanged · 76 / 74 % → 77 / 74 % |
 | Incidents | 376 / 342 → 334 / 307 | 377 / 359 → 336 / 326 |
+
+**Ingestion rule (ADR-053; `incidents_v5`, `nesting = pairs`, rule on).** Against `incidents_v4` (v1 / v2):
+
+| | seeds 1–10 | seeds 11–20 (a required check, seen) |
+|---|---|---|
+| Duplicates per covered record | 0.75 / 0.75 → **0.70 / 0.73** | 0.67 / 0.68 → **0.57 / 0.61** |
+| Wrong merges | 3.3 / 3.9 % → 3.7 / 3.9 % | 3.0 / 3.7 % → 3.5 / 3.8 % |
+| Campaign + outage merges | 0 → **0** | 0 → **0** (pairs without the rule: 1) |
+| Coverage · purity | unchanged · 73 / 74 % → 73 / 74 % | unchanged · 77 / 74 % → 77 / 74 % |
+
+Joins through an ingestion member on seeds 1–10 went from 37 (in 11 incidents, 6 of them with a wrong merge) to 0;
+data-pipeline duplicates rose from 10 to 13.
 `baseline_v2` routes: 0.18 incidents per day, coverage 19–28 %, campaign merges 0, system closures 0.
 Stage 4 label accuracy across checkpoints: 63 % at first look → 78–80 % at + 6 h → 77 % at + 24 h → 63–65 % at
 recovery — re-evaluation pays off.
@@ -128,11 +141,11 @@ recovery — re-evaluation pays off.
 
 | Limitation | Evidence | Where it is addressed |
 |---|---|---|
-| Duplicates | 0.67–0.75 engine incidents per covered record beyond the first (after ADR-052) | the rest: loci on different dimensions (a PSP outage seen through a country), metric groups (card testing, renewals), time; the parent locus that would join the first merged campaigns with outages (ADR-052) |
-| An ingestion member joins every group | `late_arrival_share` anchored a campaign and an outage under pair nesting (ADR-052) | follow-up: an ingestion member should not anchor candidates of other groups |
+| Duplicates | 0.57–0.73 engine incidents per covered record beyond the first (after ADR-053) | the rest: loci on different dimensions (a PSP outage seen through a country), metric groups (card testing, renewals), time; the parent locus that would join the first merged campaigns with outages (ADR-052) |
+| Late data no longer anchors other groups | data-pipeline duplicates 10 → 13 on seeds 1–10 (ADR-053) | accepted cost: the late-arrival candidate was often the only anchor for the same record |
 | Lost revenue not provided | median error 1.0–1.3 | a better revenue baseline (seasonality, amounts per cohort) |
 | Lost-payments interval too narrow | covers the truth in 24–42 % | the Stage 4 interval covers sampling noise only — not day-to-day baseline variation nor the extension to the episode |
-| Correlation validated on seen seeds | ADR-042 mechanisms and the ADR-052 choice used seeds 11–20 | HELDOUT, Stage 9 |
+| Correlation validated on seen seeds | ADR-042 mechanisms, the ADR-052 choice and the ADR-053 check used seeds 11–20 | HELDOUT, Stage 9 |
 | Card testing often split in two | approval drop vs fraud signals in different groups | accepted cost of ADR-042 |
 | Jev not evaluated | OQ-1 | live run when access and a budget exist |
 | No automatic escalation | ADR-041 D-4 | later control plane (Mode B transitions exist since Stage 7) |

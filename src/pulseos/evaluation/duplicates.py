@@ -12,6 +12,7 @@ Reasons, checked in this order against the earlier incident as it was open when 
 * ``not_open`` — the earlier incident was not open (closed or promoted);
 * ``time`` — no time overlap and the gap exceeds ``G``;
 * ``group`` — no member shares a metric group (e.g. subscriptions vs payments);
+* ``ingestion`` — the only members sharing a group are ingestion members, which the ADR-053 rule keeps from anchoring;
 * ``global`` — the loci nest only through a global locus, which the ADR-041 amendment blocks or finds ambiguous;
 * ``chain`` — the loci nest as cohorts (one's pairs contain the other's) but no approved chain links their dimensions;
 * ``scope`` — they nest only after each side drops the dimensions of its own Stage 3 scope;
@@ -30,9 +31,9 @@ from pulseos.incidents import correlate
 from pulseos.incidents.config import IncidentConfig
 from pulseos.incidents.engine import CandidateInfo, Engine
 
-REASONS = ("not_open", "time", "group", "global", "chain", "scope", "disjoint", "joinable")
+REASONS = ("not_open", "time", "group", "ingestion", "global", "chain", "scope", "disjoint", "joinable")
 _CLOSENESS = ("joinable", "global", "chain", "scope", "disjoint")  # per-member outcome, closest to joining first
-_SEED_ORDER = _CLOSENESS + ("group", "time", "not_open")  # across seeds of one duplicate, closest to joining first
+_SEED_ORDER = _CLOSENESS + ("ingestion", "group", "time", "not_open")  # across seeds of one duplicate, closest to joining first
 
 
 class RecordingEngine(Engine):
@@ -102,6 +103,11 @@ def closest(c: CandidateInfo, earlier: correlate.OpenGroup | None, scopes: Mappi
               if correlate.groups_compatible(mine, correlate.groups(m.metric, m.direction, cfg))]
     if not shared:
         return "group", None
+    if not cfg.ingestion_anchors_others and "ingestion" not in mine:
+        anchors = [m for m in shared if correlate.groups(m.metric, m.direction, cfg) != {"ingestion"}]
+        if not anchors:
+            return "ingestion", None
+        shared = anchors
     ranked = sorted(((_CLOSENESS.index(member_outcome(c, m.locus, scopes.get(m.candidate_id, frozenset()), cfg,
                                                       m.parent)), m.candidate_id, m) for m in shared),
                     key=lambda x: x[:2])
