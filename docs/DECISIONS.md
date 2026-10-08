@@ -6,6 +6,28 @@ Format: short ID, status, context, decision, consequences.
 
 ---
 
+## ADR-053 — Ingestion members do not anchor other groups; pair nesting by default · *accepted* (2026-10-08, owner OK on the brief; result by its fixed protocol)
+
+**Context.** ADR-052 left pair nesting off: on seed 16 a `late_arrival_share` member, compatible with every group
+(ADR-041 D-2), anchored a campaign and an unrelated outage. On seeds 1–10 under `chains_plus`, 37 joins in 11
+incidents went through an ingestion member, and 6 of those incidents held a wrong merge. Brief and design:
+`docs/tasks/INGESTION-ANCHOR.md`.
+
+**Decision.**
+1. An ingestion-only member anchors only ingestion candidates (`IncidentConfig.ingestion_anchors_others = False`); an
+   ingestion candidate still joins any incident through any member.
+2. By the protocol fixed in the brief (seeds 1–10, v1 + v2 pooled, against `incidents_v4`): `pairs` + rule passed
+   (duplicates per covered record 0.748 → 0.714, wrong merges 3.6 → 3.8 %, coverage unchanged, no campaign + outage
+   merge); `chains_plus` + rule failed (0.789: the rule alone adds duplicates). The required check on seeds 11–20
+   held: `pairs` + rule 0.676 → 0.591, wrong merges 3.3 → 3.7 %, **no campaign + outage merge** (pairs without the
+   rule: one). Default: `nesting = pairs`, rule on, `incidents_v5`.
+3. Cost: data-pipeline duplicates rise where the late-arrival candidate was the only anchor (seeds 1–10: 10 → 13).
+
+**Consequences.** Seeds 11–20 were a required check, not a clean validation (seen since Stage 6); HELDOUT stays the
+clean check. The Gate 0 duplicate classifier gains the reason `ingestion`.
+
+---
+
 ## ADR-052 — Duplicate incidents, Gate 1: options A, B, C as config switches; selection rule · *accepted* (2026-10-07, owner OK on the design)
 
 **Context.** ADR-051 sent three options to design. The design is `docs/tasks/SCOPE-DIMENSIONS-DESIGN.md` (D-0 … D-7).

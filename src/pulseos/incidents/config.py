@@ -50,12 +50,12 @@ IMPACT_METRICS = ("authorization_rate", "checkout_conversion_rate")
 
 @dataclass(frozen=True)
 class IncidentConfig:
-    version: str = "incidents_v4"  # v2: ADR-042; v3: G / H defaults (ADR-051); v4: chains plus diagnosed edges (ADR-052)
+    version: str = "incidents_v5"  # v2: ADR-042; v3: G / H (ADR-051); v4: chains_plus (ADR-052); v5: pairs + ingestion rule (ADR-053)
     gap_s: int = 6 * HOUR  # D-2 rule 1, chosen on seeds 1-10 over 0, 1, 3, 6 h (ADR-042)
     hysteresis_s: int = 0  # D-4 quiet time before RECOVERING, chosen over 0, 1, 3 h (ADR-042)
     checkpoints_s: tuple[int, ...] = (6 * HOUR, 24 * HOUR)  # D-5, after detected_at, while the episode is open
     max_checkpoints: int = 3  # including the one at recovery
-    nesting: str = "chains_plus"  # NESTING_MODES; owner choice at Gate 2 (ADR-052): "pairs" merged a campaign + outage
+    nesting: str = "pairs"  # NESTING_MODES; safe with the ingestion rule (ADR-053; ADR-052 chose chains_plus without it)
     parent_locus: bool = False  # ADR-052 option A: correlation may also use the candidate's parent locus
     renewal_with_approval: bool = False  # ADR-052 option C
-    ingestion_anchors_others: bool = True  # ADR-053: False = an ingestion-only member anchors only ingestion candidates
+    ingestion_anchors_others: bool = False  # ADR-053: an ingestion-only member anchors only ingestion candidates
